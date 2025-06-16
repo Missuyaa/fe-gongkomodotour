@@ -16,14 +16,31 @@ export default function GalleryPage() {
           "GET",
           "/api/landing-page/gallery"
         );
-        if (response.data && Array.isArray(response.data)) {
+        console.log("Raw API Response:", response);
+        
+        if (!response) {
+          console.error("No response received from API");
+          setGalleryData([]);
+          return;
+        }
+
+        if (!response.data) {
+          console.error("Response data is undefined or null");
+          setGalleryData([]);
+          return;
+        }
+
+        if (Array.isArray(response.data)) {
           setGalleryData(response.data);
         } else {
-          console.error("Invalid gallery data format:", response.data);
+          console.error("Invalid gallery data format. Expected array but received:", typeof response.data);
           setGalleryData([]);
         }
       } catch (error) {
         console.error("Error fetching gallery data:", error);
+        if (error instanceof Error) {
+          console.error("Error details:", error.message);
+        }
         setGalleryData([]);
       } finally {
         setIsLoading(false);
