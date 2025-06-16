@@ -16,9 +16,15 @@ export default function GalleryPage() {
           "GET",
           "/api/landing-page/gallery"
         );
-        setGalleryData(response.data);
+        if (response.data && Array.isArray(response.data)) {
+          setGalleryData(response.data);
+        } else {
+          console.error("Invalid gallery data format:", response.data);
+          setGalleryData([]);
+        }
       } catch (error) {
         console.error("Error fetching gallery data:", error);
+        setGalleryData([]);
       } finally {
         setIsLoading(false);
       }
@@ -27,12 +33,14 @@ export default function GalleryPage() {
     fetchGalleryData();
   }, []);
 
-  const formattedGalleryData = galleryData.map((gallery) => ({
-    image: gallery.assets?.[0]?.file_url || "/img/default-gallery.jpg",
-    title: gallery.title,
-    description: gallery.description || 'No Description',
-    category: gallery.category || 'Uncategorized',
-  }));
+  const formattedGalleryData = galleryData
+    .filter(item => item.status === "Aktif" && item.assets?.[0]?.file_url)
+    .map((gallery) => ({
+      image: gallery.assets?.[0]?.file_url || "/img/default-gallery.jpg",
+      title: gallery.title,
+      description: gallery.description || 'No Description',
+      category: gallery.category || 'Uncategorized',
+    }));
 
   return (
     <main className="gallery-page bg-gray-100">

@@ -22,9 +22,15 @@ export default function Home() {
           "GET",
           "/api/landing-page/gallery"
         );
-        setGalleryData(response.data);
+        if (response.data && Array.isArray(response.data.data)) {
+          setGalleryData(response.data.data);
+        } else {
+          console.error("Invalid gallery data format:", response.data);
+          setGalleryData([]);
+        }
       } catch (error) {
         console.error("Error fetching gallery data:", error);
+        setGalleryData([]);
       } finally {
         setIsLoading(false);
       }

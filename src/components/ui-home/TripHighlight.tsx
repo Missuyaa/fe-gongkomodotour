@@ -94,11 +94,11 @@ export default function TripHighlight() {
   useEffect(() => {
     const fetchHighlights = async () => {
       try {
-        const response: TripResponse = await apiRequest<TripResponse>(
+        const response = await apiRequest<TripResponse>(
           'GET',
           '/api/landing-page/highlighted-trips'
         );
-        setHighlights(response.data || []);
+        setHighlights(response.data.data || []);
       } catch (error) {
         console.error('Error fetching highlighted trips:', error);
       } finally {

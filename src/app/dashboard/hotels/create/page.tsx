@@ -45,7 +45,7 @@ const hotelSchema = z.object({
     end_date: z.string().min(1, "Tanggal selesai harus diisi"),
     surcharge_price: z.number().min(0, "Harga surcharge harus diisi"),
     status: z.enum(["Aktif", "Non Aktif"]),
-  })).optional(),
+  })).default([]),
 })
 
 export default function CreateHotelPage() {
@@ -85,7 +85,8 @@ export default function CreateHotelPage() {
       setIsSubmitting(true)
       
       // Log data yang akan dikirim
-      console.log('Data yang akan dikirim:', values)
+      console.log('Raw form values:', values)
+      console.log('Surcharges from form:', values.surcharges)
       
       // Pastikan format surcharges sesuai dengan yang diharapkan API
       const payload = {
@@ -95,6 +96,9 @@ export default function CreateHotelPage() {
           surcharge_price: Number(surcharge.surcharge_price)
         }))
       }
+      
+      console.log('Final payload:', payload)
+      console.log('Surcharges in payload:', payload.surcharges)
       
       const response = await apiRequest<Hotel>(
         'POST',
@@ -106,6 +110,8 @@ export default function CreateHotelPage() {
           },
         }
       )
+
+      console.log('API Response:', response)
 
       if (!response) {
         throw new Error('Response tidak valid dari server')

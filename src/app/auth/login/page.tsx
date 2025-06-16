@@ -19,38 +19,8 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useRouter } from "next/navigation";
-import { apiRequest } from "@/lib/api";
+import api from "@/lib/api";
 import { motion } from "framer-motion";
-
-interface Customer {
-  id: number;
-  user_id: number;
-  alamat: string;
-  no_hp: string;
-  nasionality: string;
-  region: string;
-  status: string;
-  created_at: string;
-  updated_at: string;
-}
-
-interface LoginResponse {
-  access_token: string;
-  token_type: string;
-  user: {
-    id: number;
-    name: string;
-    email: string;
-    role: string;
-    status: string;
-    created_at: string;
-    updated_at: string;
-  };
-  customer: Customer;
-  roles: string[];
-  permissions: string[];
-  status: string;
-}
 
 // Define the form schema using Zod
 const formSchema = z.object({
@@ -67,20 +37,11 @@ export default function LoginPage() {
 
   // Cek apakah user sudah login dan handle history
   useEffect(() => {
-    const token = document.cookie.split('access_token=')[1]?.split(';')[0];
-    
-    // Bersihkan history browser
-    window.history.pushState(null, '', window.location.href);
-    window.onpopstate = function() {
-      window.history.pushState(null, '', window.location.href);
-    };
-
+    const token = localStorage.getItem('access_token');
     if (token) {
-      // Ambil data user dari localStorage
       const userData = localStorage.getItem('user');
       if (userData) {
         const user = JSON.parse(userData);
-        // Redirect berdasarkan roles
         if (user.roles.includes('Super Admin') || user.roles.includes('Admin')) {
           router.replace('/dashboard');
         } else {
@@ -88,6 +49,11 @@ export default function LoginPage() {
         }
       }
     }
+    // Bersihkan history browser
+    window.history.pushState(null, '', window.location.href);
+    window.onpopstate = function() {
+      window.history.pushState(null, '', window.location.href);
+    };
   }, [router]);
 
   // Initialize the form with react-hook-form and zod
@@ -105,34 +71,17 @@ export default function LoginPage() {
     try {
       setIsSubmitting(true);
       
-      const response = await apiRequest<LoginResponse>('POST', '/api/login', {
+      const response = await api.post('/api/login', {
         email: values.email,
         password: values.password,
-      }, {
-        credentials: 'include',
-        headers: {
-          'Accept': 'application/json',
-        }
       });
       
-      if (response.access_token) {
-        // Simpan token ke cookies dengan opsi secure dan httpOnly
-        document.cookie = `access_token=${response.access_token}; path=/; secure; samesite=strict`;
-        document.cookie = `token_type=${response.token_type}; path=/; secure; samesite=strict`;
-        
-        // Simpan data user ke localStorage
-        localStorage.setItem('user', JSON.stringify({
-          id: response.user.id,
-          name: response.user.name,
-          email: response.user.email,
-          role: response.user.role,
-          roles: response.roles,
-          permissions: response.permissions,
-          customer: response.customer
-        }));
-
-        // Bersihkan history dan redirect berdasarkan roles
-        if (response.roles.includes('Super Admin') || response.roles.includes('Admin')) {
+      const { access_token, token_type, user, roles, permissions, customer } = response.data;
+      if (access_token) {
+        document.cookie = `access_token=${access_token}; path=/; secure; samesite=strict`;
+        document.cookie = `token_type=${token_type}; path=/; secure; samesite=strict`;
+        localStorage.setItem('user', JSON.stringify({ ...user, roles, permissions, customer }));
+        if (roles.includes('Super Admin') || roles.includes('Admin')) {
           window.history.pushState(null, '', '/dashboard');
           router.replace('/dashboard');
         } else {
@@ -140,6 +89,7 @@ export default function LoginPage() {
           router.replace('/');
         }
       }
+
     } catch (error) {
       console.error('Login error:', error);
     } finally {

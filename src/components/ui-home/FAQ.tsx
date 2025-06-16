@@ -26,11 +26,11 @@ const FAQ = () => {
   useEffect(() => {
     const fetchFaqs = async () => {
       try {
-        const response: FAQResponse = await apiRequest<FAQResponse>(
+        const response = await apiRequest<FAQResponse>(
           'GET',
           '/api/landing-page/faq'
         );
-        setFaqs(response.data);
+        setFaqs(response.data.data || []);
       } finally {
         setLoading(false);
       }
