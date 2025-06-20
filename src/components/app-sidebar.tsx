@@ -9,7 +9,8 @@ import {
   Users,
   Shield,
   SquareUserRound,
-  Compass
+  Compass,
+  Home
 } from "lucide-react"
 import Image from 'next/image'
 import logo from '../../public/img/logo.png';
@@ -49,6 +50,12 @@ const data = {
     },
   ],
   navMain: [
+    {
+      title: "Dashboard",
+      url: "/dashboard",
+      icon: Home,
+      isActive: false,
+    },
     {
       title: "Trips",
       url: "/dashboard/trips",
