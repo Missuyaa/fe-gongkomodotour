@@ -21,6 +21,18 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useRouter } from "next/navigation";
 import api from "@/lib/api";
 import { motion } from "framer-motion";
+import { toast } from "sonner";
+
+// Helper function to set a cookie
+const setCookie = (name: string, value: string, days: number) => {
+  let expires = "";
+  if (days) {
+    const date = new Date();
+    date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+    expires = "; expires=" + date.toUTCString();
+  }
+  document.cookie = name + "=" + (value || "")  + expires + "; path=/";
+}
 
 // Define the form schema using Zod
 const formSchema = z.object({
@@ -49,11 +61,6 @@ export default function LoginPage() {
         }
       }
     }
-    // Bersihkan history browser
-    window.history.pushState(null, '', window.location.href);
-    window.onpopstate = function() {
-      window.history.pushState(null, '', window.location.href);
-    };
   }, [router]);
 
   // Initialize the form with react-hook-form and zod
@@ -76,22 +83,42 @@ export default function LoginPage() {
         password: values.password,
       });
       
+      console.log('Full response:', response);
+      console.log('Response data:', response.data);
+      
       const { access_token, token_type, user, roles, permissions, customer } = response.data;
+      
       if (access_token) {
-        document.cookie = `access_token=${access_token}; path=/; secure; samesite=strict`;
-        document.cookie = `token_type=${token_type}; path=/; secure; samesite=strict`;
+        console.log('Token received:', access_token);
+        console.log('User data:', user);
+        console.log('Roles:', roles);
+        
+        // Simpan token di localStorage dan cookie
+        localStorage.setItem('access_token', access_token);
+        setCookie('access_token', access_token, 7); // Simpan cookie selama 7 hari
+        localStorage.setItem('token_type', token_type);
+        
+        // Simpan data user di localStorage
         localStorage.setItem('user', JSON.stringify({ ...user, roles, permissions, customer }));
-        if (roles.includes('Super Admin') || roles.includes('Admin')) {
-          window.history.pushState(null, '', '/dashboard');
-          router.replace('/dashboard');
+        
+        // Redirect berdasarkan role
+        if (roles && (roles.includes('Super Admin') || roles.includes('Admin'))) {
+          console.log('Redirecting to dashboard...');
+          router.push('/dashboard');
         } else {
-          window.history.pushState(null, '', '/');
-          router.replace('/');
+          console.log('Redirecting to home...');
+          router.push('/');
         }
+      } else {
+        console.error('No access token in response');
+        toast.error('Gagal login: Token tidak ditemukan');
       }
 
     } catch (error) {
       console.error('Login error:', error);
+      // Tampilkan pesan error ke user
+      const errorMessage = error instanceof Error ? error.message : 'Gagal login. Silakan coba lagi.';
+      toast.error(errorMessage);
     } finally {
       setIsSubmitting(false);
     }

@@ -1,13 +1,15 @@
 // lib/api.ts
-import axios, { AxiosRequestConfig, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
+import axios, { AxiosRequestConfig, InternalAxiosRequestConfig } from 'axios';
 
 // 1. Buat Axios instance
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000',
+  baseURL: process.env.NEXT_PUBLIC_API_URL || 'https://api.gongkomodotour.com',
   headers: {
     'Accept': 'application/json',
+    'Content-Type': 'application/json',
     'X-Requested-With': 'XMLHttpRequest',
   },
+  withCredentials: false, // Tidak perlu credentials untuk API
 });
 
 // 2. Interceptor: tambahkan Bearer token jika ada
@@ -27,22 +29,30 @@ export async function apiRequest<T>(
   url: string,
   data?: Record<string, unknown> | FormData,
   config?: AxiosRequestConfig
-): Promise<AxiosResponse<T>> {
-  return api({
+): Promise<T> {
+  const response = await api({
     method,
     url,
     data,
     ...config,
   });
+  return response.data;
 }
 
-// 4. (Opsional) Tambahkan error handler global (misal 401 auto logout)
+// 4. Error handler global untuk menangani token expired
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
+      // Bersihkan data dari localStorage
       localStorage.removeItem('access_token');
-      // window.location.href = '/auth/login'; // Uncomment jika mau auto-redirect
+      localStorage.removeItem('token_type');
+      localStorage.removeItem('user');
+      
+      // Redirect ke halaman login
+      if (typeof window !== 'undefined') {
+        window.location.href = '/auth/login';
+      }
     }
     return Promise.reject(error);
   }
