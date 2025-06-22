@@ -8,7 +8,7 @@ import WhyChooseUs from "@/components/ui-home/WhyChooseUs";
 import Testimonials from "@/components/ui-home/Testimonials";
 import FAQ from "@/components/ui-home/FAQ";
 import Gallery from "@/components/ui-home/Gallery";
-import { Gallery as GalleryType, GalleryResponse } from "@/types/galleries";
+import { Gallery as GalleryType } from "@/types/galleries";
 import { apiRequest } from "@/lib/api";
 
 export default function Home() {
@@ -18,16 +18,38 @@ export default function Home() {
   useEffect(() => {
     const fetchGalleryData = async () => {
       try {
-        const response = await apiRequest<GalleryResponse>(
+        const response = await apiRequest<unknown>(
           "GET",
           "/api/landing-page/gallery"
         );
-        if (response.data && Array.isArray(response.data.data)) {
-          setGalleryData(response.data.data);
-        } else {
-          console.error("Invalid gallery data format:", response.data);
-          setGalleryData([]);
+        
+        // Handle different response formats
+        let galleryData: GalleryType[] = [];
+        
+        if (Array.isArray(response)) {
+          // Response is directly an array
+          galleryData = response as GalleryType[];
+        } else if (response && typeof response === 'object' && 'data' in response) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const responseData = (response as any).data;
+          if (Array.isArray(responseData)) {
+            // Response has data property that is an array
+            galleryData = responseData;
+          } else if (responseData && typeof responseData === 'object' && 'data' in responseData) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const nestedData = (responseData as any).data;
+            if (Array.isArray(nestedData)) {
+              // Response has nested data structure
+              galleryData = nestedData;
+            }
+          }
         }
+        
+        if (galleryData.length === 0) {
+          console.error("Invalid gallery data format:", response);
+        }
+        
+        setGalleryData(galleryData);
       } catch (error) {
         console.error("Error fetching gallery data:", error);
         setGalleryData([]);

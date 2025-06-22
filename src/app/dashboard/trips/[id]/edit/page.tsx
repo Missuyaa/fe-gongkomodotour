@@ -136,13 +136,6 @@ const tripSchema = z.object({
     day_type: z.enum(["Weekday", "Weekend"]).nullable(),
     is_required: z.boolean(),
     status: z.enum(["Aktif", "Non Aktif"])
-  })).optional(),
-  surcharges: z.array(z.object({
-    season: z.string().min(1, "Nama musim harus diisi"),
-    start_date: z.string().min(1, "Tanggal mulai harus diisi"),
-    end_date: z.string().min(1, "Tanggal selesai harus diisi"),
-    surcharge_price: z.number().min(0, "Harga surcharge harus diisi"),
-    status: z.enum(["Aktif", "Non Aktif"])
   })).optional()
 })
 
@@ -216,8 +209,17 @@ export default function EditTripPage({ params }: { params: Promise<{ id: string 
           // Pastikan setiap trip_duration memiliki field prices dengan nilai yang valid
           const data = {
             ...response.data,
+            destination_count: Number(response.data.destination_count) || 0,
+            has_boat: Boolean(response.data.has_boat),
+            has_hotel: Boolean(response.data.has_hotel),
             trip_durations: response.data.trip_durations.map(duration => ({
               ...duration,
+              duration_days: Number(duration.duration_days) || 1,
+              duration_nights: Number(duration.duration_nights) || 0,
+              itineraries: duration.itineraries?.map(itinerary => ({
+                ...itinerary,
+                day_number: Number(itinerary.day_number) || 1
+              })) || [{ day_number: 1, activities: "" }],
               prices: duration.trip_prices?.map(price => ({
                 pax_min: Number(price.pax_min),
                 pax_max: Number(price.pax_max),
@@ -238,7 +240,7 @@ export default function EditTripPage({ params }: { params: Promise<{ id: string 
               is_required: Boolean(fee.is_required),
               pax_min: Number(fee.pax_min),
               pax_max: Number(fee.pax_max)
-            })) || []
+            })) || [],
           }
           
           const validatedData = tripSchema.parse(data)
@@ -288,26 +290,29 @@ export default function EditTripPage({ params }: { params: Promise<{ id: string 
       // Transform data before sending to API
       const transformedValues = {
         ...values,
+        destination_count: Number(values.destination_count) || 0,
+        has_boat: Boolean(values.has_boat),
+        has_hotel: Boolean(values.has_hotel),
         is_highlight: values.is_highlight === "Yes" ? "Yes" : "No",
         additional_fees: values.additional_fees?.map(fee => ({
           ...fee,
           is_required: fee.is_required ? 1 : 0,
           price: Number(fee.price) || 0,
-          pax_min: Number(fee.pax_min),
-          pax_max: Number(fee.pax_max)
+          pax_min: Number(fee.pax_min) || 1,
+          pax_max: Number(fee.pax_max) || 1
         })),
         trip_durations: values.trip_durations.map(duration => ({
           ...duration,
-          duration_days: Number(duration.duration_days),
-          duration_nights: Number(duration.duration_nights),
+          duration_days: Number(duration.duration_days) || 1,
+          duration_nights: Number(duration.duration_nights) || 0,
           itineraries: duration.itineraries.map(itinerary => ({
             ...itinerary,
-            day_number: Number(itinerary.day_number)
+            day_number: Number(itinerary.day_number) || 1
           })),
           prices: duration.prices.map(price => ({
             ...price,
-            pax_min: Number(price.pax_min),
-            pax_max: Number(price.pax_max),
+            pax_min: Number(price.pax_min) || 1,
+            pax_max: Number(price.pax_max) || 1,
             price_per_pax: Number(price.price_per_pax) || 0
           }))
         }))
@@ -546,8 +551,8 @@ export default function EditTripPage({ params }: { params: Promise<{ id: string 
                         <FormItem>
                           <FormLabel>Highlight</FormLabel>
                           <Select 
-                            onValueChange={(value) => field.onChange(value === "Yes")} 
-                            value={field.value ? "Yes" : "No"}
+                            onValueChange={field.onChange} 
+                            value={field.value}
                           >
                             <FormControl>
                               <SelectTrigger>
@@ -691,7 +696,8 @@ export default function EditTripPage({ params }: { params: Promise<{ id: string 
                               type="number"
                               min="0"
                               {...field}
-                              onChange={e => field.onChange(parseInt(e.target.value))}
+                              value={field.value || 0}
+                              onChange={e => field.onChange(Number(e.target.value) || 0)}
                             />
                           </FormControl>
                           <FormMessage />
@@ -823,7 +829,8 @@ export default function EditTripPage({ params }: { params: Promise<{ id: string 
                                     type="number" 
                                     min="1"
                                     {...field}
-                                    onChange={e => field.onChange(parseInt(e.target.value))}
+                                    value={field.value || 1}
+                                    onChange={e => field.onChange(Number(e.target.value) || 1)}
                                   />
                                 </FormControl>
                                 <FormMessage />
@@ -841,7 +848,8 @@ export default function EditTripPage({ params }: { params: Promise<{ id: string 
                                     type="number"
                                     min="0"
                                     {...field}
-                                    onChange={e => field.onChange(parseInt(e.target.value))}
+                                    value={field.value || 0}
+                                    onChange={e => field.onChange(Number(e.target.value) || 0)}
                                   />
                                 </FormControl>
                                 <FormMessage />
@@ -966,7 +974,8 @@ export default function EditTripPage({ params }: { params: Promise<{ id: string 
                                           type="number"
                                           min="1"
                                           {...field}
-                                          onChange={e => field.onChange(parseInt(e.target.value))}
+                                          value={field.value || 1}
+                                          onChange={e => field.onChange(Number(e.target.value) || 1)}
                                         />
                                       </FormControl>
                                       <FormMessage />
@@ -984,7 +993,8 @@ export default function EditTripPage({ params }: { params: Promise<{ id: string 
                                           type="number"
                                           min="1"
                                           {...field}
-                                          onChange={e => field.onChange(parseInt(e.target.value))}
+                                          value={field.value || 1}
+                                          onChange={e => field.onChange(Number(e.target.value) || 1)}
                                         />
                                       </FormControl>
                                       <FormMessage />
@@ -1002,7 +1012,8 @@ export default function EditTripPage({ params }: { params: Promise<{ id: string 
                                           type="number"
                                           min="0"
                                           {...field}
-                                          onChange={e => field.onChange(parseInt(e.target.value))}
+                                          value={field.value || 0}
+                                          onChange={e => field.onChange(Number(e.target.value) || 0)}
                                         />
                                       </FormControl>
                                       <FormMessage />
@@ -1308,7 +1319,7 @@ export default function EditTripPage({ params }: { params: Promise<{ id: string 
                                     {...field}
                                     value={field.value || 0}
                                     onChange={(e) => {
-                                      const value = e.target.value === '' ? 0 : Number(e.target.value);
+                                      const value = Number(e.target.value) || 0;
                                       field.onChange(value);
                                     }}
                                   />
@@ -1376,8 +1387,9 @@ export default function EditTripPage({ params }: { params: Promise<{ id: string 
                                     type="number"
                                     min="1"
                                     {...field}
+                                    value={field.value || 1}
                                     onChange={(e) => {
-                                      const value = e.target.value === '' ? 1 : Number(e.target.value);
+                                      const value = Number(e.target.value) || 1;
                                       field.onChange(value);
                                     }}
                                   />
@@ -1397,8 +1409,9 @@ export default function EditTripPage({ params }: { params: Promise<{ id: string 
                                     type="number"
                                     min="1"
                                     {...field}
+                                    value={field.value || 1}
                                     onChange={(e) => {
-                                      const value = e.target.value === '' ? 1 : Number(e.target.value);
+                                      const value = Number(e.target.value) || 1;
                                       field.onChange(value);
                                     }}
                                   />

@@ -499,51 +499,6 @@ export function DataTable({
               ))}
             </div>
           </div>
-
-          {/* Surcharges */}
-          <div className="bg-white p-6 rounded-lg shadow-sm">
-            <h4 className="font-semibold text-lg mb-4 text-gray-800 border-b pb-2">Surcharge</h4>
-            <div className="space-y-4">
-              {trip.surcharges.map((surcharge, index) => (
-                <div key={index} className="bg-gray-50 p-4 rounded-md">
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-                    <div>
-                      <p className="text-gray-600 font-medium mb-1">Musim:</p>
-                      <div className="bg-white p-2 rounded border border-gray-100">
-                        <p className="text-gray-800">{surcharge.season}</p>
-                      </div>
-                    </div>
-                    <div>
-                      <p className="text-gray-600 font-medium mb-1">Tanggal Mulai:</p>
-                      <div className="bg-white p-2 rounded border border-gray-100">
-                        <p className="text-gray-800">{surcharge.start_date}</p>
-                      </div>
-                    </div>
-                    <div>
-                      <p className="text-gray-600 font-medium mb-1">Tanggal Selesai:</p>
-                      <div className="bg-white p-2 rounded border border-gray-100">
-                        <p className="text-gray-800">{surcharge.end_date}</p>
-                      </div>
-                    </div>
-                    <div>
-                      <p className="text-gray-600 font-medium mb-1">Harga:</p>
-                      <div className="bg-white p-2 rounded border border-gray-100">
-                        <p className="text-gray-800">{surcharge.surcharge_price}</p>
-                      </div>
-                    </div>
-                  </div>
-                  <div>
-                    <p className="text-gray-600 font-medium mb-1">Status:</p>
-                    <div className="bg-white p-2 rounded border border-gray-100">
-                      <Badge className={`${surcharge.status === "Aktif" ? "bg-emerald-500" : "bg-red-500"} text-white`}>
-                        {surcharge.status}
-                      </Badge>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
         </div>
 
         {/* Gambar Trip - Dipindahkan ke bawah */}
