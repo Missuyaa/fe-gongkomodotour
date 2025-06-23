@@ -61,15 +61,17 @@ export default function Home() {
     fetchGalleryData();
   }, []);
 
-  const formattedGalleryData = galleryData
-    .filter(item => item.status === "Aktif" && item.assets?.[0]?.file_url)
-    .map((gallery) => ({
-      id: gallery.id,
-      title: gallery.title,
-      description: gallery.description || 'No Description',
-      category: gallery.category || 'Uncategorized',
-      assets: gallery.assets ?? []
-    }));
+  const formattedGalleryData = Array.isArray(galleryData)
+    ? galleryData
+        .filter(item => item.status === "Aktif" && item.assets?.[0]?.file_url)
+        .map((gallery) => ({
+          id: gallery.id,
+          title: gallery.title,
+          description: gallery.description || 'No Description',
+          category: gallery.category || 'Uncategorized',
+          assets: gallery.assets ?? []
+        }))
+    : [];
 
   return (
     <>
@@ -81,6 +83,8 @@ export default function Home() {
         <div className="text-center py-10">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto"></div>
         </div>
+      ) : formattedGalleryData.length === 0 ? (
+        <div className="text-center py-10 text-gray-500">Tidak ada data gallery.</div>
       ) : (
         <Gallery data={formattedGalleryData} />
       )}
