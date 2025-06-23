@@ -110,7 +110,8 @@ export default function Footer({ children }: FooterProps) {
 
           <div className="mt-8 pt-6 border-t border-white/10">
             <p className="text-sm text-center text-white/80">
-              &copy; {new Date().getFullYear()} Central Saga. All rights reserved.
+              &copy; {new Date().getFullYear()} Gong Komodo Tour. All rights reserved.<br/>
+              Dikembangkan oleh <a href="https://www.instagram.com/centralsaga_id" target="_blank" rel="noopener noreferrer" className="underline hover:text-white">Central Saga</a> — Solusi digital untuk bisnis wisata Anda!
             </p>
           </div>
         </div>
