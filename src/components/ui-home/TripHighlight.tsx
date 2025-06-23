@@ -162,7 +162,6 @@ export default function TripHighlight() {
           {highlights.length === 0 ? (
             <div className="col-span-full text-center py-8">
               <p className="text-gray-500">Tidak ada trip highlight yang tersedia saat ini.</p>
-              <p className="text-sm text-gray-400 mt-2">Debug: {highlights.length} trip ditemukan</p>
             </div>
           ) : (
             highlights.map((highlight) => {

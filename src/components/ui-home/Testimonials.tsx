@@ -4,17 +4,36 @@ import { Star, Quote } from "lucide-react";
 import { useRef, useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import Image from "next/image";
+import { apiRequest } from "@/lib/api";
 
-interface GoogleReview {
+interface Testimonial {
+  id?: number;
   author_name: string;
   rating: number;
   text: string;
   time: number;
-  profile_photo_url: string;
+  profile_photo_url: string | null;
+  source: string;
+  trip?: {
+    id: number;
+    name: string;
+  } | null;
+  created_at: string;
+  updated_at: string;
+}
+
+interface TestimonialResponse {
+  success: boolean;
+  data: Testimonial[];
+  meta?: {
+    total: number;
+    google_count: number;
+    internal_count: number;
+  };
 }
 
 export default function Testimoni() {
-  const [reviews, setReviews] = useState<GoogleReview[]>([]);
+  const [reviews, setReviews] = useState<Testimonial[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
@@ -26,35 +45,29 @@ export default function Testimoni() {
   const [showFull, setShowFull] = useState<number | null>(null);
 
   useEffect(() => {
-    const fetchGoogleReviews = async () => {
+    const fetchTestimonials = async () => {
       try {
-        const response = await fetch('/api/places');
+        const response = await apiRequest<TestimonialResponse>(
+          'GET',
+          '/api/landing-page/all-testimonials'
+        );
         
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        console.log('Response data:', data);
+        console.log('Testimonial Response:', response);
 
-        if (data.error) {
-          throw new Error(data.error);
-        }
-
-        if (data.result && data.result.reviews) {
-          setReviews(data.result.reviews);
+        if (response.success && response.data && Array.isArray(response.data)) {
+          setReviews(response.data);
         } else {
-          throw new Error('Tidak ada review yang ditemukan');
+          throw new Error('Tidak ada testimonial yang ditemukan');
         }
       } catch (error) {
-        console.error('Error detail:', error);
-        setError(error instanceof Error ? error.message : 'Terjadi kesalahan saat mengambil review');
+        console.error('Error fetching testimonials:', error);
+        setError(error instanceof Error ? error.message : 'Terjadi kesalahan saat mengambil testimonial');
       } finally {
         setLoading(false);
       }
     };
 
-    fetchGoogleReviews();
+    fetchTestimonials();
   }, []);
 
   useEffect(() => {
@@ -182,7 +195,7 @@ export default function Testimoni() {
             const displayText = showFull === index || !isLong ? review.text : review.text.slice(0, 250) + '...';
             return (
               <motion.div
-                key={review.time}
+                key={review.id || review.time}
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: index * 0.1 }}
@@ -239,12 +252,18 @@ export default function Testimoni() {
                     className="relative w-12 h-12 rounded-full bg-white border-2 border-yellow-400 flex items-center justify-center overflow-hidden shadow-md"
                     style={{ minWidth: 48, minHeight: 48 }}
                   >
-                    <Image
-                      src={review.profile_photo_url}
-                      alt={review.author_name}
-                      fill
-                      className="object-cover rounded-full"
-                    />
+                    {review.profile_photo_url ? (
+                      <Image
+                        src={review.profile_photo_url}
+                        alt={review.author_name}
+                        fill
+                        className="object-cover rounded-full"
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white font-bold text-lg">
+                        {review.author_name.charAt(0).toUpperCase()}
+                      </div>
+                    )}
                   </motion.div>
                   <div className="flex flex-col justify-center">
                     <p className="text-xs font-medium text-gray-800">
