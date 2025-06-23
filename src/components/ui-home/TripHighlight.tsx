@@ -14,14 +14,27 @@ interface Trip {
   id: number;
   name: string;
   type: string;
+  is_highlight: string;
+  status: string;
   assets: {
     id: number;
     file_url: string;
     is_external: boolean;
   }[];
   trip_durations: {
+    id: number;
+    duration_label: string;
+    duration_days: string;
+    duration_nights: string;
+    status: string;
     trip_prices: {
+      id: number;
+      trip_duration_id: string;
+      pax_min: string;
+      pax_max: string;
       price_per_pax: string;
+      status: string;
+      region: string;
     }[];
   }[];
 }
@@ -96,9 +109,11 @@ export default function TripHighlight() {
       try {
         const response = await apiRequest<TripResponse>(
           'GET',
-          '/api/landing-page/highlighted-trips'
+          '/api/landing-page/trips?status=1&is_highlight=Yes'
         );
-        setHighlights(response.data.data || []);
+        console.log('Trip Highlight Response:', response);
+        console.log('Trip Highlight Data:', response.data);
+        setHighlights(response.data || []);
       } catch (error) {
         console.error('Error fetching highlighted trips:', error);
       } finally {
@@ -122,6 +137,9 @@ export default function TripHighlight() {
     );
   }
 
+  console.log('Highlights to render:', highlights);
+  console.log('Highlights count:', highlights.length);
+
   return (
     <section className="p-4 py-10 bg-gray-50">
       <style>{customStyles}</style>
@@ -141,86 +159,93 @@ export default function TripHighlight() {
           animate="show"
           className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4"
         >
-          {highlights.map((highlight) => {
-            const imageUrl = highlight.assets?.[0]?.file_url 
-              ? `${API_URL}${highlight.assets[0].file_url}`
-              : '/images/placeholder.jpg';
+          {highlights.length === 0 ? (
+            <div className="col-span-full text-center py-8">
+              <p className="text-gray-500">Tidak ada trip highlight yang tersedia saat ini.</p>
+              <p className="text-sm text-gray-400 mt-2">Debug: {highlights.length} trip ditemukan</p>
+            </div>
+          ) : (
+            highlights.map((highlight) => {
+              const imageUrl = highlight.assets?.[0]?.file_url 
+                ? `${API_URL}${highlight.assets[0].file_url}`
+                : '/images/placeholder.jpg';
 
-            return (
-              <motion.div
-                key={highlight.id}
-                variants={item}
-              >
-                <Link
-                  href={`/detail-paket/${
-                    highlight.type === "Open Trip" ? "open-trip" : "private-trip"
-                  }?id=${highlight.id}`}
-                  className="aspect-[3/2] block"
+              return (
+                <motion.div
+                  key={highlight.id}
+                  variants={item}
                 >
-                  <Card
-                    className="custom-card rounded-tr-sm overflow-hidden cursor-pointer h-full"
-                    onMouseEnter={() => setHoveredCard(highlight.id)}
-                    onMouseLeave={() => setHoveredCard(null)}
+                  <Link
+                    href={`/detail-paket/${
+                      highlight.type === "Open Trip" ? "open-trip" : "private-trip"
+                    }?id=${highlight.id}`}
+                    className="aspect-[3/2] block"
                   >
-                    <CardContent className="p-0 relative h-full">
-                      <motion.div 
-                        className="relative w-full h-full"
-                        whileHover={{ scale: 1.05 }}
-                        transition={{ duration: 0.5, ease: "easeInOut" }}
-                      >
-                        <Image
-                          src={imageUrl}
-                          alt={highlight.name}
-                          fill
-                          className="object-cover rounded-sm"
-                          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                          quality={100}
-                          priority={true}
+                    <Card
+                      className="custom-card rounded-tr-sm overflow-hidden cursor-pointer h-full"
+                      onMouseEnter={() => setHoveredCard(highlight.id)}
+                      onMouseLeave={() => setHoveredCard(null)}
+                    >
+                      <CardContent className="p-0 relative h-full">
+                        <motion.div 
+                          className="relative w-full h-full"
+                          whileHover={{ scale: 1.05 }}
+                          transition={{ duration: 0.5, ease: "easeInOut" }}
+                        >
+                          <Image
+                            src={imageUrl}
+                            alt={highlight.name}
+                            fill
+                            className="object-cover rounded-sm"
+                            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                            quality={100}
+                            priority={true}
+                          />
+                        </motion.div>
+                        <div
+                          className={`absolute inset-0 transition-opacity duration-800 ${
+                            hoveredCard === highlight.id ? "opacity-65 bg-black" : "opacity-0"
+                          }`}
                         />
-                      </motion.div>
-                      <div
-                        className={`absolute inset-0 transition-opacity duration-800 ${
-                          hoveredCard === highlight.id ? "opacity-65 bg-black" : "opacity-0"
-                        }`}
-                      />
-                      <Badge
-                        variant="default"
-                        className={`absolute top-5 left-5 ${
-                          highlight.type === "Open Trip" ? "bg-emerald-500 hover:bg-emerald-600" : "bg-orange-500 hover:bg-orange-600"
-                        } text-white`}
-                      >
-                        {highlight.type}
-                      </Badge>
-
-                      <div
-                        className={`absolute left-0 right-0 text-center transition-all duration-800 hover-text hover-text-top ${
-                          hoveredCard === highlight.id
-                            ? "hovered top-[40%] -translate-y-1/2 opacity-100"
-                            : "top-0 opacity-0"
-                        }`}
-                      >
-                        <p className="m-0 text-lg font-bold text-shadow-nike text-gold-light-30">
+                        <Badge
+                          variant="default"
+                          className={`absolute top-5 left-5 ${
+                            highlight.type === "Open Trip" ? "bg-emerald-500 hover:bg-emerald-600" : "bg-orange-500 hover:bg-orange-600"
+                          } text-white`}
+                        >
                           {highlight.type}
-                        </p>
-                      </div>
+                        </Badge>
 
-                      <div
-                        className={`absolute left-0 right-0 text-center transition-all duration-800 hover-text hover-text-bottom ${
-                          hoveredCard === highlight.id
-                            ? "hovered bottom-[40%] translate-y-1/2 opacity-100"
-                            : "bottom-0 opacity-0"
-                        }`}
-                      >
-                        <p className="m-0 text-lg text-shadow-nike text-gold-light-20">
-                          {highlight.name}
-                        </p>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </Link>
-              </motion.div>
-            );
-          })}
+                        <div
+                          className={`absolute left-0 right-0 text-center transition-all duration-800 hover-text hover-text-top ${
+                            hoveredCard === highlight.id
+                              ? "hovered top-[40%] -translate-y-1/2 opacity-100"
+                              : "top-0 opacity-0"
+                          }`}
+                        >
+                          <p className="m-0 text-lg font-bold text-shadow-nike text-gold-light-30">
+                            {highlight.type}
+                          </p>
+                        </div>
+
+                        <div
+                          className={`absolute left-0 right-0 text-center transition-all duration-800 hover-text hover-text-bottom ${
+                            hoveredCard === highlight.id
+                              ? "hovered bottom-[40%] translate-y-1/2 opacity-100"
+                              : "bottom-0 opacity-0"
+                          }`}
+                        >
+                          <p className="m-0 text-lg text-shadow-nike text-gold-light-20">
+                            {highlight.name}
+                          </p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </Link>
+                </motion.div>
+              );
+            })
+          )}
         </motion.div>
         <motion.div 
           initial={{ opacity: 0, y: 40 }}
