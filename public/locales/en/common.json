@@ -1,0 +1,16 @@
+{
+  "home": "Home",
+  "packages": "Packages",
+  "openTrip": "Open Trip",
+  "privateTrip": "Private Trip",
+  "gallery": "Gallery",
+  "blog": "Blog",
+  "aboutUs": "About Us",
+  "login": "Login",
+  "register": "Register",
+  "logout": "Logout",
+  "dashboard": "Dashboard",
+  "myProfile": "My Profile",
+  "english": "English",
+  "indonesia": "Indonesia"
+} 

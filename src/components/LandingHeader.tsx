@@ -13,6 +13,42 @@ import { apiRequest } from '@/lib/api';
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 
+// Translation data
+const translations = {
+  en: {
+    home: "Home",
+    packages: "Packages",
+    openTrip: "Open Trip",
+    privateTrip: "Private Trip",
+    gallery: "Gallery",
+    blog: "Blog",
+    aboutUs: "About Us",
+    login: "Login",
+    register: "Register",
+    logout: "Logout",
+    dashboard: "Dashboard",
+    myProfile: "My Profile",
+    english: "English",
+    indonesia: "Indonesia"
+  },
+  id: {
+    home: "Beranda",
+    packages: "Paket",
+    openTrip: "Open Trip",
+    privateTrip: "Private Trip",
+    gallery: "Galeri",
+    blog: "Blog",
+    aboutUs: "Tentang Kami",
+    login: "Masuk",
+    register: "Daftar",
+    logout: "Keluar",
+    dashboard: "Dashboard",
+    myProfile: "Profil Saya",
+    english: "English",
+    indonesia: "Indonesia"
+  }
+};
+
 interface Customer {
   id: number;
   user_id: number;
@@ -40,7 +76,13 @@ export default function LandingHeader() {
   const [isHovered, setIsHovered] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userData, setUserData] = useState<UserData | null>(null);
+  const [language, setLanguage] = useState<'en' | 'id'>('id');
   const router = useRouter();
+
+  // Translation function
+  const t = (key: string) => {
+    return translations[language][key as keyof typeof translations.en] || key;
+  };
 
   useEffect(() => {
     // Cek apakah user sudah login
@@ -51,13 +93,18 @@ export default function LandingHeader() {
       setIsLoggedIn(true);
       setUserData(JSON.parse(user));
     }
+    
+    // Load language from localStorage
+    const savedLanguage = localStorage.getItem('language') as 'en' | 'id';
+    if (savedLanguage) {
+      setLanguage(savedLanguage);
+    }
   }, []);
 
   const handleLogout = async () => {
     try {
       // Panggil API logout
       await apiRequest('POST', '/api/logout', {}, {
-        credentials: 'include',
         headers: {
           'Accept': 'application/json',
           'Authorization': `Bearer ${document.cookie.split('access_token=')[1]?.split(';')[0]}`
@@ -88,6 +135,11 @@ export default function LandingHeader() {
     }
   };
 
+  const handleLanguageChange = (lang: 'en' | 'id') => {
+    setLanguage(lang);
+    localStorage.setItem('language', lang);
+  };
+
   return (
     <header className="bg-[#ffffff] border-b shadow-sm">
       <div className="container mx-auto flex justify-between items-center p-2.5">
@@ -101,7 +153,7 @@ export default function LandingHeader() {
             <NavigationMenuList className="flex space-x-5">
               <NavigationMenuItem>
                 <NavigationMenuLink href="/" className="text-sm hover:text-gold transition-colors duration-200">
-                  Home
+                  {t('home')}
                 </NavigationMenuLink>
               </NavigationMenuItem>
               <NavigationMenuItem>
@@ -118,7 +170,7 @@ export default function LandingHeader() {
                         isOpen || isHovered ? 'text-gold' : 'text-black'
                       }`}
                     >
-                      Packages
+                      {t('packages')}
                     </span>
                   </PopoverTrigger>
                   <PopoverContent 
@@ -126,27 +178,27 @@ export default function LandingHeader() {
                     className="w-48 p-2 bg-white shadow-md absolute left-0 top-full transform -translate-x-2 flex flex-col"
                   >
                     <a href="/paket/open-trip" className="px-4 py-2 text-sm hover:text-gold transition-colors duration-200 whitespace-nowrap">
-                      Open Trip
+                      {t('openTrip')}
                     </a>
                     <a href="/paket/private-trip" className="px-4 py-2 text-sm hover:text-gold transition-colors duration-200 whitespace-nowrap">
-                      Private Trip
+                      {t('privateTrip')}
                     </a>
                   </PopoverContent>
                 </Popover>
               </NavigationMenuItem>
               <NavigationMenuItem>
                 <NavigationMenuLink href="/gallery" className="text-sm hover:text-gold transition-colors duration-200">
-                  Gallery
+                  {t('gallery')}
                 </NavigationMenuLink>
               </NavigationMenuItem>
               <NavigationMenuItem>
                 <NavigationMenuLink href="/blog" className="text-sm hover:text-gold transition-colors duration-200">
-                  Blog
+                  {t('blog')}
                 </NavigationMenuLink>
               </NavigationMenuItem>
               <NavigationMenuItem>
                 <NavigationMenuLink href="/about-us" className="text-sm hover:text-gold transition-colors duration-200">
-                  About Us
+                  {t('aboutUs')}
                 </NavigationMenuLink>
               </NavigationMenuItem>
             </NavigationMenuList>
@@ -156,16 +208,24 @@ export default function LandingHeader() {
               <NavigationMenuList>
                 <NavigationMenuItem>
                   <NavigationMenuTrigger className="text-sm hover:text-gold data-[state=open]:text-gold transition-colors duration-200">
-                    <CountryFlag countryCode="GB" svg style={{ width: '20px', height: '15px' }} />
+                    <CountryFlag countryCode={language === 'en' ? 'GB' : 'ID'} svg style={{ width: '20px', height: '15px' }} />
                   </NavigationMenuTrigger>
                   <NavigationMenuContent className="w-32 p-2 bg-white shadow-md">
-                    <NavigationMenuLink href="#" className="px-4 py-2 text-sm hover:text-gold transition-colors duration-200 flex items-center gap-2">
+                    <NavigationMenuLink
+                      href="#"
+                      onClick={() => handleLanguageChange('en')}
+                      className="px-4 py-2 text-sm hover:text-gold transition-colors duration-200 flex items-center gap-2"
+                    >
                       <CountryFlag countryCode="GB" svg style={{ width: '16px', height: '12px' }} />
-                      English
+                      {t('english')}
                     </NavigationMenuLink>
-                    <NavigationMenuLink href="#" className="px-4 py-2 text-sm hover:text-gold transition-colors duration-200 flex items-center gap-2">
+                    <NavigationMenuLink
+                      href="#"
+                      onClick={() => handleLanguageChange('id')}
+                      className="px-4 py-2 text-sm hover:text-gold transition-colors duration-200 flex items-center gap-2"
+                    >
                       <CountryFlag countryCode="ID" svg style={{ width: '16px', height: '12px' }} />
-                      Indonesia
+                      {t('indonesia')}
                     </NavigationMenuLink>
                   </NavigationMenuContent>
                 </NavigationMenuItem>
@@ -231,7 +291,7 @@ export default function LandingHeader() {
                           className="flex items-center px-4 py-2 text-sm hover:text-gold transition-colors duration-200 gap-2"
                         >
                           <Settings size={16} />
-                          Dashboard
+                          {t('dashboard')}
                         </button>
                       )}
                       {userData.customer && (
@@ -240,7 +300,7 @@ export default function LandingHeader() {
                           className="flex items-center px-4 py-2 text-sm hover:text-gold transition-colors duration-200 gap-2"
                         >
                           <User size={16} />
-                          My Profile
+                          {t('myProfile')}
                         </a>
                       )}
                       <button
@@ -248,18 +308,18 @@ export default function LandingHeader() {
                         className="flex items-center px-4 py-2 text-sm text-red-600 hover:text-red-700 transition-colors duration-200 gap-2"
                       >
                         <LogOut size={16} />
-                        Logout
+                        {t('logout')}
                       </button>
                     </>
                   ) : (
                     <>
                       <a href="/auth/login" className="flex items-center px-4 py-2 text-sm hover:text-gold transition-colors duration-200 gap-2">
                         <User size={16} />
-                        Login
+                        {t('login')}
                       </a>
                       <a href="/auth/register" className="flex items-center px-4 py-2 text-sm hover:text-gold transition-colors duration-200 gap-2">
                         <User size={16} />
-                        Register
+                        {t('register')}
                       </a>
                     </>
                   )}
