@@ -12,6 +12,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
@@ -36,6 +37,7 @@ export default function Gallery({ data }: GalleryProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [selectedItem, setSelectedItem] = useState<GalleryItem | null>(null);
   const [isOpen, setIsOpen] = useState(false);
+  const { t } = useLanguage();
 
   // Fungsi untuk menangani klik pada video
   const handleVideoClick = () => {
@@ -95,11 +97,9 @@ export default function Gallery({ data }: GalleryProps) {
           viewport={{ once: true }}
           className="text-center mb-12"
         >
-          <h2 className="text-4xl font-bold text-gray-900">Travel Gallery</h2>
+          <h2 className="text-4xl font-bold text-gray-900">{t('galleryTitle')}</h2>
           <p className="text-gray-600 mt-4 max-w-3xl mx-auto">
-            Explore breathtaking moments from our adventures in Komodo National Park. 
-            From stunning underwater landscapes to encounters with ancient dragons, 
-            each image tells a unique story of Indonesia&apos;s natural beauty.
+            {t('gallerySubtitle')}
           </p>
         </motion.div>
 
@@ -184,7 +184,7 @@ export default function Gallery({ data }: GalleryProps) {
             <Button
               className="bg-gold text-white px-6 py-3 rounded-md text-base hover:bg-gold-dark-10 hover:scale-105 transition-all duration-300"
             >
-              See More
+              {t('viewDetails')}
             </Button>
           </Link>
         </motion.div>
@@ -198,21 +198,18 @@ export default function Gallery({ data }: GalleryProps) {
           </DialogHeader>
           {selectedItem && (
             <div className="space-y-4">
-              <div className="relative aspect-video w-full rounded-lg overflow-hidden border border-gold/20">
-                <Image
-                  src={`${API_URL}${selectedItem.assets[0].file_url}`}
-                  alt={selectedItem.title}
-                  fill
-                  className="object-cover"
-                />
+              <div className="grid grid-cols-2 gap-4">
+                {selectedItem.assets.slice(0, 4).map((asset, index) => (
+                  <div key={asset.id} className="relative aspect-square rounded-lg overflow-hidden">
+                    <Image
+                      src={`${API_URL}${asset.file_url}`}
+                      alt={`${selectedItem.title} - Image ${index + 1}`}
+                      fill
+                      className="object-cover"
+                    />
+                  </div>
+                ))}
               </div>
-              {selectedItem.category && (
-                <div className="flex justify-center">
-                  <span className="bg-gold/10 text-gold text-sm px-4 py-1.5 rounded-full border border-gold/20">
-                    {selectedItem.category}
-                  </span>
-                </div>
-              )}
             </div>
           )}
         </DialogContent>

@@ -5,9 +5,11 @@ import Link from "next/link";
 import { Button } from "../ui/button";
 import { motion, useScroll, useTransform, useSpring } from "framer-motion";
 import { useRef } from "react";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 export default function AboutUs() {
   const sectionRef = useRef(null);
+  const { t } = useLanguage();
   
   const { scrollYProgress } = useScroll({
     target: sectionRef,
@@ -42,7 +44,7 @@ export default function AboutUs() {
               viewport={{ once: true }}
               className="text-3xl font-bold text-gray-800 mb-4"
             >
-              About Us
+              {t('aboutTitle')}
             </motion.h2>
             <motion.p 
               initial={{ opacity: 0, y: 30 }}
@@ -51,10 +53,7 @@ export default function AboutUs() {
               viewport={{ once: true }}
               className="text-black mb-6 leading-relaxed text-xl"
             >
-              Since 2010, Gong Komodo Tour has been dedicated to providing exceptional travel experiences to Komodo National Park. Our private tours are crafted to showcase the region&apos;s natural beauty and unique wildlife.
-              <br />
-              <br />
-              With private boats, expert guides, and a commitment to customer satisfaction, we ensure your journey is comfortable and unforgettable. Discover the wonders of Komodo with us.
+              {t('aboutDescription')}
             </motion.p>
             <motion.div
               initial={{ opacity: 0, y: 40 }}
@@ -64,7 +63,7 @@ export default function AboutUs() {
             >
               <Link href="/about-us">
                 <Button className="bg-gold text-white px-6 py-3 hover:bg-gold-dark-10 transition-all duration-300 rounded-md hover:scale-105">
-                  Read more
+                  {t('learnMore')}
                 </Button>
               </Link>
             </motion.div>

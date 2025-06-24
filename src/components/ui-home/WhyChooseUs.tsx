@@ -3,43 +3,40 @@
 import Head from "next/head";
 import Image from "next/image";
 import { motion } from "framer-motion";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 export default function WhyChooseUs() {
+  const { t } = useLanguage();
+  
   const reasons = [
     {
-      title: "Best Tour Service Provider",
-      description:
-        "We are a trusted tour service provider with over 10 years of experience in Bali's tourism industry.",
+      title: t('bestService'),
+      description: t('bestServiceDesc'),
       icon: "/img/world-travel.gif",
     },
     {
-      title: "Experienced Tour Guides",
-      description:
-        "Our team consists of professional and experienced tour guides who will make your journey more meaningful.",
+      title: t('experiencedGuides'),
+      description: t('experiencedGuidesDesc'),
       icon: "/img/tour-guide.gif",
     },
     {
-      title: "Affordable Travel Packages",
-      description:
-        "Enjoy quality vacation experiences with competitive and transparent pricing without hidden costs.",
+      title: t('affordablePackages'),
+      description: t('affordablePackagesDesc'),
       icon: "/img/money-bag.gif",
     },
     {
-      title: "Best Destination Experience",
-      description:
-        "We present the best tourist destinations in Bali with unforgettable experiences for every guest.",
+      title: t('bestDestination'),
+      description: t('bestDestinationDesc'),
       icon: "/img/destination.gif",
     },
     {
-      title: "Hassle-Free Vacation",
-      description:
-        "We take care of all your travel needs so you can enjoy your vacation without worries.",
+      title: t('hassleFree'),
+      description: t('hassleFreeDesc'),
       icon: "/img/island-vacation.gif",
     },
     {
-      title: "Enjoyable Vacation Experience",
-      description:
-        "Every journey is designed to provide a fun and memorable vacation experience.",
+      title: t('enjoyableExperience'),
+      description: t('enjoyableExperienceDesc'),
       icon: "/img/boat-travel.gif",
     },
   ];
@@ -70,7 +67,7 @@ export default function WhyChooseUs() {
   return (
     <>
       <Head>
-        <title>Why Choose Us - Gong Komodo Tour</title>
+        <title>{t('whyChooseTitle')} - Gong Komodo Tour</title>
         <meta
           name="description"
           content="Discover why Gong Komodo Tour is the best choice for your Bali vacation. Professional tour services, experienced guides, and affordable prices."
@@ -158,7 +155,7 @@ export default function WhyChooseUs() {
                   viewport={{ once: true }}
                   className="text-8xl font-bold text-white text-left tracking-wide max-w-sm ml-8 leading-tight"
                 >
-                  WHY CHOOSE US?
+                  {t('whyChooseTitle').toUpperCase()}?
                 </motion.h2>
               </motion.div>
             </div>

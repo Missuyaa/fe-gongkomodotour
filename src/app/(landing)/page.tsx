@@ -10,10 +10,12 @@ import FAQ from "@/components/ui-home/FAQ";
 import Gallery from "@/components/ui-home/Gallery";
 import { Gallery as GalleryType } from "@/types/galleries";
 import { apiRequest } from "@/lib/api";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 export default function Home() {
   const [galleryData, setGalleryData] = useState<GalleryType[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const { t } = useLanguage();
 
   useEffect(() => {
     const fetchGalleryData = async () => {
@@ -82,9 +84,10 @@ export default function Home() {
       {isLoading ? (
         <div className="text-center py-10">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto"></div>
+          <p className="mt-4 text-gray-600">{t('loading')}</p>
         </div>
       ) : formattedGalleryData.length === 0 ? (
-        <div className="text-center py-10 text-gray-500">Tidak ada data gallery.</div>
+        <div className="text-center py-10 text-gray-500">{t('noGalleryData')}</div>
       ) : (
         <Gallery data={formattedGalleryData} />
       )}

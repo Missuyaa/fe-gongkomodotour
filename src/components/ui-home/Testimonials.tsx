@@ -5,6 +5,7 @@ import { useRef, useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import Image from "next/image";
 import { apiRequest } from "@/lib/api";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface Testimonial {
   id?: number;
@@ -43,6 +44,7 @@ export default function Testimoni() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const [showFull, setShowFull] = useState<number | null>(null);
+  const { t } = useLanguage();
 
   useEffect(() => {
     const fetchTestimonials = async () => {
@@ -170,10 +172,10 @@ export default function Testimoni() {
           className="text-center mb-12"
         >
           <h2 className="text-4xl font-bold text-[#f5f5f5] mb-6">
-            What Our Clients Say
+            {t('testimonialsTitle')}
           </h2>
           <p className="text-lg text-[#f5f5f5] mb-8 max-w-2xl mx-auto">
-            Discover the experiences shared by our valued customers who have explored the wonders of Komodo with us.
+            {t('testimonialsSubtitle')}
           </p>
         </motion.div>
 
@@ -234,7 +236,7 @@ export default function Testimoni() {
                       className="ml-2 text-blue-600 hover:underline text-sm"
                       onClick={() => setShowFull(index)}
                     >
-                      Lihat Selengkapnya
+                      {t('readMore')}
                     </button>
                   )}
                   {isLong && showFull === index && (
@@ -242,7 +244,7 @@ export default function Testimoni() {
                       className="ml-2 text-blue-600 hover:underline text-sm"
                       onClick={() => setShowFull(null)}
                     >
-                      Sembunyikan
+                      {t('hide')}
                     </button>
                   )}
                 </p>

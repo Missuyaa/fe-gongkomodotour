@@ -5,6 +5,7 @@ import { Autoplay, Pagination, Navigation, EffectFade } from "swiper/modules";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { motion } from "framer-motion";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 // Impor gaya Swiper
 import "swiper/css";
@@ -39,6 +40,8 @@ const customStyles = `
 `;
 
 export default function LandingHero() {
+  const { t } = useLanguage();
+  
   const slides = [
     "/img/landingpage/hero-slide1.png",
     "/img/boat/bg-luxury.jpg",
@@ -138,7 +141,7 @@ export default function LandingHero() {
                           padding: "clamp(2rem, 2.75vw, 1.5rem) clamp(2rem, 4.5vw, 2.75rem)",
                         }}
                       >
-                        Check Trip
+                        {t('heroButton')}
                       </Button>
                     </motion.div>
                   </Link>

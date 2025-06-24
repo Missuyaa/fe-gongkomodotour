@@ -12,42 +12,7 @@ import { useRouter } from 'next/navigation';
 import { apiRequest } from '@/lib/api';
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
-
-// Translation data
-const translations = {
-  en: {
-    home: "Home",
-    packages: "Packages",
-    openTrip: "Open Trip",
-    privateTrip: "Private Trip",
-    gallery: "Gallery",
-    blog: "Blog",
-    aboutUs: "About Us",
-    login: "Login",
-    register: "Register",
-    logout: "Logout",
-    dashboard: "Dashboard",
-    myProfile: "My Profile",
-    english: "English",
-    indonesia: "Indonesia"
-  },
-  id: {
-    home: "Beranda",
-    packages: "Paket",
-    openTrip: "Open Trip",
-    privateTrip: "Private Trip",
-    gallery: "Galeri",
-    blog: "Blog",
-    aboutUs: "Tentang Kami",
-    login: "Masuk",
-    register: "Daftar",
-    logout: "Keluar",
-    dashboard: "Dashboard",
-    myProfile: "Profil Saya",
-    english: "English",
-    indonesia: "Indonesia"
-  }
-};
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface Customer {
   id: number;
@@ -76,13 +41,8 @@ export default function LandingHeader() {
   const [isHovered, setIsHovered] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userData, setUserData] = useState<UserData | null>(null);
-  const [language, setLanguage] = useState<'en' | 'id'>('id');
   const router = useRouter();
-
-  // Translation function
-  const t = (key: string) => {
-    return translations[language][key as keyof typeof translations.en] || key;
-  };
+  const { language, setLanguage, t } = useLanguage();
 
   useEffect(() => {
     // Cek apakah user sudah login
@@ -92,12 +52,6 @@ export default function LandingHeader() {
     if (token && user) {
       setIsLoggedIn(true);
       setUserData(JSON.parse(user));
-    }
-    
-    // Load language from localStorage
-    const savedLanguage = localStorage.getItem('language') as 'en' | 'id';
-    if (savedLanguage) {
-      setLanguage(savedLanguage);
     }
   }, []);
 
@@ -137,7 +91,6 @@ export default function LandingHeader() {
 
   const handleLanguageChange = (lang: 'en' | 'id') => {
     setLanguage(lang);
-    localStorage.setItem('language', lang);
   };
 
   return (

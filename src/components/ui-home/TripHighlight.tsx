@@ -7,8 +7,8 @@ import Image from "next/image";
 import { useState, useEffect } from "react";
 import { apiRequest } from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface Trip {
   id: number;
@@ -79,7 +79,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 export default function TripHighlight() {
   const [highlights, setHighlights] = useState<Trip[]>([]);
   const [loading, setLoading] = useState(true);
-  const [hoveredCard, setHoveredCard] = useState<number | null>(null);
+  const { t } = useLanguage();
 
   const container = {
     hidden: { opacity: 0 },
@@ -129,8 +129,8 @@ export default function TripHighlight() {
       <section className="p-4 py-10 bg-gray-50">
         <div className="container mx-auto">
           <div className="text-center mb-6">
-            <h2 className="text-3xl font-bold text-gray-800">Our Trip Highlights</h2>
-            <p className="text-muted-foreground mt-2">Loading...</p>
+            <h2 className="text-3xl font-bold text-gray-800">{t('tripHighlightTitle')}</h2>
+            <p className="text-muted-foreground mt-2">{t('loading')}</p>
           </div>
         </div>
       </section>
@@ -150,7 +150,8 @@ export default function TripHighlight() {
           transition={{ duration: 0.8, ease: "easeOut" }}
           className="text-center mb-6"
         >
-          <h2 className="text-3xl font-bold text-gray-800">Our Trip Highlights</h2>
+          <h2 className="text-3xl font-bold text-gray-800">{t('tripHighlightTitle')}</h2>
+          <p className="text-gray-600 mt-2">{t('tripHighlightSubtitle')}</p>
         </motion.div>
 
         <motion.div 
@@ -161,7 +162,7 @@ export default function TripHighlight() {
         >
           {highlights.length === 0 ? (
             <div className="col-span-full text-center py-8">
-              <p className="text-gray-500">Tidak ada trip highlight yang tersedia saat ini.</p>
+              <p className="text-gray-500">{t('noData')}</p>
             </div>
           ) : (
             highlights.map((highlight) => {
@@ -182,8 +183,6 @@ export default function TripHighlight() {
                   >
                     <Card
                       className="custom-card rounded-tr-sm overflow-hidden cursor-pointer h-full"
-                      onMouseEnter={() => setHoveredCard(highlight.id)}
-                      onMouseLeave={() => setHoveredCard(null)}
                     >
                       <CardContent className="p-0 relative h-full">
                         <motion.div 
@@ -198,46 +197,17 @@ export default function TripHighlight() {
                             className="object-cover rounded-sm"
                             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                             quality={100}
-                            priority={true}
                           />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent opacity-0 hover:opacity-100 transition-opacity duration-300" />
+                          <div className="absolute bottom-0 left-0 right-0 p-4 transform translate-y-full group-hover:translate-y-0 transition-transform duration-300">
+                            <h3 className="text-white text-sm font-semibold text-center line-clamp-2">
+                              {highlight.name}
+                            </h3>
+                            <Badge className="mt-2 bg-gold text-white text-xs">
+                              {highlight.type}
+                            </Badge>
+                          </div>
                         </motion.div>
-                        <div
-                          className={`absolute inset-0 transition-opacity duration-800 ${
-                            hoveredCard === highlight.id ? "opacity-65 bg-black" : "opacity-0"
-                          }`}
-                        />
-                        <Badge
-                          variant="default"
-                          className={`absolute top-5 left-5 ${
-                            highlight.type === "Open Trip" ? "bg-emerald-500 hover:bg-emerald-600" : "bg-orange-500 hover:bg-orange-600"
-                          } text-white`}
-                        >
-                          {highlight.type}
-                        </Badge>
-
-                        <div
-                          className={`absolute left-0 right-0 text-center transition-all duration-800 hover-text hover-text-top ${
-                            hoveredCard === highlight.id
-                              ? "hovered top-[40%] -translate-y-1/2 opacity-100"
-                              : "top-0 opacity-0"
-                          }`}
-                        >
-                          <p className="m-0 text-lg font-bold text-shadow-nike text-gold-light-30">
-                            {highlight.type}
-                          </p>
-                        </div>
-
-                        <div
-                          className={`absolute left-0 right-0 text-center transition-all duration-800 hover-text hover-text-bottom ${
-                            hoveredCard === highlight.id
-                              ? "hovered bottom-[40%] translate-y-1/2 opacity-100"
-                              : "bottom-0 opacity-0"
-                          }`}
-                        >
-                          <p className="m-0 text-lg text-shadow-nike text-gold-light-20">
-                            {highlight.name}
-                          </p>
-                        </div>
                       </CardContent>
                     </Card>
                   </Link>
@@ -245,18 +215,6 @@ export default function TripHighlight() {
               );
             })
           )}
-        </motion.div>
-        <motion.div 
-          initial={{ opacity: 0, y: 40 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.6, duration: 0.6 }}
-          className="text-center mt-8"
-        >
-          <Link href="/paket/open-trip">
-            <Button className="bg-gold text-white hover:bg-gold-dark-10 px-6 py-3 rounded-md hover:scale-105 transition-all duration-300">
-              See more
-            </Button>
-          </Link>
         </motion.div>
       </div>
     </section>
