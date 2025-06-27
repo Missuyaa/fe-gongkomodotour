@@ -33,7 +33,7 @@ const translations = {
     // About Us
     aboutTitle: "About Gong Komodo Tour",
     aboutSubtitle: "Your trusted travel partner for Komodo adventures",
-    aboutDescription: "We are a professional tour service provider with years of experience in organizing memorable trips to Komodo Island and surrounding areas.",
+    aboutDescription: "Since 2010, Gong Komodo Tour has been dedicated to providing exceptional travel experiences to Komodo National Park. Our private tours are crafted to showcase the region's natural beauty and unique wildlife.",
     
     // Why Choose Us
     whyChooseTitle: "Why Choose Us",
@@ -53,7 +53,7 @@ const translations = {
     
     // Testimonials
     testimonialsTitle: "What Our Customers Say",
-    testimonialsSubtitle: "Real experiences from our satisfied customers",
+    testimonialsSubtitle: "Discover the experiences shared by our valued customers who have explored the wonders of Komodo with us.",
     
     // FAQ
     faqTitle: "Frequently Asked Questions",
@@ -61,7 +61,7 @@ const translations = {
     
     // Gallery
     galleryTitle: "Photo Gallery",
-    gallerySubtitle: "Beautiful moments captured during our tours",
+    gallerySubtitle: "Explore breathtaking moments from our adventures in Komodo National Park. From stunning underwater landscapes to encounters with ancient dragons, each image tells a unique story of Indonesia's natural beauty.",
     noGalleryData: "No gallery data available.",
     
     // Common
@@ -103,7 +103,7 @@ const translations = {
     // About Us
     aboutTitle: "Tentang Gong Komodo Tour",
     aboutSubtitle: "Partner perjalanan terpercaya untuk petualangan Komodo",
-    aboutDescription: "Kami adalah penyedia layanan tur profesional dengan pengalaman bertahun-tahun dalam mengorganisir perjalanan tak terlupakan ke Pulau Komodo dan sekitarnya.",
+    aboutDescription: "Sejak 2010, Gong Komodo Tour telah berdedikasi untuk memberikan pengalaman perjalanan yang luar biasa ke Taman Nasional Komodo. Tour pribadi kami dirancang untuk menampilkan keindahan alam dan keanekaragaman hayati unik wilayah ini.",
     
     // Why Choose Us
     whyChooseTitle: "Mengapa Memilih Kami",
@@ -123,7 +123,7 @@ const translations = {
     
     // Testimonials
     testimonialsTitle: "Apa Kata Pelanggan Kami",
-    testimonialsSubtitle: "Pengalaman nyata dari pelanggan kami yang puas",
+    testimonialsSubtitle: "Temukan pengalaman yang dibagikan oleh pelanggan kami yang puas dengan petualangan Komodo bersama kami.",
     
     // FAQ
     faqTitle: "Pertanyaan yang Sering Diajukan",
@@ -131,7 +131,7 @@ const translations = {
     
     // Gallery
     galleryTitle: "Galeri Foto",
-    gallerySubtitle: "Momen indah yang tertangkap selama tur kami",
+    gallerySubtitle: "Jelajahi momen indah dari petualangan kami di Taman Nasional Komodo. Dari pemandangan alam bawah laut yang menakjubkan hingga pembelokan dengan naga-naga purba, setiap gambar memberikan cerita unik tentang keindahan alam Indonesia.",
     noGalleryData: "Tidak ada data galeri.",
     
     // Common

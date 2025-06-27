@@ -128,7 +128,7 @@ export default function LandingHero() {
                   >
                     TOUR
                   </motion.h1>
-                  <Link href="/trip">
+                  <Link href="/paket/open-trip">
                     <motion.div
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
