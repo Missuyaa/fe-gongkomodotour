@@ -83,7 +83,12 @@ const translations = {
     // Gallery
     galleryTitle: "Photo Gallery",
     gallerySubtitle: "Explore breathtaking moments from our adventures in Komodo National Park. From stunning underwater landscapes to encounters with ancient dragons, each image tells a unique story of Indonesia's natural beauty.",
+    galleryPageTitle: "Our Gallery: Photos & Videos from Gong Komodo Tour",
+    galleryPageSubtitle: "Discover the beauty of Komodo through our stunning collection of photos and videos. From breathtaking landscapes to unforgettable moments, each image tells a unique story of adventure and exploration. Let these visuals inspire your next journey to Komodo!",
     noGalleryData: "No gallery data available.",
+    noTitle: "No Title",
+    noDescription: "No Description",
+    uncategorized: "Uncategorized",
     
     // Common
     loading: "Loading...",
@@ -174,7 +179,12 @@ const translations = {
     // Gallery
     galleryTitle: "Galeri Foto",
     gallerySubtitle: "Jelajahi momen indah dari petualangan kami di Taman Nasional Komodo. Dari pemandangan alam bawah laut yang menakjubkan hingga pembelokan dengan naga-naga purba, setiap gambar memberikan cerita unik tentang keindahan alam Indonesia.",
+    galleryPageTitle: "Galeri Kami: Foto & Video dari Gong Komodo Tour",
+    galleryPageSubtitle: "Jelajahi keindahan Komodo melalui koleksi foto dan video yang menakjubkan kami. Dari pemandangan alam bawah laut yang menakjubkan hingga momen yang tak terlupakan, setiap gambar memberikan cerita unik tentang petualangan dan eksplorasi. Biarkan visual ini menginspirasi perjalananmu berikutnya ke Komodo!",
     noGalleryData: "Tidak ada data galeri.",
+    noTitle: "Tidak Ada Judul",
+    noDescription: "Tidak Ada Deskripsi",
+    uncategorized: "Tidak Dikategorikan",
     
     // Common
     loading: "Memuat...",

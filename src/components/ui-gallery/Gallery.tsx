@@ -9,6 +9,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
@@ -24,6 +25,7 @@ interface GalleryProps {
 }
 
 const Gallery: React.FC<GalleryProps> = ({ data }) => {
+  const { t } = useLanguage();
   const [selectedItem, setSelectedItem] = useState<GalleryItem | null>(null);
   const [isOpen, setIsOpen] = useState(false);
 
@@ -80,10 +82,10 @@ const Gallery: React.FC<GalleryProps> = ({ data }) => {
             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
             <div className="absolute bottom-0 left-0 right-0 p-4 transform translate-y-full group-hover:translate-y-0 transition-transform duration-300">
               <h3 className="text-white text-lg font-semibold text-center line-clamp-2">
-                {truncateText(item.title || 'No Title', 30)}
+                {truncateText(item.title || t('noTitle'), 30)}
               </h3>
               <p className="text-white/90 text-sm text-center mt-2 line-clamp-3">
-                {truncateText(item.description || 'No Description', 60)}
+                {truncateText(item.description || t('noDescription'), 60)}
               </p>
               {item.category && (
                 <span className="text-gold text-xs text-center mt-2 bg-black/40 px-3 py-1 rounded-full inline-block border border-gold/30">
