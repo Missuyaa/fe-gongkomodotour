@@ -39,7 +39,25 @@ export interface Trip {
   updated_at: string
 }
 
+// Interface untuk model Testimonial yang baru (sesuai dengan PHP model)
 export interface Testimonial {
+  id: number
+  customer_name: string
+  customer_email: string
+  customer_phone: string
+  trip_id?: number
+  rating: number
+  review: string
+  is_approved: boolean
+  is_highlight: boolean
+  source: string
+  created_at: string
+  updated_at: string
+  trip?: Trip
+}
+
+// Interface untuk testimonial lama (jika masih digunakan)
+export interface TestimonialLegacy {
   id: number
   customer_id: number
   trip_id?: number

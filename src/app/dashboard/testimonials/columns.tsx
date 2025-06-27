@@ -106,7 +106,7 @@ export const columns = ({ onDelete }: ColumnsProps): ColumnDef<Testimonial>[] =>
   },
   {
     id: "customer_name",
-    accessorFn: (row) => row.customer.user.name,
+    accessorKey: "customer_name",
     header: ({ column }) => {
       return (
         <Button
@@ -114,6 +114,22 @@ export const columns = ({ onDelete }: ColumnsProps): ColumnDef<Testimonial>[] =>
           onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
         >
           Nama Customer
+          <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      )
+    },
+    enableSorting: true,
+  },
+  {
+    id: "customer_email",
+    accessorKey: "customer_email",
+    header: ({ column }) => {
+      return (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        >
+          Email Customer
           <ArrowUpDown className="ml-2 h-4 w-4" />
         </Button>
       )
@@ -141,6 +157,29 @@ export const columns = ({ onDelete }: ColumnsProps): ColumnDef<Testimonial>[] =>
           <Star className="w-4 h-4 text-yellow-400 mr-1" />
           <span>{rating}</span>
         </div>
+      )
+    }
+  },
+  {
+    accessorKey: "source",
+    header: ({ column }) => {
+      return (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        >
+          Source
+          <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      )
+    },
+    enableSorting: true,
+    cell: ({ row }) => {
+      const source = row.original.source
+      return (
+        <Badge className={`${source === "internal" ? "bg-blue-500" : "bg-green-500"} text-white`}>
+          {source === "internal" ? "Internal" : "External"}
+        </Badge>
       )
     }
   },

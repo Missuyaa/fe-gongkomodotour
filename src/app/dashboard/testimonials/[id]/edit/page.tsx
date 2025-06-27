@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, use } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -18,30 +18,48 @@ import {
   FormField,
   FormItem,
   FormLabel,
+  FormMessage,
 } from "@/components/ui/form"
 import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
 import { Star } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 const testimonialSchema = z.object({
+  customer_name: z.string().min(1, "Nama customer harus diisi"),
+  customer_email: z.string().email("Email harus valid"),
+  customer_phone: z.string().min(1, "Nomor telepon harus diisi"),
+  trip_id: z.string().optional(),
+  rating: z.enum(["1", "2", "3", "4", "5"], {
+    required_error: "Rating harus dipilih"
+  }),
+  review: z.string().min(1, "Review harus diisi"),
   is_approved: z.boolean(),
   is_highlight: z.boolean(),
+  source: z.enum(["internal", "external"], {
+    required_error: "Source harus dipilih"
+  }),
 })
 
-export default function EditTestimonialPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = use(params)
+export default function EditTestimonialPage({ params }: { params: { id: string } }) {
+  const { id } = params
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [customerName, setCustomerName] = useState("")
-  const [review, setReview] = useState("")
-  const [rating, setRating] = useState(0)
 
   const form = useForm<z.infer<typeof testimonialSchema>>({
     resolver: zodResolver(testimonialSchema),
     defaultValues: {
+      customer_name: "",
+      customer_email: "",
+      customer_phone: "",
+      trip_id: "",
+      rating: "5",
+      review: "",
       is_approved: false,
       is_highlight: false,
+      source: "internal",
     }
   })
 
@@ -62,12 +80,16 @@ export default function EditTestimonialPage({ params }: { params: Promise<{ id: 
           throw new Error("Format data tidak valid")
         }
         
-        setCustomerName(response.data.customer.user.name)
-        setReview(response.data.review)
-        setRating(response.data.rating)
         form.reset({
+          customer_name: response.data.customer_name,
+          customer_email: response.data.customer_email,
+          customer_phone: response.data.customer_phone,
+          trip_id: response.data.trip_id?.toString() || "",
+          rating: response.data.rating.toString() as "1" | "2" | "3" | "4" | "5",
+          review: response.data.review,
           is_approved: response.data.is_approved,
           is_highlight: response.data.is_highlight,
+          source: response.data.source as "internal" | "external",
         })
       } catch (error) {
         console.error("Error fetching testimonial:", error)
@@ -84,10 +106,16 @@ export default function EditTestimonialPage({ params }: { params: Promise<{ id: 
   const onSubmit = async (values: z.infer<typeof testimonialSchema>) => {
     try {
       setIsSubmitting(true)
+      const payload = {
+        ...values,
+        trip_id: values.trip_id ? parseInt(values.trip_id) : null,
+        rating: parseInt(values.rating),
+      }
+      
       await apiRequest(
         'PUT',
         `/api/testimonials/${id}`,
-        values
+        payload
       )
 
       toast.success("Testimonial berhasil diupdate")
@@ -116,74 +144,190 @@ export default function EditTestimonialPage({ params }: { params: Promise<{ id: 
       <div className="container max-w-7xl mx-auto px-4 py-10">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">Edit Testimonial</h1>
-          <p className="text-gray-500 mt-2">Edit testimonial dari {customerName}</p>
+          <p className="text-gray-500 mt-2">Edit testimonial dari {form.watch('customer_name')}</p>
         </div>
 
         <div className="mx-auto bg-white rounded-xl shadow-sm">
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="p-8 space-y-8">
               <div className="space-y-8">
-                {/* Review */}
-                <div className="space-y-2">
-                  <FormLabel>Review</FormLabel>
-                  <Textarea
-                    value={review}
-                    readOnly
-                    className="min-h-[100px] bg-gray-50"
-                  />
-                </div>
+                {/* Informasi Customer */}
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-900 mb-6">Informasi Customer</h2>
+                  <div className="grid grid-cols-2 gap-8">
+                    <FormField
+                      control={form.control}
+                      name="customer_name"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Nama Customer</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Masukkan nama customer" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-                {/* Rating */}
-                <div className="space-y-2">
-                  <FormLabel>Rating</FormLabel>
-                  <div className="flex gap-1">
-                    {[1, 2, 3, 4, 5].map((star) => (
-                      <Star
-                        key={star}
-                        className={`h-8 w-8 ${
-                          star <= rating
-                            ? "text-yellow-400 fill-yellow-400"
-                            : "text-gray-300"
-                        }`}
-                      />
-                    ))}
+                    <FormField
+                      control={form.control}
+                      name="customer_email"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Email Customer</FormLabel>
+                          <FormControl>
+                            <Input 
+                              type="email"
+                              placeholder="Masukkan email customer" 
+                              {...field} 
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="customer_phone"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Nomor Telepon</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Masukkan nomor telepon" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="source"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Source</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Pilih source" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="internal">Internal</SelectItem>
+                              <SelectItem value="external">External</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
                   </div>
                 </div>
 
-                {/* Status */}
-                <div className="grid grid-cols-2 gap-8">
-                  <FormField
-                    control={form.control}
-                    name="is_approved"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                        <div className="space-y-0.5">
-                          <FormLabel className="text-base">Approved</FormLabel>
-                        </div>
-                        <FormControl>
-                          <Switch
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
-                          />
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
+                {/* Informasi Trip */}
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-900 mb-6">Informasi Trip</h2>
+                  <div className="grid grid-cols-2 gap-8">
+                    <FormField
+                      control={form.control}
+                      name="trip_id"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Trip ID (Opsional)</FormLabel>
+                          <FormControl>
+                            <Input 
+                              type="number"
+                              placeholder="Masukkan ID trip (opsional)" 
+                              {...field} 
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </div>
+
+                {/* Informasi Testimonial */}
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-900 mb-6">Informasi Testimonial</h2>
+                  <div className="grid grid-cols-2 gap-8">
+                    <FormField
+                      control={form.control}
+                      name="rating"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Rating</FormLabel>
+                          <div className="flex gap-1">
+                            {[1, 2, 3, 4, 5].map((star) => (
+                              <Star
+                                key={star}
+                                className={`h-8 w-8 cursor-pointer ${
+                                  star.toString() === field.value
+                                    ? "text-yellow-400 fill-yellow-400"
+                                    : "text-gray-300"
+                                }`}
+                                onClick={() => field.onChange(star.toString() as "1" | "2" | "3" | "4" | "5")}
+                              />
+                            ))}
+                          </div>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="is_approved"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                          <div className="space-y-0.5">
+                            <FormLabel className="text-base">Approved</FormLabel>
+                          </div>
+                          <FormControl>
+                            <Switch
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                            />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="is_highlight"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                          <div className="space-y-0.5">
+                            <FormLabel className="text-base">Highlight</FormLabel>
+                          </div>
+                          <FormControl>
+                            <Switch
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                            />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                  </div>
 
                   <FormField
                     control={form.control}
-                    name="is_highlight"
+                    name="review"
                     render={({ field }) => (
-                      <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                        <div className="space-y-0.5">
-                          <FormLabel className="text-base">Highlight</FormLabel>
-                        </div>
+                      <FormItem className="mt-6">
+                        <FormLabel>Review</FormLabel>
                         <FormControl>
-                          <Switch
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
+                          <Textarea 
+                            placeholder="Masukkan review customer"
+                            className="min-h-[150px]"
+                            {...field} 
                           />
                         </FormControl>
+                        <FormMessage />
                       </FormItem>
                     )}
                   />

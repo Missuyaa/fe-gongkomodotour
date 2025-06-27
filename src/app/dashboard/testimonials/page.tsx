@@ -63,7 +63,6 @@ export default function TestimonialPage() {
         <DataTable 
           columns={columns({ onDelete: handleDelete })} 
           data={data}
-          setData={setData}
         />
       </div>
     </div>
