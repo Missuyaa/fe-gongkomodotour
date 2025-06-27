@@ -414,10 +414,10 @@ export default function CreateBoatPage() {
                                     </SelectTrigger>
                                   </FormControl>
                                   <SelectContent>
-                                    <SelectItem value="king">King Bed</SelectItem>
-                                    <SelectItem value="queen">Queen Bed</SelectItem>
-                                    <SelectItem value="double">Double Bed</SelectItem>
-                                    <SelectItem value="single">Single Bed</SelectItem>
+                                    <SelectItem value="King">King Bed</SelectItem>
+                                    <SelectItem value="Queen">Queen Bed</SelectItem>
+                                    <SelectItem value="Double">Double Bed</SelectItem>
+                                    <SelectItem value="Single">Single Bed</SelectItem>
                                   </SelectContent>
                                 </Select>
                                 <FormMessage />
