@@ -16,6 +16,7 @@ import { useState, useEffect } from "react";
 import { apiRequest } from "@/lib/api";
 import { Trip } from "@/types/trips";
 import { Button } from "@/components/ui/button";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface TripResponse {
   data: Trip[];
@@ -26,6 +27,7 @@ interface TripResponse {
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 export default function OpenTrip() {
+  const { t } = useLanguage();
   const [trips, setTrips] = useState<Trip[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
@@ -122,7 +124,7 @@ export default function OpenTrip() {
           className="absolute inset-0 bg-black/40 flex items-center justify-center"
         >
           <h1 className="text-5xl font-bold text-white tracking-wide">
-            OPEN TRIP
+            {t('openTripTitle')}
           </h1>
         </motion.div>
       </motion.section>
@@ -138,10 +140,10 @@ export default function OpenTrip() {
             className="md:w-2/3 bg-white p-8 rounded-lg shadow-lg"
           >
             <h2 className="text-2xl font-semibold mb-4 text-gray-800">
-              About Open Trip
+              {t('aboutOpenTripTitle')}
             </h2>
             <p className="text-gray-600 leading-relaxed">
-              Open Trip is a travel package open to the public, where participants can join with other participants who have booked the same trip. Open Trip has a fixed schedule and more affordable prices.
+              {t('aboutOpenTripDescription')}
             </p>
           </motion.div>
 
@@ -153,21 +155,21 @@ export default function OpenTrip() {
             className="md:w-1/3 bg-white p-8 rounded-lg shadow-lg"
           >
             <h3 className="text-xl font-semibold mb-6 text-gray-800">
-              Find Your Trip
+              {t('findYourTripTitle')}
             </h3>
             <div className="space-y-6">
               <Select value={sortBy} onValueChange={setSortBy}>
                 <SelectTrigger className="w-full border-gray-300 focus:ring-2 focus:ring-gold">
-                  <SelectValue placeholder="Sort By" />
+                  <SelectValue placeholder={t('sortBy')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="high-low">Price: High to Low</SelectItem>
-                  <SelectItem value="low-high">Price: Low to High</SelectItem>
+                  <SelectItem value="high-low">{t('priceHighToLow')}</SelectItem>
+                  <SelectItem value="low-high">{t('priceLowToHigh')}</SelectItem>
                 </SelectContent>
               </Select>
               <Select value={duration} onValueChange={setDuration}>
                 <SelectTrigger className="w-full border-gray-300 focus:ring-2 focus:ring-gold">
-                  <SelectValue placeholder="Duration" />
+                  <SelectValue placeholder={t('duration')} />
                 </SelectTrigger>
                 <SelectContent>
                   {availableDurations.map((duration) => (
@@ -192,10 +194,10 @@ export default function OpenTrip() {
             className="text-center mb-12"
           >
             <h2 className="text-3xl font-bold mb-4 text-gray-800">
-              Open Trip Tours
+              {t('openTripToursTitle')}
             </h2>
             <p className="text-gray-600 mb-8 leading-relaxed max-w-2xl mx-auto">
-              Discover our selection of group travel packages, perfect for those who want to explore with other adventurers.
+              {t('openTripToursDescription')}
             </p>
           </motion.div>
           
@@ -247,7 +249,7 @@ export default function OpenTrip() {
                               className="w-4 h-4 brightness-200 invert"
                             />
                             <span className="text-sm">
-                              {trip.trip_durations?.[0]?.duration_label || "Custom Duration"}
+                              {trip.trip_durations?.[0]?.duration_label || t('customDuration')}
                             </span>
                           </div>
                           {trip.trip_durations?.[0]?.trip_prices?.[0]?.price_per_pax && (
@@ -260,7 +262,7 @@ export default function OpenTrip() {
                                 className="w-4 h-4 brightness-200 invert"
                               />
                               <span className="text-sm">
-                                IDR {parseInt(String(trip.trip_durations[0].trip_prices[0].price_per_pax)).toLocaleString('id-ID')}/pax
+                                IDR {parseInt(String(trip.trip_durations[0].trip_prices[0].price_per_pax)).toLocaleString('id-ID')}{t('perPax')}
                               </span>
                             </div>
                           )}
@@ -277,7 +279,7 @@ export default function OpenTrip() {
                             whileTap={{ scale: 0.95 }}
                             className="w-full bg-gold text-white py-2 rounded-lg hover:bg-gold-dark transition-colors duration-300"
                           >
-                            View Details
+                            {t('viewDetails')}
                           </motion.button>
                         </Link>
                       </div>
@@ -296,7 +298,7 @@ export default function OpenTrip() {
                 onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
                 disabled={currentPage === 1}
               >
-                Previous
+                {t('previous')}
               </Button>
               {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
                 <Button
@@ -313,7 +315,7 @@ export default function OpenTrip() {
                 onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
                 disabled={currentPage === totalPages}
               >
-                Next
+                {t('next')}
               </Button>
             </div>
           )}

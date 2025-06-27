@@ -24,16 +24,37 @@ const translations = {
     // Hero Section
     heroTitle: "Discover the Beauty of Komodo Island",
     heroSubtitle: "Experience unforgettable adventures with the best tour services",
-    heroButton: "Explore Packages",
+    heroButton: "Book Now",
     
     // Trip Highlight
     tripHighlightTitle: "Popular Trip Packages",
     tripHighlightSubtitle: "Choose the best package for your adventure",
     
     // About Us
-    aboutTitle: "About Gong Komodo Tour",
+    aboutTitle: "About Us",
     aboutSubtitle: "Your trusted travel partner for Komodo adventures",
-    aboutDescription: "Since 2010, Gong Komodo Tour has been dedicated to providing exceptional travel experiences to Komodo National Park. Our private tours are crafted to showcase the region's natural beauty and unique wildlife.",
+    aboutDescription: "Gong Komodo Tour is a leading tourism service provider in Labuan Bajo, East Nusa Tenggara. We offer unforgettable travel experiences with a focus on safety, comfort, and customer satisfaction.",
+    
+    // Open Trip & Private Trip
+    openTripTitle: "OPEN TRIP",
+    privateTripTitle: "PRIVATE TRIP",
+    aboutOpenTripTitle: "About Open Trip",
+    aboutOpenTripDescription: "Open Trip is a travel package open to the public, where participants can join with other participants who have booked the same trip. Open Trip has a fixed schedule and more affordable prices.",
+    aboutPrivateTripTitle: "About Private Trip",
+    aboutPrivateTripDescription: "Private Trip is an exclusive travel package specially designed for groups or individuals, where participants can arrange the itinerary according to their needs. This package offers a more personal and flexible experience.",
+    findYourTripTitle: "Find Your Trip",
+    sortBy: "Sort By",
+    duration: "Duration",
+    priceHighToLow: "Price: High to Low",
+    priceLowToHigh: "Price: Low to High",
+    openTripToursTitle: "Open Trip Tours",
+    openTripToursDescription: "Discover our selection of group travel packages, perfect for those who want to explore with other adventurers.",
+    privateTripToursTitle: "Private Trip Tours",
+    privateTripToursDescription: "Discover our selection of exclusive travel packages, perfect for those who want a personalized experience.",
+    customDuration: "Custom Duration",
+    perPax: "/pax",
+    previous: "Previous",
+    next: "Next",
     
     // Why Choose Us
     whyChooseTitle: "Why Choose Us",
@@ -94,16 +115,37 @@ const translations = {
     // Hero Section
     heroTitle: "Jelajahi Keindahan Pulau Komodo",
     heroSubtitle: "Rasakan petualangan tak terlupakan dengan layanan tur terbaik",
-    heroButton: "Jelajahi Paket",
+    heroButton: "Pesan Sekarang",
     
     // Trip Highlight
     tripHighlightTitle: "Paket Perjalanan Populer",
     tripHighlightSubtitle: "Pilih paket terbaik untuk petualangan Anda",
     
     // About Us
-    aboutTitle: "Tentang Gong Komodo Tour",
+    aboutTitle: "Tentang Kami",
     aboutSubtitle: "Partner perjalanan terpercaya untuk petualangan Komodo",
-    aboutDescription: "Sejak 2010, Gong Komodo Tour telah berdedikasi untuk memberikan pengalaman perjalanan yang luar biasa ke Taman Nasional Komodo. Tour pribadi kami dirancang untuk menampilkan keindahan alam dan keanekaragaman hayati unik wilayah ini.",
+    aboutDescription: "Gong Komodo Tour adalah penyedia layanan wisata terkemuka di Labuan Bajo, Nusa Tenggara Timur. Kami menawarkan pengalaman wisata yang tak terlupakan dengan fokus pada keamanan, kenyamanan, dan kepuasan pelanggan.",
+    
+    // Open Trip & Private Trip
+    openTripTitle: "OPEN TRIP",
+    privateTripTitle: "PRIVATE TRIP",
+    aboutOpenTripTitle: "Tentang Open Trip",
+    aboutOpenTripDescription: "Open Trip adalah paket wisata yang terbuka untuk umum, dimana peserta dapat bergabung dengan peserta lain yang telah memesan perjalanan yang sama. Open Trip memiliki jadwal tetap dan harga yang lebih terjangkau.",
+    aboutPrivateTripTitle: "Tentang Private Trip",
+    aboutPrivateTripDescription: "Private Trip adalah paket wisata eksklusif yang dirancang khusus untuk grup atau individu, dimana peserta dapat mengatur itinerary sesuai kebutuhan mereka. Paket ini menawarkan pengalaman yang lebih personal dan fleksibel.",
+    findYourTripTitle: "Temukan Perjalanan Anda",
+    sortBy: "Urutkan Berdasarkan",
+    duration: "Durasi",
+    priceHighToLow: "Harga: Tinggi ke Rendah",
+    priceLowToHigh: "Harga: Rendah ke Tinggi",
+    openTripToursTitle: "Tur Open Trip",
+    openTripToursDescription: "Temukan pilihan paket perjalanan grup kami, sempurna untuk mereka yang ingin menjelajah dengan petualang lainnya.",
+    privateTripToursTitle: "Tur Private Trip",
+    privateTripToursDescription: "Temukan pilihan paket wisata eksklusif kami, sempurna untuk mereka yang menginginkan pengalaman yang dipersonalisasi.",
+    customDuration: "Durasi Kustom",
+    perPax: "/pax",
+    previous: "Sebelumnya",
+    next: "Selanjutnya",
     
     // Why Choose Us
     whyChooseTitle: "Mengapa Memilih Kami",
