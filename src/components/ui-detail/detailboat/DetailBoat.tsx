@@ -28,7 +28,10 @@ const DetailBoatUI: React.FC<DetailBoatProps> = ({ boat }) => {
       <div className="text-gray-600 mb-2 text-sm">
         <span>Category: {boat.category}</span>
       </div>
-      <p className="text-sm text-gray-800 mb-8">{boat.description}</p>
+      <div
+        className="text-sm text-gray-800 mb-8"
+        dangerouslySetInnerHTML={{ __html: boat.description }}
+      />
     </div>
   );
 };

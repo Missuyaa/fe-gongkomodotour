@@ -35,18 +35,6 @@ export default function DetailBoat({ boat }: DetailBoatProps) {
         : `${API_URL}${boat.assets[0].file_url}`)
     : "/img/default-image.png";
 
-  const specifications = boat.spesification.split('\n').map(spec => {
-    const [label, value] = spec.split(':').map(s => s.trim());
-    return { label, value };
-  });
-
-  const facilities = boat.facilities.split(',').map(facility => facility.trim());
-
-  const cabinInfo = boat.cabin_information.split('\n').map(cabin => {
-    const [type, count] = cabin.split(':').map(s => s.trim());
-    return { type, count };
-  });
-
   // Membagi cabin menjadi dua kolom
   const cabinsKiri = boat.cabin.slice(0, Math.ceil(boat.cabin.length / 2));
   const cabinsKanan = boat.cabin.slice(Math.ceil(boat.cabin.length / 2));
@@ -275,20 +263,7 @@ export default function DetailBoat({ boat }: DetailBoatProps) {
           <h2 className="text-base md:text-lg font-bold text-gold mb-3">
             Boat Specification
           </h2>
-          <ul className="space-y-1 text-xs md:text-sm">
-            {specifications.map((spec, index) => (
-              <motion.li 
-                key={index} 
-                className="flex justify-between text-gray-600"
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.1 * index }}
-              >
-                <span className="font-semibold">{spec.label}:</span>
-                <span>{spec.value}</span>
-              </motion.li>
-            ))}
-          </ul>
+          <div className="text-gray-600 text-sm [&_ul]:list-disc [&_ol]:list-decimal [&_ul]:pl-5 [&_ol]:pl-5" dangerouslySetInnerHTML={{ __html: boat.spesification }} />
         </motion.div>
 
         {/* Fasilitas */}
@@ -300,19 +275,7 @@ export default function DetailBoat({ boat }: DetailBoatProps) {
           <h2 className="text-base md:text-lg font-bold text-gold mb-3">
             Facilities
           </h2>
-          <ul className="grid grid-cols-1 sm:grid-cols-2 gap-y-1 text-xs md:text-sm text-gray-600">
-            {facilities.map((facility, index) => (
-              <motion.li 
-                key={index} 
-                className="list-disc list-inside"
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.1 * index }}
-              >
-                {facility}
-              </motion.li>
-            ))}
-          </ul>
+          <div className="text-gray-600 text-sm [&_ul]:list-disc [&_ol]:list-decimal [&_ul]:pl-5 [&_ol]:pl-5" dangerouslySetInnerHTML={{ __html: boat.facilities }} />
         </motion.div>
       </motion.div>
 
@@ -327,20 +290,7 @@ export default function DetailBoat({ boat }: DetailBoatProps) {
         <h2 className="text-base md:text-lg font-bold text-gold mb-3">
           Cabin Information
         </h2>
-        <ul className="space-y-2 text-xs md:text-sm text-gray-600">
-          {cabinInfo.map((cabin, index) => (
-            <motion.li 
-              key={index} 
-              className="flex justify-between"
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.1 * index }}
-            >
-              <span className="font-semibold">{cabin.type}:</span>
-              <span>{cabin.count}</span>
-            </motion.li>
-          ))}
-        </ul>
+        <div className="text-gray-600 text-sm [&_ul]:list-disc [&_ol]:list-decimal [&_ul]:pl-5 [&_ol]:pl-5" dangerouslySetInnerHTML={{ __html: boat.cabin_information }} />
       </motion.div>
 
       {/* Section 5: Picture of Cabin */}
