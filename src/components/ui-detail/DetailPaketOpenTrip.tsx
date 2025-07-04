@@ -594,35 +594,42 @@ const DetailPaketOpenTrip: React.FC<DetailPaketOpenTripProps> = ({ data }) => {
                     <div className="space-y-6">
                       {data.flightSchedules &&
                       data.flightSchedules.length > 0 ? (
-                        data.flightSchedules.map((schedule, index) => (
-                          <div key={index}>
-                            <h3 className="text-gold text-xl font-semibold mb-4">
-                              {schedule.route}
-                            </h3>
-                            <div className="grid grid-cols-2 gap-8">
-                              <div>
-                                <p className="text-gray-600 font-medium mb-2">
-                                  Departure
-                                </p>
-                                <p className="text-gray-500">
-                                  {schedule.etd_text === "-"
-                                    ? `${schedule.etd_time.slice(0, -3)} WITA`
-                                    : schedule.etd_text}
-                                </p>
-                              </div>
-                              <div>
-                                <p className="text-gray-600 font-medium mb-2">
-                                  Arrival
-                                </p>
-                                <p className="text-gray-500">
-                                  {schedule.eta_text === "-"
-                                    ? `${schedule.eta_time.slice(0, -3)} WITA`
-                                    : schedule.eta_text}
-                                </p>
+                        <>
+                          <div className="bg-gold/10 border-l-4 border-gold p-4 mb-4">
+                            <p className="text-gold-dark text-sm font-medium">
+                              <strong>Note:</strong> Flight schedules below are estimated departure and arrival times to Labuan Bajo. Actual flight times may vary depending on airline schedules and weather conditions.
+                            </p>
+                          </div>
+                          {data.flightSchedules.map((schedule, index) => (
+                            <div key={index}>
+                              <h3 className="text-gold text-xl font-semibold mb-4">
+                                {schedule.route}
+                              </h3>
+                              <div className="grid grid-cols-2 gap-8">
+                                <div>
+                                  <p className="text-gold font-medium mb-2">
+                                    Estimated Departure from Labuan Bajo
+                                  </p>
+                                  <p className="text-gray-500">
+                                    {schedule.etd_text === "-"
+                                      ? `${schedule.etd_time.slice(0, -3)} WITA`
+                                      : schedule.etd_text}
+                                  </p>
+                                </div>
+                                <div>
+                                  <p className="text-gold font-medium mb-2">
+                                    Estimated Arrival to Labuan Bajo
+                                  </p>
+                                  <p className="text-gray-500">
+                                    {schedule.eta_text === "-"
+                                      ? `${schedule.eta_time.slice(0, -3)} WITA`
+                                      : schedule.eta_text}
+                                  </p>
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        ))
+                          ))}
+                        </>
                       ) : (
                         <div className="text-gray-600">
                           <p>{data.flightInfo?.guideFee1}</p>
