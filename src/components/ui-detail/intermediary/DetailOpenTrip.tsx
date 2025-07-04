@@ -316,7 +316,7 @@ export default function DetailOpenTrip() {
       <DetailPaketOpenTrip data={transformedData} />
 
       {/* Review Section */}
-      <DetailReview tripId={selectedPackage.id} />
+              <DetailReview />
 
       {/* More Open Trip Section */}
       <DetailMoreTrip trips={similarTrips} tripType="open-trip" />

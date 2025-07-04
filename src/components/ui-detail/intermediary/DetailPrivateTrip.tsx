@@ -317,7 +317,7 @@ export default function DetailPrivateTrip() {
       <DetailPaketPrivateTrip data={transformedData} />
 
       {/* Review Section */}
-      <DetailReview tripId={selectedPackage.id} />
+              <DetailReview />
 
       {/* More Private Trip Section */}
       <DetailMoreTrip trips={similarTrips} tripType="private-trip" />
