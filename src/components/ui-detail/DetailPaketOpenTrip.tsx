@@ -23,6 +23,22 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
+// Function untuk format harga Indonesia
+const formatPrice = (price: string): string => {
+  // Hapus semua karakter non-digit kecuali titik
+  const cleanPrice = price.replace(/[^\d.]/g, '');
+  
+  // Parse sebagai float
+  const numPrice = parseFloat(cleanPrice);
+  
+  if (isNaN(numPrice)) {
+    return price; // Return original jika tidak bisa di-parse
+  }
+  
+  // Format dengan pemisah ribuan menggunakan titik
+  return numPrice.toLocaleString('id-ID');
+};
+
 interface FlightSchedule {
   id: number;
   route: string;
@@ -313,7 +329,7 @@ const DetailPaketOpenTrip: React.FC<DetailPaketOpenTripProps> = ({ data }) => {
         </div>
         <h1 className="text-4xl font-bold text-gray-800">{data.title}</h1>
         <p className="text-2xl text-gray-600 mt-2">
-          Start from <strong>{data.price}</strong>
+          Start from <strong>IDR {formatPrice(data.price)}</strong>
         </p>
       </motion.div>
 
@@ -669,7 +685,7 @@ const DetailPaketOpenTrip: React.FC<DetailPaketOpenTripProps> = ({ data }) => {
                           {data.session?.highSeason.period}
                         </p>
                         <p className="text-gold font-bold mt-1 text-sm">
-                          {data.session?.highSeason.price}
+                          IDR {formatPrice(data.session?.highSeason.price || '')}
                         </p>
                       </div>
                       <div>
@@ -680,7 +696,7 @@ const DetailPaketOpenTrip: React.FC<DetailPaketOpenTripProps> = ({ data }) => {
                           {data.session?.peakSeason.period}
                         </p>
                         <p className="text-gold font-bold mt-1 text-sm">
-                          {data.session?.peakSeason.price}
+                          IDR {formatPrice(data.session?.peakSeason.price || '')}
                         </p>
                       </div>
                     </div>

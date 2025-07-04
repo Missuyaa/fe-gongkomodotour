@@ -23,6 +23,22 @@ const disabledDays = (date: Date) => {
   return day >= 1 && day <= 4; // Disable Senin(1) sampai Kamis(4)
 };
 
+// Function untuk format harga Indonesia
+const formatPrice = (price: string): string => {
+  // Hapus semua karakter non-digit kecuali titik
+  const cleanPrice = price.replace(/[^\d.]/g, '');
+  
+  // Parse sebagai float
+  const numPrice = parseFloat(cleanPrice);
+  
+  if (isNaN(numPrice)) {
+    return price; // Return original jika tidak bisa di-parse
+  }
+  
+  // Format dengan pemisah ribuan menggunakan titik
+  return numPrice.toLocaleString('id-ID');
+};
+
 // Definisikan tipe untuk data paket
 interface PackageData {
   id: string;
@@ -211,7 +227,7 @@ const DetailPaketPrivateTrip: React.FC<DetailPaketPrivateTripProps> = ({
         </div>
         <h1 className="text-4xl font-bold text-gray-800 mt-2">{data.title}</h1>
         <p className="text-2xl text-gray-600 mt-2">
-          Start from <strong>{data.price}</strong>
+          Start from <strong>IDR {formatPrice(data.price)}</strong>
         </p>
       </div>
 
@@ -423,7 +439,7 @@ const DetailPaketPrivateTrip: React.FC<DetailPaketPrivateTripProps> = ({
                           {data.session?.highSeason.period}
                         </p>
                         <p className="text-[#CFB53B] font-bold mt-1 text-sm">
-                          {data.session?.highSeason.price}
+                          IDR {formatPrice(data.session?.highSeason.price || '')}
                         </p>
                       </div>
                       <div>
@@ -434,7 +450,7 @@ const DetailPaketPrivateTrip: React.FC<DetailPaketPrivateTripProps> = ({
                           {data.session?.peakSeason.period}
                         </p>
                         <p className="text-[#CFB53B] font-bold mt-1 text-sm">
-                          {data.session?.peakSeason.price}
+                          IDR {formatPrice(data.session?.peakSeason.price || '')}
                         </p>
                       </div>
                     </div>
@@ -462,14 +478,14 @@ const DetailPaketPrivateTrip: React.FC<DetailPaketPrivateTripProps> = ({
                     <h2 className="text-xl font-bold text-gray-800 mb-4">
                       Flight Information
                     </h2>
-                    <div className="space-y-2">
-                      <p className="text-gray-600 text-sm">
-                        {data.flightInfo?.guideFee1}
-                      </p>
-                      <p className="text-gray-600 text-sm">
-                        {data.flightInfo?.guideFee2}
-                      </p>
-                    </div>
+                                          <div className="space-y-2">
+                        <p className="text-gray-600 text-sm">
+                          IDR {formatPrice(data.flightInfo?.guideFee1 || '')}
+                        </p>
+                        <p className="text-gray-600 text-sm">
+                          IDR {formatPrice(data.flightInfo?.guideFee2 || '')}
+                        </p>
+                      </div>
                   </div>
                 </div>
               </div>
