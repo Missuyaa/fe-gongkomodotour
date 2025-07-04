@@ -72,6 +72,22 @@ const customStyles = `
     margin-top: 0;
     line-height: 1;
   }
+  .trip-overlay {
+    background: linear-gradient(to top, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0.4) 50%, transparent 100%);
+  }
+  .trip-info {
+    transform: translateY(100%);
+    transition: transform 0.3s ease-in-out;
+  }
+  .group:hover .trip-info {
+    transform: translateY(0);
+  }
+  .line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
 `;
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
@@ -113,6 +129,13 @@ export default function TripHighlight() {
         );
         console.log('Trip Highlight Response:', response);
         console.log('Trip Highlight Data:', response.data);
+        console.log('Trip Highlight Data Type:', typeof response.data);
+        console.log('Trip Highlight Data Length:', response.data?.length);
+        if (response.data && response.data.length > 0) {
+          console.log('First trip:', response.data[0]);
+          console.log('First trip name:', response.data[0].name);
+          console.log('First trip type:', response.data[0].type);
+        }
         setHighlights(response.data || []);
       } catch (error) {
         console.error('Error fetching highlighted trips:', error);
@@ -166,6 +189,7 @@ export default function TripHighlight() {
             </div>
           ) : (
             highlights.map((highlight) => {
+              console.log('Rendering highlight:', highlight);
               const imageUrl = highlight.assets?.[0]?.file_url 
                 ? `${API_URL}${highlight.assets[0].file_url}`
                 : '/images/placeholder.jpg';
@@ -179,7 +203,7 @@ export default function TripHighlight() {
                     href={`/detail-paket/${
                       highlight.type === "Open Trip" ? "open-trip" : "private-trip"
                     }?id=${highlight.id}`}
-                    className="aspect-[3/2] block"
+                    className="aspect-[3/2] block group"
                   >
                     <Card
                       className="custom-card rounded-tr-sm overflow-hidden cursor-pointer h-full"
@@ -198,13 +222,13 @@ export default function TripHighlight() {
                             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                             quality={100}
                           />
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent opacity-0 hover:opacity-100 transition-opacity duration-300" />
-                          <div className="absolute bottom-0 left-0 right-0 p-4 transform translate-y-full group-hover:translate-y-0 transition-transform duration-300">
-                            <h3 className="text-white text-sm font-semibold text-center line-clamp-2">
-                              {highlight.name}
+                          <div className="absolute inset-0 trip-overlay opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                          <div className="absolute bottom-0 left-0 right-0 p-4 trip-info">
+                            <h3 className="text-white text-sm font-semibold text-center line-clamp-2 mb-2">
+                              {highlight.name || 'Trip Name'}
                             </h3>
                             <Badge className="mt-2 bg-gold text-white text-xs">
-                              {highlight.type}
+                              {highlight.type || 'Trip Type'}
                             </Badge>
                           </div>
                         </motion.div>
