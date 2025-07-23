@@ -7,7 +7,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
 } from "@/components/ui/dialog";
 import { useLanguage } from "@/contexts/LanguageContext";
 
@@ -84,9 +83,10 @@ const Gallery: React.FC<GalleryProps> = ({ data }) => {
               <h3 className="text-white text-lg font-semibold text-center line-clamp-2">
                 {truncateText(item.title || t('noTitle'), 30)}
               </h3>
-              <p className="text-white/90 text-sm text-center mt-2 line-clamp-3">
-                {truncateText(item.description || t('noDescription'), 60)}
-              </p>
+              <div
+                className="text-white/90 text-sm text-center mt-2 line-clamp-3 wysiwyg"
+                dangerouslySetInnerHTML={{ __html: truncateText(item.description || t('noDescription'), 60) }}
+              />
               {item.category && (
                 <span className="text-gold text-xs text-center mt-2 bg-black/40 px-3 py-1 rounded-full inline-block border border-gold/30">
                   {item.category}
@@ -101,7 +101,10 @@ const Gallery: React.FC<GalleryProps> = ({ data }) => {
         <DialogContent className="max-w-4xl bg-white border-gold">
           <DialogHeader>
             <DialogTitle className="text-gold">{selectedItem?.title}</DialogTitle>
-            <DialogDescription className="text-gray-600">{selectedItem?.description}</DialogDescription>
+            <div
+              className="text-gray-600 wysiwyg"
+              dangerouslySetInnerHTML={{ __html: selectedItem?.description || t('noDescription') }}
+            />
           </DialogHeader>
           {selectedItem && (
             <div className="space-y-4">

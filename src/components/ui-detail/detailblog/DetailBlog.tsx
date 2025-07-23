@@ -73,7 +73,7 @@ const DetailBlog: React.FC<DetailBlogProps> = ({ blogId }) => {
       <h1 className="text-4xl font-bold mb-6">{blog.title}</h1>
       <div className="relative w-full h-96 mb-6">
         <Image
-          src={blog.assets?.[0]?.file_url || "/img/placeholder-image.png"}
+          src={encodeURI(blog.assets?.[0]?.file_url || "/img/placeholder-image.png")}
           alt={blog.title}
           fill
           className="object-cover rounded-md"
@@ -93,7 +93,10 @@ const DetailBlog: React.FC<DetailBlogProps> = ({ blogId }) => {
           <span>{blog.category || "General"}</span>
         </span>
       </div>
-      <p className="text-lg text-gray-800 mb-12">{blog.content}</p>
+      <div
+        className="text-lg text-gray-800 mb-12"
+        dangerouslySetInnerHTML={{ __html: blog.content }}
+      />
 
       {/* Latest Posts Section */}
       <h2 className="text-2xl font-bold mb-4">Latest Post Article</h2>
@@ -107,7 +110,7 @@ const DetailBlog: React.FC<DetailBlogProps> = ({ blogId }) => {
             <div className="latest-post-card p-4 border rounded-md shadow-lg flex flex-col h-full cursor-pointer transition-transform duration-300 group-hover:scale-105">
               <div className="relative w-full h-40 mb-4">
                 <Image
-                  src={post.assets?.[0]?.file_url || "/img/placeholder-image.png"}
+                  src={encodeURI(post.assets?.[0]?.file_url || "/img/placeholder-image.png")}
                   alt={post.title}
                   fill
                   className="object-cover object-center rounded-md"

@@ -2,7 +2,7 @@ export interface Cabin {
   id: number
   boat_id: number
   cabin_name: string
-  bed_type: "King" | "Single" | "Double" | "Queen"
+  bed_type: "King" | "Single" | "Double" | "Queen" | "Single Bunk Bed" | "Double Bunk Bed"
   min_pax: number
   max_pax: number
   base_price: string

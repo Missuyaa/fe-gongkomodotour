@@ -37,7 +37,7 @@ const boatSchema = z.object({
   status: z.enum(["Aktif", "Non Aktif"]),
   cabins: z.array(z.object({
     cabin_name: z.string().min(1, "Nama kabin harus diisi"),
-    bed_type: z.enum(["King", "Single", "Double", "Queen"], {
+    bed_type: z.enum(["King", "Single", "Double", "Queen", "Single Bunk Bed", "Double Bunk Bed"], {
       required_error: "Tipe bed harus dipilih"
     }),
     min_pax: z.number().min(1, "Minimal pax harus diisi"),
@@ -418,6 +418,8 @@ export default function CreateBoatPage() {
                                     <SelectItem value="Queen">Queen Bed</SelectItem>
                                     <SelectItem value="Double">Double Bed</SelectItem>
                                     <SelectItem value="Single">Single Bed</SelectItem>
+                                    <SelectItem value="Single Bunk Bed">Single Bunk Bed</SelectItem>
+                                    <SelectItem value="Double Bunk Bed">Double Bunk Bed</SelectItem>
                                   </SelectContent>
                                 </Select>
                                 <FormMessage />

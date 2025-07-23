@@ -483,15 +483,17 @@ export default function EditBoatPage({ params }: EditBoatPageProps) {
                                         <SelectValue placeholder="Pilih tipe bed" />
                                       </SelectTrigger>
                                     </FormControl>
+                                    <SelectContent>
+                                      <SelectItem value="King">King Bed</SelectItem>
+                                      <SelectItem value="Queen">Queen Bed</SelectItem>
+                                      <SelectItem value="Double">Double Bed</SelectItem>
+                                      <SelectItem value="Single">Single Bed</SelectItem>
+                                      <SelectItem value="Single Bunk Bed">Single Bunk Bed</SelectItem>
+                                      <SelectItem value="Double Bunk Bed">Double Bunk Bed</SelectItem>
+                                    </SelectContent>
                                   </Select>
-                                  <SelectContent>
-                                    <SelectItem value="King">King Bed</SelectItem>
-                                    <SelectItem value="Queen">Queen Bed</SelectItem>
-                                    <SelectItem value="Double">Double Bed</SelectItem>
-                                    <SelectItem value="Single">Single Bed</SelectItem>
-                                  </SelectContent>
+                                  <FormMessage />
                                 </FormControl>
-                                <FormMessage />
                               </FormItem>
                             )}
                           />
