@@ -455,17 +455,7 @@ const DetailPaketOpenTrip: React.FC<DetailPaketOpenTripProps> = ({ data }) => {
         className="bg-white p-6 rounded-lg shadow-md"
       >
         <div className="flex space-x-4 mb-6">
-          <Button
-            variant={activeTab === "description" ? "default" : "outline"}
-            onClick={() => setActiveTab("description")}
-            className={`${
-              activeTab === "description"
-                ? "bg-gold text-white hover:bg-gold-dark-20"
-                : "bg-gold/5 text-gold hover:bg-gold hover:text-white"
-            } px-7 py-6 rounded-lg font-semibold text-sm transition-all duration-300`}
-          >
-            Description
-          </Button>
+          {/* Hapus tombol Description */}
           <Button
             variant={activeTab === "itinerary" ? "default" : "outline"}
             onClick={() => setActiveTab("itinerary")}
@@ -509,19 +499,7 @@ const DetailPaketOpenTrip: React.FC<DetailPaketOpenTripProps> = ({ data }) => {
           transition={{ duration: 0.3 }}
           className="mt-6"
         >
-          {activeTab === "description" && (
-            <motion.div
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.3 }}
-            >
-              <h1 className="text-3xl font-bold text-gray-800 mb-2">
-                Description
-              </h1>
-              <div className="w-[150px] h-[3px] bg-gold mb-6"></div>
-              <p className="text-gray-600">{data.description}</p>
-            </motion.div>
-          )}
+          {/* Hapus seluruh blok activeTab === "description" */}
           {activeTab === "itinerary" && (
             <div className="space-y-6">
               <div className="flex flex-col items-start">
@@ -671,35 +649,22 @@ const DetailPaketOpenTrip: React.FC<DetailPaketOpenTripProps> = ({ data }) => {
                     />
                   </div>
 
-                  {/* Season Section */}
-                  <div className="bg-[#f5f5f5] p-6 rounded-lg shadow-sm min-h-[250px] flex flex-col">
+                  {/* Description Section (pindahan) */}
+                  <div className="bg-[#f5f5f5] p-6 rounded-lg shadow-sm min-h-[100px] flex flex-col">
                     <h2 className="text-xl font-bold text-gray-800 mb-4">
-                      Season
+                      Description
                     </h2>
-                    <div className="space-y-4">
-                      <div>
-                        <h4 className="font-semibold text-gray-700">
-                          High Season Period:
-                        </h4>
-                        <p className="text-gray-600 text-sm">
-                          {data.session?.highSeason.period}
-                        </p>
-                        <p className="text-gold font-bold mt-1 text-sm">
-                          IDR {formatPrice(data.session?.highSeason.price || '')}
-                        </p>
-                      </div>
-                      <div>
-                        <h4 className="font-semibold text-gray-700">
-                          Peak Season Period:
-                        </h4>
-                        <p className="text-gray-600 text-sm">
-                          {data.session?.peakSeason.period}
-                        </p>
-                        <p className="text-gold font-bold mt-1 text-sm">
-                          IDR {formatPrice(data.session?.peakSeason.price || '')}
-                        </p>
-                      </div>
-                    </div>
+                    {Array.isArray(data.description)
+                      ? <ul className="list-disc pl-5 text-gray-600 text-sm space-y-1">
+                          {data.description.map((item, idx) => <li key={idx}>{item.replace(/^\*\s?/, "")}</li>)}
+                        </ul>
+                      :
+                        <ul className="list-disc pl-5 text-gray-600 text-sm space-y-1">
+                          {data.description.split(/\r?\n/).filter(line => line.trim().startsWith("*")).map((line, idx) => (
+                            <li key={idx}>{line.replace(/^\*\s?/, "")}</li>
+                          ))}
+                        </ul>
+                    }
                   </div>
                 </div>
               </div>
