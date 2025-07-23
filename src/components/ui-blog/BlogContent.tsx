@@ -189,9 +189,10 @@ const BlogContent = () => {
                     </div>
                   )}
                   <h3 className="text-lg font-semibold mt-4">{post.title}</h3>
-                  <p className="text-sm text-gray-600 mt-2 flex-grow line-clamp-3">
-                    {post.content}
-                  </p>
+                  <div
+                    className="text-sm text-gray-600 mt-2 flex-grow line-clamp-3"
+                    dangerouslySetInnerHTML={{ __html: post.content }}
+                  />
                   <div className="flex justify-between items-center mt-4 text-sm text-gray-500">
                     <div className="flex items-center gap-1">
                       <FaUser className="w-4 h-4" />
@@ -256,9 +257,10 @@ const BlogContent = () => {
                       </div>
                     )}
                     <h3 className="text-lg font-semibold mt-4">{post.title}</h3>
-                    <p className="text-sm text-gray-600 mt-2 flex-grow line-clamp-3">
-                      {post.content}
-                    </p>
+                    <div
+                      className="text-sm text-gray-600 mt-2 flex-grow line-clamp-3"
+                      dangerouslySetInnerHTML={{ __html: post.content }}
+                    />
                     <div className="flex justify-between items-center mt-4 text-sm text-gray-500">
                       <div className="flex items-center gap-1">
                         <FaUser className="w-4 h-4" />
@@ -322,9 +324,10 @@ const BlogContent = () => {
                       </div>
                     )}
                     <h3 className="text-lg font-semibold mt-4">{post.title}</h3>
-                    <p className="text-sm text-gray-600 mt-2 flex-grow line-clamp-3">
-                      {post.content}
-                    </p>
+                    <div
+                      className="text-sm text-gray-600 mt-2 flex-grow line-clamp-3"
+                      dangerouslySetInnerHTML={{ __html: post.content }}
+                    />
                     <div className="flex justify-between items-center mt-4 text-sm text-gray-500">
                       <div className="flex items-center gap-1">
                         <FaUser className="w-4 h-4" />
@@ -388,9 +391,10 @@ const BlogContent = () => {
                       </div>
                     )}
                     <h3 className="text-lg font-semibold mt-4">{post.title}</h3>
-                    <p className="text-sm text-gray-600 mt-2 flex-grow line-clamp-3">
-                      {post.content}
-                    </p>
+                    <div
+                      className="text-sm text-gray-600 mt-2 flex-grow line-clamp-3"
+                      dangerouslySetInnerHTML={{ __html: post.content }}
+                    />
                     <div className="flex justify-between items-center mt-4 text-sm text-gray-500">
                       <div className="flex items-center gap-1">
                         <FaUser className="w-4 h-4" />
