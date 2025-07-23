@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import Image from "next/image";
 import { Star, Quote } from "lucide-react";
 import { motion } from "framer-motion";
@@ -39,6 +39,9 @@ export default function DetailReview() {
   const [error, setError] = useState<string | null>(null);
   const [showFull, setShowFull] = useState<number | null>(null);
   const { t } = useLanguage();
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     const fetchTestimonials = async () => {
@@ -65,6 +68,27 @@ export default function DetailReview() {
 
     fetchTestimonials();
   }, []);
+
+  useEffect(() => {
+    if (reviews.length === 0) return;
+    intervalRef.current = setInterval(() => {
+      if (scrollContainerRef.current) {
+        const nextIndex = (currentIndex + 1) % reviews.length;
+        const scrollAmount = nextIndex * 358; // 350px card width + 8px gap
+        scrollContainerRef.current.scrollTo({
+          left: scrollAmount,
+          behavior: "smooth"
+        });
+        setCurrentIndex(nextIndex);
+      }
+    }, 3000); // Scroll every 3 seconds
+
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+    };
+  }, [currentIndex, reviews.length]);
 
   if (loading) {
     return (
@@ -116,7 +140,11 @@ export default function DetailReview() {
           </p>
         </motion.div>
 
-        <div className="flex overflow-x-auto gap-6 px-4 scrollbar-hide">
+        <div
+          ref={scrollContainerRef}
+          className="flex overflow-x-auto gap-6 px-4 scrollbar-hide"
+          style={{ scrollBehavior: "smooth", scrollSnapType: "x mandatory" }}
+        >
           {reviews.map((review, index) => {
             const isLong = review.text.length > 250;
             const displayText = showFull === index || !isLong ? review.text : review.text.slice(0, 250) + '...';
@@ -128,6 +156,7 @@ export default function DetailReview() {
                 transition={{ duration: 0.5, delay: index * 0.1 }}
                 whileHover={{ scale: 1.02 }}
                 className="min-w-[320px] max-w-[400px] w-full bg-white p-8 rounded-2xl shadow-lg flex-shrink-0 flex flex-col justify-between relative"
+                style={{ scrollSnapAlign: "center" }}
               >
                 <Quote className="absolute top-6 left-6 w-8 h-8 text-yellow-400 opacity-30 z-10" />
                 <motion.div 
