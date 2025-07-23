@@ -102,7 +102,7 @@ const DetailPaketOpenTrip: React.FC<DetailPaketOpenTripProps> = ({ data }) => {
   const searchParams = useSearchParams();
   const mainImage =
     searchParams.get("mainImage") || data.mainImage || "/img/default-image.png"; // Pastikan fallback default tetap ada
-  const [activeTab, setActiveTab] = useState("description");
+  const [activeTab, setActiveTab] = useState("itinerary");
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [selectedDurationId, setSelectedDurationId] = useState<number>(
     data.itinerary[0]?.durationId || 0
