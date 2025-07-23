@@ -194,7 +194,13 @@ export default function Gallery({ data }: GalleryProps) {
         <DialogContent className="max-w-4xl bg-white border-gold">
           <DialogHeader>
             <DialogTitle className="text-gold">{selectedItem?.title}</DialogTitle>
-            <DialogDescription className="text-gray-600">{selectedItem?.description}</DialogDescription>
+            {selectedItem?.description && (
+              <DialogDescription className="text-gray-600" asChild>
+                <div
+                  dangerouslySetInnerHTML={{ __html: selectedItem.description }}
+                />
+              </DialogDescription>
+            )}
           </DialogHeader>
           {selectedItem && (
             <div className="space-y-4">
