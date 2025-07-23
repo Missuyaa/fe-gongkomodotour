@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import { Blog } from "@/types/blog";
 import { useEffect, useState } from "react";
 import { apiRequest } from "@/lib/api";
+import type { Variants } from "framer-motion";
 
 export default function DetailBlog() {
   const [latestPosts, setLatestPosts] = useState<Blog[]>([]);
@@ -129,59 +130,78 @@ export default function DetailBlog() {
         >
           <div className="space-y-6 pb-4">
             {latestPosts.map((post) => (
-              <motion.div 
-                key={post.id}
-                variants={itemVariants}
-                whileHover="hover"
-                className="post-card border rounded-lg shadow-md p-4 flex flex-col md:flex-row gap-4 bg-white hover:shadow-xl transition-shadow duration-300"
-              >
-                {post.assets?.[0] && (
-                  <motion.div 
-                    className="relative w-full md:w-48 h-48 overflow-hidden rounded-md flex-shrink-0"
-                    whileHover={{ scale: 1.05 }}
-                    transition={{ duration: 0.3 }}
-                  >
-                    <Image
-                      src={post.assets[0].file_url}
-                      alt={post.title}
-                      fill
-                      className="object-cover rounded-md"
-                      sizes="(max-width: 768px) 100vw, 33vw"
-                      unoptimized
-                      priority
-                    />
-                  </motion.div>
-                )}
-                <div className="flex-1 min-w-0">
-                  <motion.h3 
-                    className="text-lg font-semibold"
-                    whileHover={{ scale: 1.01 }}
-                  >
-                    {post.title}
-                  </motion.h3>
-                  <p className="text-sm text-gray-600 mt-2 line-clamp-3">{post.content}</p>
-                  <div className="flex flex-wrap justify-between items-center mt-4 text-sm text-gray-500 gap-2">
-                    <motion.div 
-                      className="flex items-center gap-1"
-                      whileHover={{ scale: 1.05 }}
-                    >
-                      <FaUser className="w-4 h-4 flex-shrink-0" />
-                      <span className="truncate">Uploaded by: {post.author?.name}</span>
-                    </motion.div>
-                    <motion.div 
-                      className="flex items-center gap-1"
-                      whileHover={{ scale: 1.05 }}
-                    >
-                      <FaRegCalendarAlt className="w-4 h-4 flex-shrink-0" />
-                      <span>{new Date(post.created_at).toLocaleDateString()}</span>
-                    </motion.div>
-                  </div>
-                </div>
-              </motion.div>
+              <PostCard key={post.id} post={post} itemVariants={itemVariants} />
             ))}
           </div>
         </motion.div>
       </div>
     </motion.section>
+  );
+}
+
+function PostCard({ post, itemVariants }: { post: Blog, itemVariants: Variants }) {
+  const [decodedContent, setDecodedContent] = useState(post.content);
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const txt = document.createElement("textarea");
+      txt.innerHTML = post.content;
+      setDecodedContent(txt.value);
+    }
+  }, [post.content]);
+  return (
+    <motion.div 
+      key={post.id}
+      variants={itemVariants}
+      whileHover="hover"
+      className="post-card border rounded-lg shadow-md p-4 flex flex-col md:flex-row gap-4 bg-white hover:shadow-xl transition-shadow duration-300"
+    >
+      {post.assets?.[0] && (
+        <motion.div 
+          className="relative w-full md:w-48 h-48 overflow-hidden rounded-md flex-shrink-0"
+          whileHover={{ scale: 1.05 }}
+          transition={{ duration: 0.3 }}
+        >
+          <Image
+            src={post.assets[0].file_url}
+            alt={post.title}
+            fill
+            className="object-cover rounded-md"
+            sizes="(max-width: 768px) 100vw, 33vw"
+            unoptimized
+            priority
+          />
+        </motion.div>
+      )}
+      <div className="flex-1 min-w-0">
+        <motion.h3 
+          className="text-lg font-semibold"
+          whileHover={{ scale: 1.01 }}
+        >
+          {post.title}
+        </motion.h3>
+        {/* Konten blog WYSIWYG dengan batas tinggi dan overflow, decode HTML entities di client-side */}
+        <div
+          className="text-sm text-gray-600 mt-2 max-h-16 overflow-hidden relative"
+          style={{ WebkitLineClamp: 3, display: '-webkit-box', WebkitBoxOrient: 'vertical' }}
+          dangerouslySetInnerHTML={{ __html: decodedContent }}
+        />
+        <div className="flex flex-wrap justify-between items-center mt-4 text-sm text-gray-500 gap-2">
+          <motion.div 
+            className="flex items-center gap-1"
+            whileHover={{ scale: 1.05 }}
+          >
+            <FaUser className="w-4 h-4 flex-shrink-0" />
+            <span className="truncate">Uploaded by: {post.author?.name}</span>
+          </motion.div>
+          <motion.div 
+            className="flex items-center gap-1"
+            whileHover={{ scale: 1.05 }}
+          >
+            <FaRegCalendarAlt className="w-4 h-4 flex-shrink-0" />
+            <span>{new Date(post.created_at).toLocaleDateString()}</span>
+          </motion.div>
+        </div>
+      </div>
+    </motion.div>
   );
 }
