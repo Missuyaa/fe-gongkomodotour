@@ -148,10 +148,10 @@ export const columns = ({ onDelete, onEdit }: ColumnsProps): ColumnDef<Trip>[] =
     header: "Kapal",
     cell: ({ row }) => {
       const boatId = row.getValue("boat_id") as string | number | null
-      const boat = (row.original as any).boat
+      const trip = row.original as Trip
       return (
         <div className="text-sm">
-          {boatId ? (boat ? boat.boat_name : `Boat ID: ${boatId}`) : "Tidak ada"}
+          {boatId ? (trip.boat ? trip.boat.boat_name : `Boat ID: ${boatId}`) : "Tidak ada"}
         </div>
       )
     },

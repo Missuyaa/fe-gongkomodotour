@@ -261,7 +261,7 @@ export default function EditTripPage({ params }: { params: Promise<{ id: string 
           const data = {
             ...response.data,
             // Convert boat_id to boat_ids array for compatibility
-            boat_ids: (response.data as { boat_id?: string | number }).boat_id ? [Number((response.data as { boat_id?: string | number }).boat_id)] : [],
+            boat_ids: response.data.boat_id ? [Number(response.data.boat_id)] : [],
             destination_count: Number(response.data.destination_count) || 0,
             has_boat: Boolean(response.data.has_boat),
             has_hotel: Boolean(response.data.has_hotel),
@@ -300,7 +300,7 @@ export default function EditTripPage({ params }: { params: Promise<{ id: string 
           
           const validatedData = tripSchema.parse(data)
           console.log('Validated data:', validatedData)
-          console.log('Boat ID from API:', (response.data as { boat_id?: string | number }).boat_id)
+          console.log('Boat ID from API:', response.data.boat_id)
           console.log('Boat IDs in validated data:', validatedData.boat_ids)
           console.log('Converted boat_ids:', data.boat_ids)
           form.reset(validatedData)
