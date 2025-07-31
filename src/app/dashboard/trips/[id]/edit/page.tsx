@@ -303,6 +303,7 @@ export default function EditTripPage({ params }: { params: Promise<{ id: string 
           console.log('Boat ID from API:', response.data.boat_id)
           console.log('Boat IDs in validated data:', validatedData.boat_ids)
           console.log('Converted boat_ids:', data.boat_ids)
+          console.log('Assets from API:', response.data.assets)
           form.reset(validatedData)
           setExistingFiles(response.data.assets || [])
         } catch (validationError) {
