@@ -97,6 +97,8 @@ export interface TripAsset {
 export interface Trip {
   id: number
   name: string
+  boat_id?: string | number | null
+  boat_ids?: number[]
   include: string
   exclude: string
   note: string
@@ -108,8 +110,9 @@ export interface Trip {
   is_highlight: "Yes" | "No"
   has_boat: boolean
   has_hotel: boolean
-  is_hotel_requested: boolean
   destination_count: number
+  operational_days: string[]
+  tentation: "Yes" | "No"
   created_at: string
   updated_at: string
   trip_durations: TripDuration[]
@@ -118,6 +121,29 @@ export interface Trip {
   surcharges: Surcharge[]
   assets: TripAsset[]
   boat_assets: TripAsset[]
+  boat?: {
+    id: number
+    boat_name: string
+    spesification: string
+    cabin_information: string
+    facilities: string
+    status: string
+    created_at: string
+    updated_at: string
+    cabin: Array<{
+      id: number
+      boat_id: string
+      cabin_name: string
+      bed_type: string
+      min_pax: string
+      max_pax: string
+      base_price: string
+      additional_price: string
+      status: string
+      created_at: string
+      updated_at: string
+    }>
+  }
 }
 
 export type TripResponse = Trip[] 

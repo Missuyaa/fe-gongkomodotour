@@ -64,7 +64,6 @@ interface PackageData {
   boatImages?: { image: string; title: string; id: string }[];
   has_boat?: boolean;
   has_hotel?: boolean;
-  is_hotel_requested?: boolean;
   trip_durations?: {
     id: number;
     duration_label: string;
@@ -311,7 +310,6 @@ export default function Booking() {
             })),
             has_boat: trip.has_boat,
             has_hotel: trip.has_hotel,
-            is_hotel_requested: trip.is_hotel_requested,
             trip_durations: trip.trip_durations?.map(duration => ({
               id: duration.id,
               duration_label: duration.duration_label,
@@ -778,8 +776,7 @@ export default function Booking() {
             additional_fee_id: Number(feeId),
             total_price: fee ? calculateAdditionalFeeAmount(fee) : 0
           };
-        }),
-        is_hotel_requested: selectedPackage?.is_hotel_requested ?? false
+        })
       };
 
       // Tampilkan data request
@@ -1201,31 +1198,9 @@ export default function Booking() {
                         className="h-20"
                       />
 
-                      {selectedDuration && selectedDate && selectedPackage?.has_hotel && (
+                                            {selectedDuration && selectedDate && selectedPackage?.has_hotel && (
                         <>
-                          <div className="flex items-center space-x-2 mb-4">
-                            <input
-                              type="checkbox"
-                              id="hotel-request"
-                              checked={selectedPackage.is_hotel_requested ?? false}
-                              onChange={(e) => {
-                                setSelectedPackage(prev => {
-                                  if (!prev) return prev;
-                                  return {
-                                    ...prev,
-                                    is_hotel_requested: e.target.checked
-                                  };
-                                });
-                              }}
-                              className="rounded focus:ring-gold text-gold"
-                            />
-                            <Label htmlFor="hotel-request" className="cursor-pointer">
-                              Request Hotel
-                            </Label>
-                          </div>
-
-                          {!(selectedPackage.is_hotel_requested ?? false) && (
-                            <div className="space-y-2">
+                          <div className="space-y-2">
                               <Label>Hotel</Label>
                               <div className="space-y-4">
                                 {isLoadingHotels ? (

@@ -85,6 +85,9 @@ interface PackageData {
   flightSchedules?: FlightSchedule[];
   has_boat: boolean;
   destination_count: number;
+  boat_ids?: number[];
+  operational_days?: string[];
+  tentation?: "Yes" | "No";
 }
 
 // Function untuk disable hari Senin-Kamis
@@ -446,6 +449,102 @@ const DetailPaketOpenTrip: React.FC<DetailPaketOpenTripProps> = ({ data }) => {
           </div>
         </div>
       </motion.div>
+
+      {/* Section 3.5: Additional Information */}
+      {(data.operational_days || data.tentation) && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.5 }}
+          className="bg-white p-6 rounded-lg shadow-md mb-8"
+        >
+          <h3 className="text-xl font-semibold text-gray-800 mb-4">Informasi Tambahan</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {data.operational_days && data.operational_days.length > 0 && (
+              <motion.div
+                whileHover={{ scale: 1.02 }}
+                transition={{ type: "spring", stiffness: 300 }}
+                className="flex items-center space-x-4"
+              >
+                <div className="p-2">
+                  <Image
+                    src="/img/icon-destination.png"
+                    alt="Operational Days Icon"
+                    width={40}
+                    height={40}
+                    className="min-w-[40px]"
+                  />
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-gold font-semibold">Hari Operasional</span>
+                  <span className="text-gray-600">
+                    {data.operational_days.map(day => {
+                      const dayLabels: { [key: string]: string } = {
+                        "Monday": "Senin",
+                        "Tuesday": "Selasa", 
+                        "Wednesday": "Rabu",
+                        "Thursday": "Kamis",
+                        "Friday": "Jumat",
+                        "Saturday": "Sabtu",
+                        "Sunday": "Minggu"
+                      };
+                      return dayLabels[day] || day;
+                    }).join(", ")}
+                  </span>
+                </div>
+              </motion.div>
+            )}
+
+            {data.tentation && (
+              <motion.div
+                whileHover={{ scale: 1.02 }}
+                transition={{ type: "spring", stiffness: 300 }}
+                className="flex items-center space-x-4"
+              >
+                <div className="p-2">
+                  <Image
+                    src="/img/icon-destination.png"
+                    alt="Tentation Icon"
+                    width={40}
+                    height={40}
+                    className="min-w-[40px]"
+                  />
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-gold font-semibold">Jadwal Fleksibel</span>
+                  <span className="text-gray-600">
+                    {data.tentation === "Yes" ? "Tersedia" : "Tidak Tersedia"}
+                  </span>
+                </div>
+              </motion.div>
+            )}
+
+            {data.boat_ids && data.boat_ids.length > 0 && (
+              <motion.div
+                whileHover={{ scale: 1.02 }}
+                transition={{ type: "spring", stiffness: 300 }}
+                className="flex items-center space-x-4"
+              >
+                <div className="p-2">
+                  <Image
+                    src="/img/icon-destination.png"
+                    alt="Boats Icon"
+                    width={40}
+                    height={40}
+                    className="min-w-[40px]"
+                  />
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-gold font-semibold">Kapal</span>
+                  <span className="text-gray-600">
+                    {data.boat_ids.length} kapal tersedia
+                  </span>
+                </div>
+              </motion.div>
+            )}
+          </div>
+        </motion.div>
+      )}
 
       {/* Section 4: Navigation Tabs */}
       <motion.div

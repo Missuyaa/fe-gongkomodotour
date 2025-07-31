@@ -79,6 +79,9 @@ interface PackageData {
     duration_label: string;
     itineraries: { day: string; activities: string }[];
   }[];
+  boat_ids?: number[];
+  operational_days?: string[];
+  tentation?: "Yes" | "No";
 }
 
 interface DetailPaketPrivateTripProps {
@@ -312,6 +315,79 @@ const DetailPaketPrivateTrip: React.FC<DetailPaketPrivateTripProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Section 3.5: Additional Information */}
+      {(data.operational_days || data.tentation) && (
+        <div className="bg-white p-6 rounded-lg shadow-md mb-8">
+          <h3 className="text-xl font-semibold text-gray-800 mb-4">Informasi Tambahan</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {data.operational_days && data.operational_days.length > 0 && (
+              <div className="flex items-start">
+                <Image
+                  src="/img/icon-destination.png"
+                  alt="Operational Days Icon"
+                  width={50}
+                  height={50}
+                  className="mr-2"
+                />
+                <div className="flex flex-col">
+                  <span className="text-gray-600 font-semibold">Hari Operasional</span>
+                  <span className="text-gray-600">
+                    {data.operational_days.map(day => {
+                      const dayLabels: { [key: string]: string } = {
+                        "Monday": "Senin",
+                        "Tuesday": "Selasa", 
+                        "Wednesday": "Rabu",
+                        "Thursday": "Kamis",
+                        "Friday": "Jumat",
+                        "Saturday": "Sabtu",
+                        "Sunday": "Minggu"
+                      };
+                      return dayLabels[day] || day;
+                    }).join(", ")}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {data.tentation && (
+              <div className="flex items-start">
+                <Image
+                  src="/img/icon-destination.png"
+                  alt="Tentation Icon"
+                  width={50}
+                  height={50}
+                  className="mr-2"
+                />
+                <div className="flex flex-col">
+                  <span className="text-gray-600 font-semibold">Jadwal Fleksibel</span>
+                  <span className="text-gray-600">
+                    {data.tentation === "Yes" ? "Tersedia" : "Tidak Tersedia"}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {data.boat_ids && data.boat_ids.length > 0 && (
+              <div className="flex items-start">
+                <Image
+                  src="/img/icon-destination.png"
+                  alt="Boats Icon"
+                  width={50}
+                  height={50}
+                  className="mr-2"
+                />
+                <div className="flex flex-col">
+                  <span className="text-gray-600 font-semibold">Kapal</span>
+                  <span className="text-gray-600">
+                    {data.boat_ids.length} kapal tersedia
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Section 4: Tab Navigasi dan Konten */}
       <div className="bg-white p-6 rounded-lg shadow-md">

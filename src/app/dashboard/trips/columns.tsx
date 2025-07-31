@@ -144,6 +144,55 @@ export const columns = ({ onDelete, onEdit }: ColumnsProps): ColumnDef<Trip>[] =
     },
   },
   {
+    accessorKey: "boat_id",
+    header: "Kapal",
+    cell: ({ row }) => {
+      const boatId = row.getValue("boat_id") as string | number | null
+      const boat = (row.original as any).boat
+      return (
+        <div className="text-sm">
+          {boatId ? (boat ? boat.boat_name : `Boat ID: ${boatId}`) : "Tidak ada"}
+        </div>
+      )
+    },
+  },
+  {
+    accessorKey: "operational_days",
+    header: "Hari Operasional",
+    cell: ({ row }) => {
+      const operationalDays = row.getValue("operational_days") as string[]
+      const dayLabels: { [key: string]: string } = {
+        "Monday": "Sen",
+        "Tuesday": "Sel", 
+        "Wednesday": "Rab",
+        "Thursday": "Kam",
+        "Friday": "Jum",
+        "Saturday": "Sab",
+        "Sunday": "Min"
+      }
+      return (
+        <div className="text-sm">
+          {operationalDays && operationalDays.length > 0 
+            ? operationalDays.map(day => dayLabels[day]).join(", ")
+            : "Tidak ada"
+          }
+        </div>
+      )
+    },
+  },
+  {
+    accessorKey: "tentation",
+    header: "Jadwal Fleksibel",
+    cell: ({ row }) => {
+      const tentation = row.getValue("tentation") as "Yes" | "No"
+      return (
+        <Badge className={`${tentation === "Yes" ? "bg-green-500" : "bg-gray-500"} text-white`}>
+          {tentation === "Yes" ? "Ya" : "Tidak"}
+        </Badge>
+      )
+    },
+  },
+  {
     id: "actions",
     header: () => null,
     cell: ({ row }) => {

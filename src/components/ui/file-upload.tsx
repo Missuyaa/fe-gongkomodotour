@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { toast } from "sonner"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { SafeImage } from "@/components/ui/safe-image"
 
 interface FileUploadProps {
   onUpload: (files: File[], titles: string[], descriptions: string[]) => Promise<void>
@@ -225,11 +226,12 @@ export function FileUpload({
             {existingFiles.map((file, index) => (
               <div key={index} className="relative group">
                 <div className="aspect-square relative rounded-lg overflow-hidden">
-                  <Image
+                  <SafeImage
                     src={getImageUrl(file.file_url)}
                     alt={file.title}
                     fill
                     className="object-cover"
+                    fallbackSrc="/img/logo.png"
                   />
                   {onDelete && (
                     <button

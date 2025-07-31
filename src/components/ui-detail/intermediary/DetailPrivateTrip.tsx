@@ -71,6 +71,9 @@ interface PackageData {
     duration_label: string;
     itineraries: { day: string; activities: string }[];
   }[];
+  boat_ids?: number[];
+  operational_days?: string[];
+  tentation?: "Yes" | "No";
 }
 
 interface BoatResponse {
@@ -239,6 +242,9 @@ export default function DetailPrivateTrip() {
     flightSchedules: selectedPackage.flight_schedules || [],
     has_boat: selectedPackage.has_boat || false,
     destination_count: selectedPackage.destination_count || 0,
+    boat_ids: selectedPackage.boat_ids || [],
+    operational_days: selectedPackage.operational_days || [],
+    tentation: selectedPackage.tentation || "No",
     flightInfo: {
       guideFee1:
         selectedPackage.additional_fees

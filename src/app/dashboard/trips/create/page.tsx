@@ -22,16 +22,25 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { useRouter } from "next/navigation"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Loader2, Plus, Trash } from "lucide-react"
 import { toast } from "sonner"
 import { apiRequest } from "@/lib/api"
 import { FileUpload } from "@/components/ui/file-upload"
 import { ApiResponse } from "@/types/role"
 import { TipTapEditor } from "@/components/ui/tiptap-editor"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Boat } from "@/types/boats"
+
+interface BoatResponse {
+  data: Boat[]
+  message?: string
+  status?: string
+}
 
 const tripSchema = z.object({
   name: z.string().min(1, "Nama trip harus diisi"),
+  boat_ids: z.array(z.number()).default([]),
   type: z.enum(["Open Trip", "Private Trip"]),
   status: z.enum(["Aktif", "Non Aktif"]),
   is_highlight: z.enum(["Yes", "No"]),
@@ -44,6 +53,8 @@ const tripSchema = z.object({
   has_boat: z.boolean().default(false),
   has_hotel: z.boolean().default(false),
   destination_count: z.number().min(0, "Jumlah destinasi harus diisi").default(0),
+  operational_days: z.array(z.string()).default([]),
+  tentation: z.enum(["Yes", "No"]).default("No"),
   trip_durations: z.array(z.object({
     duration_label: z.string().min(1, "Label durasi harus diisi"),
     duration_days: z.number().min(1, "Jumlah hari harus diisi"),
@@ -102,15 +113,22 @@ type TripFormType = z.infer<typeof tripSchema> & {
   }[];
 };
 
+const DAYS_OF_WEEK = [
+  "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"
+];
+
 export default function CreateTripPage() {
   const router = useRouter()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [files, setFiles] = useState<File[]>([])
   const [fileTitles, setFileTitles] = useState<string[]>([])
   const [fileDescriptions, setFileDescriptions] = useState<string[]>([])
+  const [boats, setBoats] = useState<Boat[]>([])
+  const [isLoadingBoats, setIsLoadingBoats] = useState(true)
 
   const defaultValues: TripFormType = {
     name: "",
+    boat_ids: [],
     type: "Open Trip",
     status: "Aktif",
     is_highlight: "No",
@@ -123,6 +141,8 @@ export default function CreateTripPage() {
     has_boat: false,
     has_hotel: false,
     destination_count: 0,
+    operational_days: [],
+    tentation: "No",
     trip_durations: [{
       duration_label: "",
       duration_days: 1,
@@ -149,6 +169,39 @@ export default function CreateTripPage() {
     defaultValues
   })
 
+  // Debug: Monitor boat_ids changes
+  const boatIds = form.watch("boat_ids")
+  console.log('Current boat_ids in form:', boatIds)
+  
+  // Debug: Monitor all form values
+  const allFormValues = form.watch()
+  console.log('All form values:', allFormValues)
+
+  // Fetch boats data
+  useEffect(() => {
+    const fetchBoats = async () => {
+      try {
+        setIsLoadingBoats(true)
+        const response = await apiRequest<BoatResponse>('GET', '/api/boats')
+        console.log('Boats response:', response)
+        if (response && response.data && Array.isArray(response.data)) {
+          setBoats(response.data)
+        } else {
+          console.log('Invalid boats response format:', response)
+          setBoats([])
+        }
+      } catch (error) {
+        console.error('Error fetching boats:', error)
+        toast.error('Gagal mengambil data kapal')
+        setBoats([])
+      } finally {
+        setIsLoadingBoats(false)
+      }
+    }
+
+    fetchBoats()
+  }, [])
+
   const handleFileDelete = async (fileUrl: string) => {
     try {
       await apiRequest(
@@ -166,6 +219,12 @@ export default function CreateTripPage() {
     try {
       setIsSubmitting(true)
       
+      console.log('Form values before submit:', values)
+      console.log('Boat IDs before submit:', values.boat_ids)
+      console.log('Boat IDs type:', typeof values.boat_ids)
+      console.log('Boat IDs length:', values.boat_ids?.length)
+      console.log('All form values in submit:', JSON.stringify(values, null, 2))
+      
       // Pastikan format waktu sesuai HH:mm:ss
       const formatTime = (time: string) => {
         if (!time) return "";
@@ -175,17 +234,56 @@ export default function CreateTripPage() {
         if (/^\d{2}:\d{2}$/.test(time)) return time + ":00";
         return time;
       };
+      
+      // Transform data untuk memastikan format yang benar
       const payload = {
         ...values,
+        boat_ids: values.boat_ids || [], // Pastikan boat_ids selalu ada
+        boat_id: values.boat_ids && values.boat_ids.length > 0 ? values.boat_ids[0] : null, // Tambahkan boat_id untuk kompatibilitas
         start_time: formatTime(values.start_time),
         end_time: formatTime(values.end_time),
+        has_boat: Boolean(values.has_boat),
+        has_hotel: Boolean(values.has_hotel),
+        destination_count: Number(values.destination_count) || 0,
+        is_highlight: values.is_highlight === "Yes" ? "Yes" : "No",
+        tentation: values.tentation === "Yes" ? "Yes" : "No",
+        operational_days: values.operational_days || [],
+        trip_durations: values.trip_durations.map(duration => ({
+          ...duration,
+          duration_days: Number(duration.duration_days) || 1,
+          duration_nights: Number(duration.duration_nights) || 0,
+          itineraries: duration.itineraries.map(itinerary => ({
+            ...itinerary,
+            day_number: Number(itinerary.day_number) || 1
+          })),
+          prices: duration.prices.map(price => ({
+            ...price,
+            pax_min: Number(price.pax_min) || 1,
+            pax_max: Number(price.pax_max) || 1,
+            price_per_pax: Number(price.price_per_pax) || 0
+          }))
+        })),
+        additional_fees: values.additional_fees?.map(fee => ({
+          ...fee,
+          price: Number(fee.price) || 0,
+          pax_min: Number(fee.pax_min) || 1,
+          pax_max: Number(fee.pax_max) || 1,
+          is_required: Boolean(fee.is_required)
+        })) || []
       };
+      
+      console.log('Payload to API:', payload)
+      
       // 1. Create trip dulu untuk mendapatkan trip_id
+      console.log('Sending request to API with payload:', payload)
+      
       const response = await apiRequest(
         'POST',
         '/api/trips',
         payload
       )
+
+      console.log('API Response:', response)
 
       if (response) {
         const tripId = (response as ApiResponse<{ id: number }>).data.id
@@ -219,9 +317,20 @@ export default function CreateTripPage() {
         router.push("/dashboard/trips")
         router.refresh()
       }
-    } catch (error) {
-      toast.error("Gagal membuat trip")
-      console.error(error)
+    } catch (error: unknown) {
+      console.error("Error creating trip:", error)
+      
+      if (error && typeof error === 'object' && 'response' in error) {
+        const apiError = error as { response: { data?: { message?: string }, statusText?: string } }
+        console.error("API Error Response:", apiError.response.data)
+        toast.error(`Gagal membuat trip: ${apiError.response.data?.message || apiError.response.statusText}`)
+      } else if (error && typeof error === 'object' && 'request' in error) {
+        console.error("Network Error:", error)
+        toast.error("Gagal membuat trip: Tidak dapat terhubung ke server")
+      } else {
+        console.error("Other Error:", error)
+        toast.error("Gagal membuat trip: Terjadi kesalahan yang tidak diketahui")
+      }
     } finally {
       setIsSubmitting(false)
     }
@@ -339,10 +448,7 @@ export default function CreateTripPage() {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Highlight</FormLabel>
-                          <Select 
-                            onValueChange={(value) => field.onChange(value === "Yes")} 
-                            value={field.value ? "Yes" : "No"}
-                          >
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
                             <FormControl>
                               <SelectTrigger>
                                 <SelectValue placeholder="Pilih highlight" />
@@ -401,6 +507,28 @@ export default function CreateTripPage() {
                             <SelectContent>
                               <SelectItem value="true">Ya</SelectItem>
                               <SelectItem value="false">Tidak</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="tentation"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Jadwal Fleksibel</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Pilih status jadwal" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="Yes">Ya</SelectItem>
+                              <SelectItem value="No">Tidak</SelectItem>
                             </SelectContent>
                           </Select>
                           <FormMessage />
@@ -477,6 +605,116 @@ export default function CreateTripPage() {
                         </FormItem>
                       )}
                     />
+                  </div>
+                </div>
+
+                {/* Boat Selection */}
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-900 mb-6">Pilih Kapal</h2>
+                  {isLoadingBoats ? (
+                    <div className="flex items-center justify-center py-8">
+                      <Loader2 className="h-6 w-6 animate-spin" />
+                      <span className="ml-2">Memuat data kapal...</span>
+                    </div>
+                  ) : boats.length > 0 ? (
+                    <div className="grid grid-cols-3 gap-4">
+                      {boats.map((boat) => {
+                        const currentBoatIds = form.watch("boat_ids") || [];
+                        const isChecked = currentBoatIds.includes(boat.id);
+                        
+                        return (
+                          <div key={boat.id} className="flex flex-row items-start space-x-3 space-y-0">
+                            <Checkbox
+                              checked={isChecked}
+                              onCheckedChange={(checked) => {
+                                console.log('Boat checkbox changed:', boat.id, checked);
+                                console.log('Current boats before change:', currentBoatIds);
+                                
+                                let newBoats;
+                                if (checked) {
+                                  newBoats = [...currentBoatIds, boat.id];
+                                  console.log('Adding boat, new array:', newBoats);
+                                } else {
+                                  newBoats = currentBoatIds.filter(id => id !== boat.id);
+                                  console.log('Removing boat, new array:', newBoats);
+                                }
+                                
+                                form.setValue("boat_ids", newBoats);
+                                
+                                // Force form update and log
+                                setTimeout(() => {
+                                  const updatedBoatIds = form.getValues('boat_ids');
+                                  console.log('Boat IDs after update:', updatedBoatIds);
+                                  console.log('Form state after boat update:', form.getValues());
+                                }, 100);
+                              }}
+                            />
+                            <div className="space-y-1 leading-none">
+                              <label className="text-sm font-normal cursor-pointer">
+                                {boat.boat_name}
+                              </label>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-center py-8">
+                      <div className="text-center">
+                        <p className="text-gray-500 mb-2">Tidak ada data kapal tersedia</p>
+                        <p className="text-sm text-gray-400 mb-4">Silakan tambahkan kapal terlebih dahulu di menu Kapal Management</p>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => router.push("/dashboard/boats")}
+                          className="text-blue-600 hover:text-blue-700"
+                        >
+                          Tambah Kapal
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Operational Days */}
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-900 mb-6">Hari Operasional</h2>
+                  <div className="grid grid-cols-7 gap-4">
+                    {DAYS_OF_WEEK.map((day) => (
+                      <FormField
+                        key={day}
+                        control={form.control}
+                        name="operational_days"
+                        render={({ field }) => (
+                          <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                            <FormControl>
+                              <Checkbox
+                                checked={field.value?.includes(day)}
+                                onCheckedChange={(checked) => {
+                                  const currentDays = field.value || [];
+                                  if (checked) {
+                                    field.onChange([...currentDays, day]);
+                                  } else {
+                                    field.onChange(currentDays.filter(d => d !== day));
+                                  }
+                                }}
+                              />
+                            </FormControl>
+                            <div className="space-y-1 leading-none">
+                              <FormLabel className="text-sm font-normal">
+                                {day === "Monday" && "Senin"}
+                                {day === "Tuesday" && "Selasa"}
+                                {day === "Wednesday" && "Rabu"}
+                                {day === "Thursday" && "Kamis"}
+                                {day === "Friday" && "Jumat"}
+                                {day === "Saturday" && "Sabtu"}
+                                {day === "Sunday" && "Minggu"}
+                              </FormLabel>
+                            </div>
+                          </FormItem>
+                        )}
+                      />
+                    ))}
                   </div>
                 </div>
 
