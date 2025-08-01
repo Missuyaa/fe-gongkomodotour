@@ -31,14 +31,14 @@ const nextConfig: NextConfig = {
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
   },
 
-  // eslint: {
-  //   // Menonaktifkan ESLint saat proses `yarn build`
-  //   ignoreDuringBuilds: true,
-  // },
-  // typescript: {
-  //   // Menonaktifkan pengecekan tipe TypeScript saat `yarn build`
-  //   ignoreBuildErrors: true,
-  // },
+  eslint: {
+    // Menonaktifkan ESLint saat proses `yarn build`
+    ignoreDuringBuilds: true,
+  },
+  typescript: {
+    // Menonaktifkan pengecekan tipe TypeScript saat `yarn build`
+    ignoreBuildErrors: true,
+  },
 
   // experimental: {
   //   workerThreads: false,

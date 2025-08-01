@@ -10,7 +10,6 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { toast } from "sonner"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { SafeImage } from "@/components/ui/safe-image"
 
 interface FileUploadProps {
   onUpload: (files: File[], titles: string[], descriptions: string[]) => Promise<void>

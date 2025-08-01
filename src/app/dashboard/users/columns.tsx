@@ -11,6 +11,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
+
 interface ColumnsProps {
   onEdit: (user: User) => void;
   onDelete: (user: User) => void;
@@ -110,8 +111,8 @@ export const columns = ({ onEdit, onDelete }: ColumnsProps): ColumnDef<User>[] =
       </Button>
     ),
     cell: ({ row }) => {
-      const roleValue = row.getValue("role") as string | string[];
-      return <div>{Array.isArray(roleValue) ? roleValue.join(", ") : roleValue}</div>;
+      const roleValue = row.getValue("role");
+      return <div>{typeof roleValue === 'string' ? roleValue : Array.isArray(roleValue) ? (roleValue as string[]).join(", ") : ''}</div>;
     },
   },
   {
@@ -126,9 +127,11 @@ export const columns = ({ onEdit, onDelete }: ColumnsProps): ColumnDef<User>[] =
         <ArrowUpDown className="ml-2 h-4 w-4" />
       </Button>
     ),
-    cell: ({ row }) => (
-      <div>{new Date(row.getValue("created_at")).toLocaleString()}</div>
-    ),
+    cell: ({ row }) => {
+      const value = row.getValue("created_at");
+      const date = value ? new Date(value.toString()) : new Date();
+      return <div>{date.toLocaleString()}</div>;
+    },
   },
   {
     accessorKey: "updated_at",
@@ -142,9 +145,11 @@ export const columns = ({ onEdit, onDelete }: ColumnsProps): ColumnDef<User>[] =
         <ArrowUpDown className="ml-2 h-4 w-4" />
       </Button>
     ),
-    cell: ({ row }) => (
-      <div>{new Date(row.getValue("updated_at")).toLocaleString()}</div>
-    ),
+    cell: ({ row }) => {
+      const value = row.getValue("updated_at");
+      const date = value ? new Date(value.toString()) : new Date();
+      return <div>{date.toLocaleString()}</div>;
+    },
   },
   {
     id: "actions",

@@ -107,9 +107,9 @@ const exportToPDF = (data: User[]) => {
     item.name,
     item.email,
     item.status,
-    Array.isArray(item.role) ? item.role.join(", ") : item.role,
-    new Date(item.created_at).toLocaleString(),
-    new Date(item.updated_at).toLocaleString(),
+    typeof item.role === 'string' ? item.role : Array.isArray(item.role) ? (item.role as string[]).join(", ") : '',
+    item.created_at ? new Date(item.created_at.toString()).toLocaleString() : '',
+    item.updated_at ? new Date(item.updated_at.toString()).toLocaleString() : '',
   ]);
 
   // Generate the table
