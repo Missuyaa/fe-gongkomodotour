@@ -24,7 +24,9 @@ interface TripResponse {
   status?: string;
 }
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+// Ubah URL API
+// const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.gongkomodotour.com';
 
 export default function OpenTrip() {
   const { t } = useLanguage();
