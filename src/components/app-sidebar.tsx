@@ -10,7 +10,9 @@ import {
   Shield,
   SquareUserRound,
   Compass,
-  Home
+  Home,
+  Image as ImageIcon,
+  Film
 } from "lucide-react"
 import Image from 'next/image'
 import logo from '../../public/img/logo.png';
@@ -130,6 +132,11 @@ const data = {
       name: "Customers",
       url: "/dashboard/customers",
       icon: SquareUserRound,
+    },
+    {
+      name: "Carousel",
+      url: "/dashboard/carousel",
+      icon: Film,
     },
   ],
 }

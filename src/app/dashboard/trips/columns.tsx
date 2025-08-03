@@ -170,12 +170,39 @@ export const columns = ({ onDelete, onEdit }: ColumnsProps): ColumnDef<Trip>[] =
         "Saturday": "Sab",
         "Sunday": "Min"
       }
+
+      // Cek apakah hari operasional hanya weekday, weekend, atau all days
+      const allDays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+      const weekdays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
+      const weekend = ["Saturday", "Sunday"];
+      
+      const isAllDays = operationalDays && allDays.every(day => operationalDays.includes(day));
+      const isWeekdaysOnly = operationalDays && weekdays.every(day => operationalDays.includes(day)) && 
+                           !weekend.some(day => operationalDays.includes(day));
+      const isWeekendOnly = operationalDays && weekend.every(day => operationalDays.includes(day)) && 
+                          !weekdays.some(day => operationalDays.includes(day));
+
       return (
-        <div className="text-sm">
-          {operationalDays && operationalDays.length > 0 
-            ? operationalDays.map(day => dayLabels[day]).join(", ")
-            : "Tidak ada"
-          }
+        <div className="text-sm space-y-1">
+          <div>
+            {operationalDays && operationalDays.length > 0 
+              ? operationalDays.map(day => dayLabels[day]).join(", ")
+              : "Tidak ada"
+            }
+          </div>
+          {operationalDays && operationalDays.length > 0 && (
+            <div className="flex gap-1 mt-1">
+              {isAllDays ? (
+                <Badge className="bg-blue-500 text-white text-xs">Semua Hari</Badge>
+              ) : isWeekdaysOnly ? (
+                <Badge className="bg-green-500 text-white text-xs">Weekday</Badge>
+              ) : isWeekendOnly ? (
+                <Badge className="bg-amber-500 text-white text-xs">Weekend</Badge>
+              ) : (
+                <Badge className="bg-purple-500 text-white text-xs">Custom</Badge>
+              )}
+            </div>
+          )}
         </div>
       )
     },

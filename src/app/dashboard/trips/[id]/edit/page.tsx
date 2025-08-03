@@ -893,6 +893,51 @@ export default function EditTripPage({ params }: { params: Promise<{ id: string 
                 {/* Operational Days */}
                 <div>
                   <h2 className="text-xl font-semibold text-gray-900 mb-6">Hari Operasional</h2>
+                  
+                  {/* Tombol aksi untuk checklist hari operasional */}
+                  <div className="flex gap-3 mb-4">
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => {
+                        form.setValue("operational_days", ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]);
+                      }}
+                    >
+                      Semua Hari
+                    </Button>
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => {
+                        form.setValue("operational_days", ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]);
+                      }}
+                    >
+                      Weekday
+                    </Button>
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => {
+                        form.setValue("operational_days", ["Saturday", "Sunday"]);
+                      }}
+                    >
+                      Weekend
+                    </Button>
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => {
+                        form.setValue("operational_days", []);
+                      }}
+                    >
+                      Hapus Semua
+                    </Button>
+                  </div>
+                  
                   <div className="grid grid-cols-7 gap-4">
                     {DAYS_OF_WEEK.map((day) => (
                       <FormField
