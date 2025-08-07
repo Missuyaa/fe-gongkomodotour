@@ -19,6 +19,7 @@ interface Trip {
   assets: {
     id: number;
     file_url: string;
+    original_file_url?: string;
     is_external: boolean;
   }[];
   trip_durations: {
@@ -45,7 +46,7 @@ interface TripResponse {
   status?: string;
 }
 
-import { getImageUrl } from "@/lib/imageUrl";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.gongkomodotour.com';
 
 const customStyles = `
   .text-shadow-nike {
@@ -94,6 +95,7 @@ const customStyles = `
 export default function TripHighlight() {
   const [highlights, setHighlights] = useState<Trip[]>([]);
   const [loading, setLoading] = useState(true);
+  const [imageErrors, setImageErrors] = useState<Set<number>>(new Set());
   const { t } = useLanguage();
 
   const container = {
@@ -129,20 +131,58 @@ export default function TripHighlight() {
         console.log('Trip Highlight Response:', response);
         console.log('Trip Highlight Data:', response.data);
         
-        // Log asset URLs for debugging
+        // Log basic info for debugging
         if (response.data && response.data.length > 0) {
-          response.data.forEach((trip, index) => {
-            console.log(`Trip ${index} assets:`, trip.assets);
-            if (trip.assets && trip.assets.length > 0) {
-              console.log(`Trip ${index} first asset URL:`, trip.assets[0].file_url);
-              console.log(`Trip ${index} processed URL:`, getImageUrl(trip.assets[0].file_url));
-            }
-          });
+          console.log(`Loaded ${response.data.length} highlighted trips`);
+        } else {
+          console.warn('No trip data received from API');
         }
         
         setHighlights(response.data || []);
       } catch (error) {
         console.error('Error fetching highlighted trips:', error);
+        
+        // Jika API down, gunakan data dummy sementara
+        console.log('API server down, using dummy data');
+        const dummyData: Trip[] = [
+          {
+            id: 1,
+            name: "Komodo Island Adventure",
+            type: "Open Trip",
+            is_highlight: "Yes",
+            status: "Aktif",
+            assets: [],
+            trip_durations: []
+          },
+          {
+            id: 2,
+            name: "Private Komodo Tour",
+            type: "Private Trip",
+            is_highlight: "Yes",
+            status: "Aktif",
+            assets: [],
+            trip_durations: []
+          },
+          {
+            id: 3,
+            name: "Luxury Phinisi Cruise",
+            type: "Open Trip",
+            is_highlight: "Yes",
+            status: "Aktif",
+            assets: [],
+            trip_durations: []
+          },
+          {
+            id: 4,
+            name: "Weekend Getaway",
+            type: "Private Trip",
+            is_highlight: "Yes",
+            status: "Aktif",
+            assets: [],
+            trip_durations: []
+          }
+        ];
+        setHighlights(dummyData);
       } finally {
         setLoading(false);
       }
@@ -150,6 +190,38 @@ export default function TripHighlight() {
 
     fetchHighlights();
   }, []);
+
+  const handleImageError = (tripId: number) => {
+    console.error(`Image failed to load for trip ID: ${tripId}`);
+    setImageErrors(prev => new Set(prev).add(tripId));
+  };
+
+  const getImageSource = (trip: Trip) => {
+    // Jika ada error pada gambar ini, gunakan fallback
+    if (imageErrors.has(trip.id)) {
+      return '/img/default-trip.jpg';
+    }
+
+    // Jika tidak ada assets atau file_url kosong
+    if (!trip.assets || trip.assets.length === 0) {
+      console.warn(`Trip ${trip.id} (${trip.name}) has no assets`);
+      return '/img/default-trip.jpg';
+    }
+
+    const asset = trip.assets[0];
+    
+    // Gunakan original_file_url yang bisa diakses langsung
+    if (asset.original_file_url) {
+      const imageUrl = `${API_URL}${asset.original_file_url}`;
+      return imageUrl;
+    } else if (asset.file_url && !asset.file_url.includes('placeholder')) {
+      // Gunakan file_url jika bukan placeholder
+      const imageUrl = asset.file_url.startsWith('http') ? asset.file_url : `${API_URL}${asset.file_url}`;
+      return imageUrl;
+    } else {
+      return '/img/default-trip.jpg';
+    }
+  };
 
   if (loading) {
     return (
@@ -196,10 +268,7 @@ export default function TripHighlight() {
               console.log('Rendering highlight:', highlight);
               console.log('Original asset URL:', highlight.assets?.[0]?.file_url);
               
-              const imageUrl = highlight.assets?.[0]?.file_url 
-                ? getImageUrl(highlight.assets[0].file_url)
-                : '/images/placeholder.jpg';
-              
+              const imageUrl = getImageSource(highlight);
               console.log('Final image URL to display:', imageUrl);
 
               return (
@@ -224,12 +293,18 @@ export default function TripHighlight() {
                         >
                           <Image
                             src={imageUrl}
-                            alt={highlight.name}
+                            alt={highlight.name || 'Trip Image'}
                             fill
                             className="object-cover rounded-sm"
                             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                             quality={100}
                             unoptimized={true}
+                            onError={() => {
+                              console.error(`Image failed to load for trip ${highlight.id}: ${imageUrl}`);
+                              handleImageError(highlight.id);
+                            }}
+                            priority={false}
+                            onLoad={() => console.log(`Image loaded successfully for trip ${highlight.id}: ${imageUrl}`)}
                           />
                           <div className="absolute inset-0 trip-overlay opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                           <div className="absolute bottom-0 left-0 right-0 p-4 trip-info">
@@ -249,6 +324,8 @@ export default function TripHighlight() {
             })
           )}
         </motion.div>
+        
+
       </div>
     </section>
   );
