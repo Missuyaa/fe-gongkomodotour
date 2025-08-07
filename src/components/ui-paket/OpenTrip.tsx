@@ -24,9 +24,7 @@ interface TripResponse {
   status?: string;
 }
 
-// Ubah URL API
-// const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.gongkomodotour.com';
+import { getImageUrl } from "@/lib/imageUrl";
 
 export default function OpenTrip() {
   const { t } = useLanguage();
@@ -207,7 +205,7 @@ export default function OpenTrip() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {currentTrips.map((trip, index) => {
               const imageUrl = trip.assets?.[0]?.file_url 
-                ? `${API_URL}${trip.assets[0].file_url}`
+                ? getImageUrl(trip.assets[0].file_url)
                 : '/img/default-trip.jpg';
 
               return (

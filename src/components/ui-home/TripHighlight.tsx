@@ -45,7 +45,8 @@ interface TripResponse {
   status?: string;
 }
 
-// Gaya kustom untuk efek shadow dan transisi
+import { getImageUrl } from "@/lib/imageUrl";
+
 const customStyles = `
   .text-shadow-nike {
     text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7), 0 0 10px rgba(0, 0, 0, 0.5);
@@ -90,8 +91,6 @@ const customStyles = `
   }
 `;
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-
 export default function TripHighlight() {
   const [highlights, setHighlights] = useState<Trip[]>([]);
   const [loading, setLoading] = useState(true);
@@ -129,13 +128,18 @@ export default function TripHighlight() {
         );
         console.log('Trip Highlight Response:', response);
         console.log('Trip Highlight Data:', response.data);
-        console.log('Trip Highlight Data Type:', typeof response.data);
-        console.log('Trip Highlight Data Length:', response.data?.length);
+        
+        // Log asset URLs for debugging
         if (response.data && response.data.length > 0) {
-          console.log('First trip:', response.data[0]);
-          console.log('First trip name:', response.data[0].name);
-          console.log('First trip type:', response.data[0].type);
+          response.data.forEach((trip, index) => {
+            console.log(`Trip ${index} assets:`, trip.assets);
+            if (trip.assets && trip.assets.length > 0) {
+              console.log(`Trip ${index} first asset URL:`, trip.assets[0].file_url);
+              console.log(`Trip ${index} processed URL:`, getImageUrl(trip.assets[0].file_url));
+            }
+          });
         }
+        
         setHighlights(response.data || []);
       } catch (error) {
         console.error('Error fetching highlighted trips:', error);
@@ -190,9 +194,13 @@ export default function TripHighlight() {
           ) : (
             highlights.map((highlight) => {
               console.log('Rendering highlight:', highlight);
+              console.log('Original asset URL:', highlight.assets?.[0]?.file_url);
+              
               const imageUrl = highlight.assets?.[0]?.file_url 
-                ? `${API_URL}${highlight.assets[0].file_url}`
+                ? getImageUrl(highlight.assets[0].file_url)
                 : '/images/placeholder.jpg';
+              
+              console.log('Final image URL to display:', imageUrl);
 
               return (
                 <motion.div
@@ -221,6 +229,7 @@ export default function TripHighlight() {
                             className="object-cover rounded-sm"
                             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                             quality={100}
+                            unoptimized={true}
                           />
                           <div className="absolute inset-0 trip-overlay opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                           <div className="absolute bottom-0 left-0 right-0 p-4 trip-info">

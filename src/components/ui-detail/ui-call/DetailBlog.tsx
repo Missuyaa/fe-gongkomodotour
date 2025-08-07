@@ -7,6 +7,7 @@ import { Blog } from "@/types/blog";
 import { useEffect, useState } from "react";
 import { apiRequest } from "@/lib/api";
 import type { Variants } from "framer-motion";
+import { getImageUrl } from "@/lib/imageUrl";
 
 export default function DetailBlog() {
   const [latestPosts, setLatestPosts] = useState<Blog[]>([]);
@@ -28,12 +29,9 @@ export default function DetailBlog() {
           const formattedPost = {
             ...post,
             assets: post.assets?.map(asset => {
-              const fileUrl = asset.file_url.startsWith('http') 
-                ? asset.file_url 
-                : `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}${asset.file_url}`;
               return {
                 ...asset,
-                file_url: fileUrl
+                file_url: getImageUrl(asset.file_url)
               };
             })
           };

@@ -11,8 +11,7 @@ import { useState, useEffect } from "react";
 import { apiRequest } from "@/lib/api";
 import { Trip, FlightSchedule } from "@/types/trips";
 import { Boat } from "@/types/boats";
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+import { getImageUrl } from "@/lib/imageUrl";
 
 interface ApiResponse {
   data: Trip;
@@ -121,7 +120,7 @@ export default function DetailOpenTrip() {
             .slice(0, 3) // Take only 3 trips
             .map((trip: Trip) => ({
               image: trip.assets?.[0]?.file_url
-                ? `${API_URL}${trip.assets[0].file_url}`
+                ? getImageUrl(trip.assets[0].file_url)
                 : "/img/default-trip.jpg",
               label: trip.type || "Open Trip",
               name: trip.name || "Trip Name",
@@ -228,7 +227,7 @@ export default function DetailOpenTrip() {
     boat: "Speed Boat", // Sesuaikan dengan data yang ada
     groupSize: "10-15 people", // Sesuaikan dengan data yang ada
     images:
-      selectedPackage.assets?.map((asset) => `${API_URL}${asset.file_url}`) ||
+      selectedPackage.assets?.map((asset) => getImageUrl(asset.file_url)) ||
       [],
     destinations: selectedPackage.destination_count || 0,
     include:
@@ -236,7 +235,7 @@ export default function DetailOpenTrip() {
     exclude:
       selectedPackage.exclude?.split("\n").filter((item) => item.trim()) || [],
     mainImage: selectedPackage.assets?.[0]?.file_url
-      ? `${API_URL}${selectedPackage.assets[0].file_url}`
+      ? getImageUrl(selectedPackage.assets[0].file_url)
       : "/img/default-image.png",
     flightSchedules: selectedPackage.flight_schedules || [],
     has_boat: selectedPackage.has_boat || false,
@@ -307,9 +306,7 @@ export default function DetailOpenTrip() {
     },
     boatImages: boats.flatMap((boat) =>
       boat.assets.map((asset) => ({
-        image: asset.file_url.startsWith("http")
-          ? asset.file_url
-          : `${API_URL}${asset.file_url}`,
+        image: getImageUrl(asset.file_url),
         title: boat.boat_name,
         id: boat.id.toString(),
       }))
