@@ -133,6 +133,7 @@ export default function Booking() {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(
     dateParam ? new Date(dateParam) : undefined
   );
+  // Inisialisasi tripCount dengan 0
   const [tripCount, setTripCount] = useState(0);
   const [selectedDuration, setSelectedDuration] = useState<string>("");
   const [selectedBoat, setSelectedBoat] = useState<string>("");
@@ -365,6 +366,13 @@ export default function Booking() {
 
     fetchTripData();
   }, [packageId]);
+
+  // Update tripCount ke pax_min setelah selectedPackage diisi
+  useEffect(() => {
+    if (selectedPackage?.trip_durations?.[0]?.trip_prices?.[0]?.pax_min) {
+      setTripCount(selectedPackage.trip_durations[0].trip_prices[0].pax_min);
+    }
+  }, [selectedPackage]);
 
   useEffect(() => {
     if (selectedDuration && selectedPackage?.trip_durations) {
@@ -894,7 +902,7 @@ export default function Booking() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => setTripCount((prev) => Math.max(prev - 1, 0))}
+                    onClick={() => setTripCount((prev) => Math.max(Number(prev) - 1, 0))}
                     className="hover:bg-gold hover:text-white transition-colors duration-300"
                   >
                     -
@@ -909,7 +917,7 @@ export default function Booking() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => setTripCount((prev) => prev + 1)}
+                    onClick={() => setTripCount((prev) => Number(prev) + 1)}
                     className="hover:bg-gold hover:text-white transition-colors duration-300"
                   >
                     +
