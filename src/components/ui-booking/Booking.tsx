@@ -287,14 +287,21 @@ export default function Booking() {
         if (response.data) {
           const trip = response.data;
           console.log('Original Trip Data:', trip);
+          // Helper untuk memastikan file_url tidak double API_URL
+          const getImageUrl = (file_url: string | undefined) => {
+            if (!file_url) return "/img/default-image.png";
+            if (/^https?:\/\//.test(file_url)) return file_url;
+            return `${API_URL}${file_url}`;
+          };
+
           const transformedData: PackageData = {
             id: trip.id.toString(),
             title: trip.name,
             price: trip.trip_durations?.[0]?.trip_prices?.[0]?.price_per_pax?.toString() || "0",
             daysTrip: trip.trip_durations?.[0]?.duration_label || "",
             type: trip.type,
-            image: trip.assets?.[0]?.file_url ? `${API_URL}${trip.assets[0].file_url}` : "/img/default-image.png",
-            mainImage: trip.assets?.[0]?.file_url ? `${API_URL}${trip.assets[0].file_url}` : "/img/default-image.png",
+            image: getImageUrl(trip.assets?.[0]?.file_url),
+            mainImage: getImageUrl(trip.assets?.[0]?.file_url),
             itinerary: trip.trip_durations?.map(duration => ({
               durationId: duration.id,
               durationLabel: duration.duration_label,
@@ -304,7 +311,7 @@ export default function Booking() {
               })) || []
             })),
             boatImages: trip.boat_assets?.map(asset => ({
-              image: asset.file_url ? `${API_URL}${asset.file_url}` : "/img/default-image.png",
+              image: getImageUrl(asset.file_url),
               title: asset.title || "Boat",
               id: asset.id.toString()
             })),
@@ -341,12 +348,10 @@ export default function Booking() {
           };
           console.log('Transformed Package Data:', transformedData);
           setSelectedPackage(transformedData);
-          
           // Set durasi otomatis jika hanya ada satu opsi
           if (transformedData.trip_durations?.length === 1) {
             setSelectedDuration(transformedData.trip_durations[0].duration_label);
           }
-          
           // Set additional charges yang required secara otomatis
           const requiredFees = trip.additional_fees
             ?.filter(fee => Boolean(fee.is_required))
@@ -1197,72 +1202,68 @@ export default function Booking() {
                         placeholder="Catatan Tambahan" 
                         className="h-20"
                       />
-
-                                            {selectedDuration && selectedDate && selectedPackage?.has_hotel && (
-                        <>
-                          <div className="space-y-2">
-                              <Label>Hotel</Label>
-                              <div className="space-y-4">
-                                {isLoadingHotels ? (
-                                  <div className="p-2 text-center text-sm text-gray-500">
-                                    Loading hotels...
-                                  </div>
-                                ) : hotels.length === 0 ? (
-                                  <div className="p-2 text-center text-sm text-gray-500">
-                                    Tidak ada hotel tersedia
-                                  </div>
-                                ) : (
-                                  hotels.map((hotel) => {
-                                    const selectedRoom = selectedHotelRooms.find(room => room.hotelId === hotel.id.toString());
-                                    const currentRooms = selectedRoom?.rooms || 0;
-                                    const currentPax = selectedRoom?.pax || 0;
-                                    
-                                    return (
-                                      <div key={hotel.id} className="flex items-center justify-between p-3 border rounded-lg">
-                                        <div className="space-y-1">
-                                          <div className="font-medium">{hotel.hotel_name}</div>
-                                          <div className="text-sm text-gray-500">
-                                            {hotel.hotel_type} - {hotel.occupancy}
-                                          </div>
-                                          <div className="text-sm text-gold">
-                                            IDR {Number(hotel.price).toLocaleString('id-ID')}/malam
-                                          </div>
-                                          <div className="text-xs text-gray-500">
-                                            {currentPax} dari {tripCount} pax dialokasikan
-                                          </div>
-                                        </div>
-                                        <div className="flex items-center space-x-2">
-                                          <Button
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={() => handleRoomChange(hotel.id.toString(), false)}
-                                            disabled={currentRooms <= 0}
-                                          >
-                                            -
-                                          </Button>
-                                          <Input
-                                            type="number"
-                                            value={currentRooms}
-                                            readOnly
-                                            className="w-16 text-center"
-                                          />
-                                          <Button
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={() => handleRoomChange(hotel.id.toString(), true)}
-                                            disabled={calculateTotalSelectedHotelPax() >= tripCount}
-                                          >
-                                            +
-                                          </Button>
-                                        </div>
-                                      </div>
-                                    );
-                                  })
-                                )}
+                      {/* Hotel Section */}
+                      {selectedDuration && selectedDate && selectedPackage?.has_hotel && (
+                        <div className="space-y-2">
+                          <Label>Hotel</Label>
+                          <div className="space-y-4">
+                            {isLoadingHotels ? (
+                              <div className="p-2 text-center text-sm text-gray-500">
+                                Loading hotels...
                               </div>
-                            </div>
-                          )}
-                        </>
+                            ) : hotels.length === 0 ? (
+                              <div className="p-2 text-center text-sm text-gray-500">
+                                Tidak ada hotel tersedia
+                              </div>
+                            ) : (
+                              hotels.map((hotel) => {
+                                const selectedRoom = selectedHotelRooms.find(room => room.hotelId === hotel.id.toString());
+                                const currentRooms = selectedRoom?.rooms || 0;
+                                const currentPax = selectedRoom?.pax || 0;
+                                return (
+                                  <div key={hotel.id} className="flex items-center justify-between p-3 border rounded-lg">
+                                    <div className="space-y-1">
+                                      <div className="font-medium">{hotel.hotel_name}</div>
+                                      <div className="text-sm text-gray-500">
+                                        {hotel.hotel_type} - {hotel.occupancy}
+                                      </div>
+                                      <div className="text-sm text-gold">
+                                        IDR {Number(hotel.price).toLocaleString('id-ID')}/malam
+                                      </div>
+                                      <div className="text-xs text-gray-500">
+                                        {currentPax} dari {tripCount} pax dialokasikan
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center space-x-2">
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => handleRoomChange(hotel.id.toString(), false)}
+                                        disabled={currentRooms <= 0}
+                                      >
+                                        -
+                                      </Button>
+                                      <Input
+                                        type="number"
+                                        value={currentRooms}
+                                        readOnly
+                                        className="w-16 text-center"
+                                      />
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => handleRoomChange(hotel.id.toString(), true)}
+                                        disabled={calculateTotalSelectedHotelPax() >= tripCount}
+                                      >
+                                        +
+                                      </Button>
+                                    </div>
+                                  </div>
+                                );
+                              })
+                            )}
+                          </div>
+                        </div>
                       )}
                     </div>
                   </div>
