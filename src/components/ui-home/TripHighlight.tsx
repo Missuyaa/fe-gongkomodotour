@@ -236,9 +236,6 @@ export default function TripHighlight() {
     );
   }
 
-  console.log('Highlights to render:', highlights);
-  console.log('Highlights count:', highlights.length);
-
   return (
     <section className="p-4 py-10 bg-gray-50">
       <style>{customStyles}</style>
