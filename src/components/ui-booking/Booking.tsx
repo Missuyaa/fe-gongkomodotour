@@ -495,7 +495,11 @@ export default function Booking() {
   };
 
   const handleBoatChange = (value: string) => {
+    // Ganti boat: reset alokasi cabin & kebutuhan
     setSelectedBoat(value);
+    setSelectedCabins([]);
+    setRequiredBoats(0);
+    setRequiredCabins(0);
   };
 
   const calculateBasePrice = () => {
