@@ -135,7 +135,7 @@ export default function Booking() {
     dateParam ? new Date(dateParam) : undefined
   );
   // Inisialisasi tripCount dengan 0
-  const [tripCount, setTripCount] = useState(0);
+  const [tripCount, setTripCount] = useState(1);
   const [selectedDuration, setSelectedDuration] = useState<string>("");
   const [selectedBoat, setSelectedBoat] = useState<string>("");
   const [additionalCharges, setAdditionalCharges] = useState<string[]>([]);
@@ -268,31 +268,44 @@ export default function Booking() {
     return applicableFees;
   }, [selectedPackage, selectedDate, selectedDurationDays, tripCount, userRegion]);
 
-  const calculateTotalBoatCapacity = (boat: Boat) => {
-    return boat.cabin
-      .filter(cabin => cabin.status === "Aktif")
-      .reduce((total, cabin) => total + cabin.max_pax, 0);
+  const isActive = (status: unknown) => {
+    if (typeof status === "string") {
+      const s = status.toLowerCase();
+      return s.includes("aktif") || s.includes("active") || s === "1" || s === "true";
+    }
+    if (typeof status === "number") return status === 1;
+    if (typeof status === "boolean") return status;
+    return true; // default to active if unknown
   };
 
-  useEffect(() => {
-    if (tripCount > 0) {
-      const availableBoats = boats.filter(boat => {
-        const totalCapacity = calculateTotalBoatCapacity(boat);
-        return totalCapacity >= tripCount;
-      });
-      setFilteredBoats(availableBoats);
+  const toNumber = (value: unknown) => {
+    return typeof value === "number" ? value : Number(value ?? 0);
+  };
 
-      // Reset selected boat jika boat yang dipilih tidak tersedia lagi
-      if (selectedBoat) {
-        const selectedBoatData = availableBoats.find(boat => boat.id.toString() === selectedBoat);
-        if (!selectedBoatData) {
-          setSelectedBoat("");
-        }
+  const calculateTotalBoatCapacity = useCallback((boat: Boat) => {
+    return boat.cabin
+      .filter(cabin => isActive(cabin.status))
+      .reduce((total, cabin) => total + toNumber(cabin.max_pax), 0);
+  }, []);
+
+  useEffect(() => {
+    const availableBoats = boats
+      .filter(boat => isActive(boat.status))
+      .filter(boat => {
+        const totalCapacity = calculateTotalBoatCapacity(boat);
+        const hasCabinWithMin = boat.cabin.some(cabin => isActive(cabin.status) && toNumber(cabin.min_pax) <= tripCount);
+        return totalCapacity >= tripCount && hasCabinWithMin;
+      });
+    setFilteredBoats(availableBoats);
+
+    // Reset selected boat jika boat yang dipilih tidak tersedia lagi
+    if (selectedBoat) {
+      const selectedBoatData = availableBoats.find(boat => boat.id.toString() === selectedBoat);
+      if (!selectedBoatData) {
+        setSelectedBoat("");
       }
-    } else {
-      setFilteredBoats(boats);
     }
-  }, [tripCount, boats, selectedBoat]);
+  }, [tripCount, boats, selectedBoat, calculateTotalBoatCapacity]);
 
   useEffect(() => {
     const fetchTripData = async () => {
@@ -392,7 +405,7 @@ export default function Booking() {
     if (selectedPackage?.trip_durations?.[0]?.trip_prices?.[0]?.pax_min) {
       setTripCount(selectedPackage.trip_durations[0].trip_prices[0].pax_min);
     }
-  }, [selectedPackage]);
+  }, [selectedPackage, calculateTotalBoatCapacity, tripCount]);
 
   useEffect(() => {
     if (selectedDuration && selectedPackage?.trip_durations) {
@@ -404,6 +417,30 @@ export default function Booking() {
       }
     }
   }, [selectedDuration, selectedPackage]);
+
+  // Minimum pax helper (berdasarkan trip_prices, fallback 1)
+  const getMinimumPax = useCallback(() => {
+    if (!selectedPackage?.trip_durations || selectedPackage.trip_durations.length === 0) {
+      return 1;
+    }
+    const duration = selectedPackage.trip_durations.find(
+      (d) => d.duration_label === selectedDuration
+    ) || selectedPackage.trip_durations[0];
+    const minFromPrices = duration?.trip_prices?.reduce((min, price) => {
+      const currentMin = Number(price.pax_min ?? Infinity);
+      return Number.isFinite(currentMin) ? Math.min(min, currentMin) : min;
+    }, Infinity);
+    const minPax = Number.isFinite(minFromPrices) ? Number(minFromPrices) : 1;
+    return Math.max(minPax, 1);
+  }, [selectedDuration, selectedPackage]);
+
+  // Pastikan tripCount tidak turun di bawah minimum saat state relevan berubah
+  useEffect(() => {
+    const minimumPax = getMinimumPax();
+    if (tripCount < minimumPax) {
+      setTripCount(minimumPax);
+    }
+  }, [getMinimumPax, tripCount]);
 
   useEffect(() => {
     // Update additional charges based on date and duration
@@ -441,6 +478,8 @@ export default function Booking() {
 
   const calculateBasePrice = () => {
     if (!selectedPackage?.trip_durations || tripCount === 0) return 0;
+    // Jika trip punya relasi boat, abaikan trip_prices (harga mengikuti boat/cabin)
+    if (selectedPackage?.has_boat) return 0;
 
     // Cari durasi yang dipilih
     const selectedDurationData = selectedPackage.trip_durations.find(
@@ -577,15 +616,18 @@ export default function Booking() {
         console.log('Raw Boats Response:', response);
 
         if (response && response.data && Array.isArray(response.data)) {
-          // Filter hanya boat yang aktif
-          const activeBoats = response.data.filter(boat => {
-            console.log('Boat Status:', boat.status);
-            return boat.status === "Aktif";
-          });
+          // Filter hanya boat yang aktif (longgar terhadap variasi status)
+          const activeBoats = response.data.filter(boat => isActive(boat.status));
           console.log('Active boats:', activeBoats);
           console.log('Number of active boats:', activeBoats.length);
           setBoats(activeBoats);
-          setFilteredBoats(activeBoats);
+          // Set filtered langsung sesuai tripCount saat ini dan min_pax cabin
+          const availableNow = activeBoats.filter(boat => {
+            const totalCapacity = calculateTotalBoatCapacity(boat);
+            const hasCabinWithMin = boat.cabin.some(cabin => isActive(cabin.status) && toNumber(cabin.min_pax) <= tripCount);
+            return totalCapacity >= tripCount && hasCabinWithMin;
+          });
+          setFilteredBoats(availableNow);
         } else {
           console.log('Invalid response format:', response);
         }
@@ -602,7 +644,7 @@ export default function Booking() {
     } else {
       console.log('Package does not have boat, skipping fetch');
     }
-  }, [selectedPackage]);
+  }, [selectedPackage, calculateTotalBoatCapacity, tripCount]);
 
   const calculateBoatAndCabinRequirements = useCallback(() => {
     if (!selectedBoat || !tripCount) return;
@@ -620,11 +662,45 @@ export default function Booking() {
     // Hitung jumlah cabin yang dibutuhkan
     const cabinsNeeded = Math.ceil(tripCount / selectedBoatData.cabin[0].max_pax);
     setRequiredCabins(cabinsNeeded);
-  }, [selectedBoat, tripCount, boats]);
+  }, [selectedBoat, tripCount, boats, calculateTotalBoatCapacity]);
 
   useEffect(() => {
     calculateBoatAndCabinRequirements();
   }, [calculateBoatAndCabinRequirements]);
+
+  // Ambil harga per pax terendah dari cabin (base_price) untuk sebuah boat
+  const getMinimumCabinBasePriceForBoat = (boat: Boat | undefined) => {
+    if (!boat) return 0;
+    const activeCabins = boat.cabin.filter(c => c.status === "Aktif");
+    if (activeCabins.length === 0) return 0;
+    return activeCabins.reduce((min, c) => {
+      const price = Number(c.base_price || 0);
+      return min === 0 ? price : Math.min(min, price);
+    }, 0);
+  };
+
+  // Harga per pax untuk display di panel kiri
+  const calculateDisplayPricePerPax = () => {
+    // Jika mengikuti boat, tampilkan harga cabin (min base price)
+    if (selectedPackage?.has_boat) {
+      // Jika boat sudah dipilih, pakai boat tersebut
+      if (selectedBoat) {
+        const boat = boats.find(b => b.id.toString() === selectedBoat);
+        return getMinimumCabinBasePriceForBoat(boat);
+      }
+      // Jika belum pilih boat, pakai boat termurah dari daftar tersedia
+      const list = filteredBoats.length > 0 ? filteredBoats : boats;
+      if (list.length === 0) return 0;
+      const minAcrossBoats = list.reduce((min, b) => {
+        const boatMin = getMinimumCabinBasePriceForBoat(b);
+        if (boatMin === 0) return min;
+        return min === 0 ? boatMin : Math.min(min, boatMin);
+      }, 0);
+      return minAcrossBoats;
+    }
+    // Jika tidak punya boat, pakai trip base price
+    return calculateBasePrice();
+  };
 
   const calculateCabinPrice = (cabin: Cabin, pax: number) => {
     const basePrice = Number(cabin.base_price);
@@ -660,26 +736,31 @@ export default function Booking() {
     if (!cabin) return;
 
     if (increment) {
-      // Jika menambah pax
-      if (currentPax < cabin.max_pax && totalSelectedPax < tripCount) {
-        if (currentPax === 0) {
-          setSelectedCabins([...selectedCabins, { cabinId, pax: 1 }]);
-        } else {
-          setSelectedCabins(selectedCabins.map(sc =>
-            sc.cabinId === cabinId ? { ...sc, pax: sc.pax + 1 } : sc
-          ));
+      // Saat pertama kali add, gunakan min_pax cabin (bukan 1). Jika totalSelectedPax + min_pax > tripCount, naikkan tripCount otomatis.
+      if (currentPax === 0) {
+        const minToAdd = Math.min(cabin.min_pax, cabin.max_pax);
+        const neededTotal = totalSelectedPax + minToAdd;
+        if (neededTotal > tripCount) {
+          setTripCount(neededTotal);
         }
+        setSelectedCabins([...selectedCabins, { cabinId, pax: minToAdd }]);
+        return;
+      }
+      // Tambah 1 per klik, batasi oleh max_pax dan total tripCount
+      if (currentPax < cabin.max_pax) {
+        if (totalSelectedPax + 1 > tripCount) {
+          setTripCount(totalSelectedPax + 1);
+        }
+        setSelectedCabins(selectedCabins.map(sc =>
+          sc.cabinId === cabinId ? { ...sc, pax: sc.pax + 1 } : sc
+        ));
       }
     } else {
-      // Jika mengurangi pax
-      if (currentPax > 0) {
-        if (currentPax === 1) {
-          setSelectedCabins(selectedCabins.filter(sc => sc.cabinId !== cabinId));
-        } else {
-          setSelectedCabins(selectedCabins.map(sc =>
-            sc.cabinId === cabinId ? { ...sc, pax: sc.pax - 1 } : sc
-          ));
-        }
+      // Kurangi pax; tidak boleh kurang dari min_pax (tidak menjadi 0)
+      if (currentPax > cabin.min_pax) {
+        setSelectedCabins(selectedCabins.map(sc =>
+          sc.cabinId === cabinId ? { ...sc, pax: sc.pax - 1 } : sc
+        ));
       }
     }
   };
@@ -915,7 +996,11 @@ export default function Booking() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => setTripCount((prev) => Math.max(Number(prev) - 1, 0))}
+                    onClick={() => {
+                      const minimumPax = getMinimumPax();
+                      setTripCount((prev) => Math.max(Number(prev) - 1, minimumPax));
+                    }}
+                    disabled={tripCount <= getMinimumPax()}
                     className="hover:bg-gold hover:text-white transition-colors duration-300"
                   >
                     -
@@ -946,7 +1031,7 @@ export default function Booking() {
               >
                 <p className="text-gray-600">{selectedPackage.daysTrip}</p>
                 <p className="text-2xl font-bold text-gold">
-                  IDR {calculateBasePrice().toLocaleString('id-ID')}/pax
+                  IDR {calculateDisplayPricePerPax().toLocaleString('id-ID')}/pax
                 </p>
               </motion.div>
 
@@ -1023,44 +1108,19 @@ export default function Booking() {
                 <div className="p-4 bg-gray-50 rounded-lg">
                   <h3 className="font-semibold text-lg mb-4">Detail Pembayaran</h3>
                   <div className="space-y-2 text-sm">
-                    <p className="text-gray-600">
-                      • {packageType === "open" ? "Open Trip" : "Private Trip"}{" "}
-                      IDR {calculateBasePrice().toLocaleString('id-ID')}/pax x {tripCount} pax = IDR {calculateBasePriceTotal().toLocaleString('id-ID')}
-                    </p>
+                    <p className="text-gray-600">• Harga Cabin: IDR {calculateTotalCabinPrice().toLocaleString('id-ID')}</p>
                     {calculateSurcharge() && (
-                      <p className="text-gray-600">
-                        • High Peak Season IDR {(parseInt(calculateSurcharge()?.toString() || "0")).toLocaleString('id-ID')}/pax x {tripCount} pax = IDR {calculateSurchargeAmount().toLocaleString('id-ID')}
-                      </p>
+                      <p className="text-gray-600">• High/Peak Season: IDR {calculateSurchargeAmount().toLocaleString('id-ID')}</p>
                     )}
                     {selectedPackage?.additional_fees && selectedPackage.additional_fees.filter(fee => additionalCharges.includes(fee.id.toString())).length > 0 && (
                       <div className="space-y-1">
                         <p className="text-gray-600">• Additional Fees:</p>
                         {selectedPackage.additional_fees
                           .filter(fee => additionalCharges.includes(fee.id.toString()))
-                          .map(fee => {
-                            const durationData = selectedPackage.trip_durations?.find(
-                              d => d.duration_label === selectedDuration
-                            );
-                            const days = durationData?.duration_days || 0;
-                            const amount = calculateAdditionalFeeAmount(fee);
-
-                            return (
-                              <p key={fee.id} className="text-gray-600 ml-4">
-                                - {fee.fee_category}: IDR {Number(fee.price).toLocaleString('id-ID')}
-                                {fee.unit === 'per_pax' ? `/pax × ${tripCount} pax` : ''}
-                                {fee.unit === 'per_5pax' ? `/5 pax × ${Math.ceil(tripCount / 5)} unit` : ''}
-                                {fee.unit === 'per_day' ? `/hari × ${days} hari` : ''}
-                                {fee.unit === 'per_day_guide' ? `/hari × ${days} hari` : ''}
-                                {' = '}IDR {amount.toLocaleString('id-ID')}
-                              </p>
-                            );
-                          })}
+                          .map(fee => (
+                            <p key={fee.id} className="text-gray-600 ml-4">- {fee.fee_category}: IDR {calculateAdditionalFeeAmount(fee).toLocaleString('id-ID')}</p>
+                          ))}
                       </div>
-                    )}
-                    {selectedPackage?.has_boat && selectedBoat && calculateTotalCabinPrice() > 0 && (
-                      <p className="text-gray-600">
-                        • Total Harga Cabin: IDR {calculateTotalCabinPrice().toLocaleString('id-ID')}
-                      </p>
                     )}
                     {selectedHotelRooms.length > 0 && (
                       <div className="space-y-1">
@@ -1068,24 +1128,10 @@ export default function Booking() {
                         {selectedHotelRooms.map(room => {
                           const hotel = hotels.find(h => h.id.toString() === room.hotelId);
                           if (!hotel) return null;
-                          const selectedRoom = selectedHotelRooms.find(r => r.hotelId === hotel.id.toString());
-                          const currentRooms = selectedRoom?.rooms || 0;
-                          const currentPax = selectedRoom?.pax || 0;
-
-                          // Hitung jumlah malam
-                          const durationData = selectedPackage?.trip_durations?.find(
-                            d => d.duration_label === selectedDuration
-                          );
-                          const nights = (durationData?.duration_days || 0) - 1;
-
+                          const nights = (selectedPackage?.trip_durations?.find(d => d.duration_label === selectedDuration)?.duration_days || 0) - 1;
+                          const totalHotel = Number(hotel.price) * room.rooms * Math.max(nights, 0);
                           return (
-                            <p key={hotel.id} className="text-gray-600 ml-4">
-                              - {hotel.hotel_name}: {currentRooms} kamar × IDR {Number(hotel.price).toLocaleString('id-ID')}/malam × {nights} malam
-                              <br />
-                              <span className="text-xs text-gray-500">
-                                {currentPax} dari {tripCount} pax dialokasikan
-                              </span>
-                            </p>
+                            <p key={hotel.id} className="text-gray-600 ml-4">- {hotel.hotel_name}: IDR {totalHotel.toLocaleString('id-ID')}</p>
                           );
                         })}
                       </div>
@@ -1418,7 +1464,10 @@ export default function Booking() {
                                     </Button>
                                     <Input
                                       type="number"
-                                      value={selectedCabins.find(sc => sc.cabinId === cabin.id.toString())?.pax || 0}
+                                      value={Math.max(
+                                        selectedCabins.find(sc => sc.cabinId === cabin.id.toString())?.pax || 0,
+                                        selectedCabins.find(sc => sc.cabinId === cabin.id.toString()) ? cabin.min_pax : 0
+                                      )}
                                       readOnly
                                       className="w-16 text-center"
                                     />
