@@ -289,6 +289,9 @@ export default function Booking() {
   }, []);
 
   useEffect(() => {
+    // Tampilkan loading saat melakukan re-filter boat akibat perubahan pax/boats
+    setIsLoadingBoats(true);
+
     const availableBoats = boats
       .filter(boat => isActive(boat.status))
       .filter(boat => {
@@ -305,6 +308,10 @@ export default function Booking() {
         setSelectedBoat("");
       }
     }
+
+    // Tahan indikator loading sebentar agar terlihat oleh user
+    const timeoutId = setTimeout(() => setIsLoadingBoats(false), 300);
+    return () => clearTimeout(timeoutId);
   }, [tripCount, boats, selectedBoat, calculateTotalBoatCapacity]);
 
   useEffect(() => {
@@ -661,6 +668,13 @@ export default function Booking() {
     }
   }, [selectedPackage, calculateTotalBoatCapacity, tripCount]);
 
+  // Reset alokasi cabin saat jumlah pax berubah
+  useEffect(() => {
+    setSelectedCabins([]);
+    setRequiredBoats(0);
+    setRequiredCabins(0);
+  }, [tripCount]);
+
   const calculateBoatAndCabinRequirements = useCallback(() => {
     if (!selectedBoat || !tripCount) return;
 
@@ -681,7 +695,7 @@ export default function Booking() {
 
   useEffect(() => {
     calculateBoatAndCabinRequirements();
-  }, [calculateBoatAndCabinRequirements]);
+  }, [calculateBoatAndCabinRequirements, tripCount]);
 
   // Ambil harga per pax terendah dari cabin (base_price) untuk sebuah boat
   const getMinimumCabinBasePriceForBoat = (boat: Boat | undefined) => {
