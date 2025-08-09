@@ -61,8 +61,10 @@ export const columns = ({ onDelete, onEdit }: ColumnsProps): ColumnDef<Trip>[] =
   {
     id: "no",
     header: "No",
-    cell: ({ row }) => {
-      return <div className="w-[50px] font-medium">{row.index + 1}</div>
+    cell: ({ row, table }) => {
+      const { pageIndex, pageSize } = table.getState().pagination
+      const globalIndex = row.index + 1 + pageIndex * pageSize
+      return <div className="w-[50px] min-w-[50px] text-center font-medium">{globalIndex}</div>
     },
     enableSorting: false,
     enableHiding: false,
@@ -144,16 +146,42 @@ export const columns = ({ onDelete, onEdit }: ColumnsProps): ColumnDef<Trip>[] =
     },
   },
   {
-    accessorKey: "boat_id",
+    id: "boats",
     header: "Kapal",
     cell: ({ row }) => {
-      const boatId = row.getValue("boat_id") as string | number | null
-      const trip = row.original as Trip
-      return (
-        <div className="text-sm">
-          {boatId ? (trip.boat ? trip.boat.boat_name : `Boat ID: ${boatId}`) : "Tidak ada"}
-        </div>
-      )
+      const trip = row.original as Trip & {
+        boats?: Array<{ id: number | string; boat_name?: string; name?: string }> | null
+        trip_boats?: Array<{ boat_id: number | string; boat?: { boat_name?: string } }> | null
+        boat_ids?: Array<number | string> | null
+      }
+
+      // 1) Jika API kirim relasi lengkap dalam trip.boat
+      if (trip.boat && trip.boat.boat_name) {
+        return <div className="text-sm">{trip.boat.boat_name}</div>
+      }
+
+      // 2) Jika API kirim daftar boats
+      if (Array.isArray(trip.boats) && trip.boats.length > 0) {
+        const names = trip.boats.map(b => b.boat_name || b.name || `ID ${b.id}`)
+        return <div className="text-sm">{names.join(", ")}</div>
+      }
+
+      // 3) Jika API kirim pivot trip_boats dengan nested boat
+      if (Array.isArray(trip.trip_boats) && trip.trip_boats.length > 0) {
+        const names = trip.trip_boats.map(tb => tb.boat?.boat_name || `ID ${tb.boat_id}`)
+        return <div className="text-sm">{names.join(", ")}</div>
+      }
+
+      // 4) Jika hanya ada boat_id/boat_ids tanpa nama
+      const maybeBoatId = (trip as unknown as { boat_id?: number | string | null }).boat_id
+      if (typeof maybeBoatId !== 'undefined' && maybeBoatId !== null) {
+        return <div className="text-sm">{`Boat ID: ${maybeBoatId}`}</div>
+      }
+      if (Array.isArray(trip.boat_ids) && trip.boat_ids.length > 0) {
+        return <div className="text-sm">{`Boat IDs: ${trip.boat_ids.join(', ')}`}</div>
+      }
+
+      return <div className="text-sm">Tidak ada</div>
     },
   },
   {
