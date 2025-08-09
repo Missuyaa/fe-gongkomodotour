@@ -41,7 +41,7 @@ export default function GalleryPage() {
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Gallery Management</h1>
-          <p className="text-gray-500 mt-1">Manage data dan informasi gallery</p>
+          <p className="text-gray-500 mt-1">Manage data dan informasi gallery (maksimal 1 gambar per item, ukuran max 10MB)</p>
         </div>
       </div>
       <div className="bg-white p-3 rounded-lg shadow-sm border border-gray-100">

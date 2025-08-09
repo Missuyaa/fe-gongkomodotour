@@ -298,6 +298,7 @@ export default function EditGalleryPage({ params }: EditGalleryPageProps) {
                 {/* File Upload Section */}
                 <div>
                   <h2 className="text-xl font-semibold text-gray-900 mb-6">Gambar Gallery</h2>
+                  <p className="text-sm text-gray-600 mb-4">Upload maksimal 1 gambar dengan ukuran maksimal 10MB</p>
                   <FileUpload
                     existingFiles={existingAssets}
                     onUpload={async (files, titles, descriptions) => {
@@ -306,8 +307,8 @@ export default function EditGalleryPage({ params }: EditGalleryPageProps) {
                       setFileDescriptions(descriptions)
                     }}
                     onDelete={handleFileDelete}
-                    maxFiles={5}
-                    maxSize={2 * 1024 * 1024} // 2MB
+                    maxFiles={1}
+                    maxSize={10 * 1024 * 1024} // 10MB
                   />
                 </div>
 

@@ -149,6 +149,21 @@ export const columns = (): ColumnDef<Gallery>[] => [
     },
   },
   {
+    accessorKey: "assets",
+    header: "Gambar",
+    cell: ({ row }) => {
+      const assets = row.getValue("assets") as any[]
+      const hasImage = assets && assets.length > 0
+      return (
+        <div className="min-w-[100px]">
+          <Badge variant={hasImage ? "default" : "secondary"}>
+            {hasImage ? "Ada Gambar" : "Tidak Ada Gambar"}
+          </Badge>
+        </div>
+      )
+    },
+  },
+  {
     accessorKey: "created_at",
     header: ({ column }) => (
       <Button
