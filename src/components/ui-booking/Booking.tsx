@@ -89,6 +89,7 @@ interface PackageData {
     end_date: string;
     surcharge_price: number;
   }[];
+  operational_days?: string[];
 }
 
 type BoatResponse = {
@@ -164,6 +165,24 @@ export default function Booking() {
   const isWeekend = (date: Date) => {
     const day = date.getDay();
     return day === 0 || day === 6;
+  };
+
+  // Disable kalender mengikuti operational_days
+  const dayNameToIndex: Record<string, number> = {
+    Sunday: 0,
+    Monday: 1,
+    Tuesday: 2,
+    Wednesday: 3,
+    Thursday: 4,
+    Friday: 5,
+    Saturday: 6,
+  };
+  const allowedDaysSet = new Set(
+    (selectedPackage?.operational_days || []).map((d) => dayNameToIndex[d])
+  );
+  const disabledByOperationalDays = (date: Date) => {
+    if (allowedDaysSet.size === 0) return false; // jika tidak ada konfigurasi, izinkan semua hari
+    return !allowedDaysSet.has(date.getDay());
   };
 
   const getDatesInRange = (startDate: Date, days: number) => {
@@ -345,7 +364,8 @@ export default function Booking() {
               start_date: surcharge.start_date,
               end_date: surcharge.end_date,
               surcharge_price: Number(surcharge.surcharge_price)
-            }))
+            })),
+            operational_days: trip.operational_days || []
           };
           console.log('Transformed Package Data:', transformedData);
           setSelectedPackage(transformedData);
@@ -1320,7 +1340,7 @@ export default function Booking() {
                           mode="single"
                           selected={selectedDate}
                           onSelect={setSelectedDate}
-                          disabled={!selectedDuration}
+                          disabled={!selectedDuration ? true : disabledByOperationalDays}
                           initialFocus
                         />
                       </PopoverContent>
