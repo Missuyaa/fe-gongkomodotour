@@ -213,6 +213,8 @@ export default function Payment({
   date,
   tripCount,
 }: PaymentProps) {
+  const ALLOWED_MIME_TYPES = ["image/jpeg", "image/png", "image/jpg"];
+  const ALLOWED_EXTENSIONS = [".jpg", ".jpeg", ".png"];
   const [isUploaded, setIsUploaded] = useState(false);
   const [bookingData, setBookingData] = useState<BookingData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -264,17 +266,77 @@ export default function Payment({
           return null;
         };
 
-        const booking = extractBooking(response);
-        console.log('Normalized booking object:', booking);
-        if (booking) {
-          setBookingData(booking);
+        // Normalize booking content into consistent shape for UI
+        const normalizeBooking = (b: BookingData): BookingData => {
+          // Normalize boat arrays from boats/trip_boats variants if backend sends different keys
+          const anyB = b as unknown as Record<string, unknown> & {
+            boats?: Array<{ id: number; boat_name?: string }>
+            trip_boats?: Array<{ boat_id: number; boat?: { boat_name?: string } }>
+            booking_cabins?: Array<{ cabin_id: number; total_pax?: number; total_price?: number; cabin?: Cabin }>
+            cabins?: Array<Cabin>
+            customer_country?: string
+          };
+
+          let boatArr: Boat[] = Array.isArray(b.boat) ? b.boat : [];
+          if ((!boatArr || boatArr.length === 0) && Array.isArray(anyB.boats)) {
+            boatArr = anyB.boats.map(x => ({
+              id: Number(x.id),
+              boat_name: x.boat_name || `Boat ${x.id}`,
+              spesification: '', cabin_information: '', facilities: '', status: 'Aktif', created_at: '', updated_at: ''
+            }));
+          } else if ((!boatArr || boatArr.length === 0) && Array.isArray(anyB.trip_boats)) {
+            boatArr = anyB.trip_boats.map(x => ({
+              id: Number(x.boat_id),
+              boat_name: x.boat?.boat_name || `Boat ${x.boat_id}`,
+              spesification: '', cabin_information: '', facilities: '', status: 'Aktif', created_at: '', updated_at: ''
+            }));
+          }
+
+          // Normalize cabin arrays from booking_cabins/cabins variants
+          let cabinArr: Cabin[] = Array.isArray(b.cabin) ? b.cabin : [];
+          if ((!cabinArr || cabinArr.length === 0) && Array.isArray(anyB.booking_cabins)) {
+            cabinArr = anyB.booking_cabins.map(x => ({
+              id: Number(x.cabin?.id ?? x.cabin_id),
+              boat_id: Number(x.cabin?.boat_id ?? 0),
+              cabin_name: x.cabin?.cabin_name || '-',
+              bed_type: x.cabin?.bed_type || '-',
+              min_pax: Number(x.cabin?.min_pax ?? 0),
+              max_pax: Number(x.cabin?.max_pax ?? 0),
+              base_price: String(x.cabin?.base_price ?? 0),
+              additional_price: String(x.cabin?.additional_price ?? 0),
+              status: x.cabin?.status || 'Aktif',
+              created_at: '',
+              updated_at: '',
+              booking_total_price: x.total_price != null ? String(x.total_price) : undefined,
+              booking_total_pax: x.total_pax != null ? Number(x.total_pax) : undefined,
+            }));
+          } else if ((!cabinArr || cabinArr.length === 0) && Array.isArray(anyB.cabins)) {
+            cabinArr = anyB.cabins as Cabin[];
+          }
+
+          // Infer customer_country if missing
+          const normalized: BookingData = {
+            ...b,
+            boat: boatArr,
+            cabin: cabinArr,
+            customer_country: b.customer_country || (b.customer?.nasionality as unknown as string) || undefined,
+          };
+
+          return normalized;
+        };
+
+        const bookingRaw = extractBooking(response);
+        console.log('Normalized booking object (raw):', bookingRaw);
+        if (bookingRaw) {
+          const normalized = normalizeBooking(bookingRaw);
+          setBookingData(normalized);
           // If important relations are missing, fetch trip detail as fallback
-          const needsTripFallback = !booking.trip_duration || !booking.trip_duration.trip_prices || booking.trip_duration.trip_prices.length === 0 || !booking.trip?.surcharges;
+          const needsTripFallback = !normalized.trip_duration || !normalized.trip_duration.trip_prices || normalized.trip_duration.trip_prices.length === 0 || !normalized.trip?.surcharges;
           if (needsTripFallback) {
             try {
               const tripRes = await apiRequest<TripDetailResponse>(
                 'GET',
-                `/api/landing-page/trips/${booking.trip_id}`
+                `/api/landing-page/trips/${normalized.trip_id}`
               );
               if (tripRes?.data) setFallbackTrip(tripRes.data);
             } catch {
@@ -342,6 +404,19 @@ export default function Payment({
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      // Validasi mime & ekstensi agar sesuai rules backend (hindari validation.mimes)
+      const lowerName = file.name.toLowerCase();
+      const hasAllowedExt = ALLOWED_EXTENSIONS.some(ext => lowerName.endsWith(ext));
+      const hasAllowedMime = ALLOWED_MIME_TYPES.includes(file.type);
+      if (!hasAllowedExt || !hasAllowedMime) {
+        setSubmitError("Format file tidak didukung. Gunakan JPG/ JPEG/ PNG.");
+        setIsUploaded(false);
+        setPaymentProof(null);
+        setAssets([]);
+        if (e.target) e.target.value = "";
+        return;
+      }
+
       setPaymentProof(file);
       setIsUploaded(true);
       
@@ -379,7 +454,17 @@ export default function Payment({
     // Jika trip mengikuti boat/cabin, abaikan base price dari trip_prices (harga mengikuti cabin)
     const tripHasBoat = bookingData?.trip?.has_boat ?? fallbackTrip?.has_boat ?? false;
     const hasBoatSelections = (bookingData?.boat && bookingData.boat.length > 0) || (bookingData?.cabin && bookingData.cabin.length > 0);
-    if (tripHasBoat || hasBoatSelections) return 0;
+    // Jika mengikuti boat/cabin, tetapi tidak ada booking_total_price di cabin, fallback ke min base_price cabin x pax
+    if (tripHasBoat || hasBoatSelections) {
+      const cabinTotals = (bookingData?.cabin || []).map(c => Number(c.booking_total_price || 0));
+      const sumCabinTotals = cabinTotals.reduce((a, b) => a + (Number.isFinite(b) ? b : 0), 0);
+      if (sumCabinTotals > 0) return 0; // total cabin akan dihitung di layer total, base=0
+
+      // Fallback: gunakan base_price cabin minimum jika tidak ada booking_total_price
+      const cabinBasePrices = (bookingData?.cabin || []).map(c => Number(c.base_price || 0));
+      const minCabinPrice = cabinBasePrices.length > 0 ? Math.min(...cabinBasePrices.filter(n => Number.isFinite(n))) : 0;
+      return Number.isFinite(minCabinPrice) ? minCabinPrice : 0;
+    }
     let prices: TripPrice[] | undefined = bookingData?.trip_duration?.trip_prices;
     // Fallback: ambil harga dari trip detail berdasar trip_duration_id
     if ((!prices || prices.length === 0) && fallbackTrip?.trip_durations) {
@@ -445,13 +530,29 @@ export default function Payment({
   };
 
   // Total keseluruhan (estimasi di frontend bila backend tidak memberi total_price)
+  const getCabinTotal = () => {
+    return (bookingData?.cabin || []).reduce((sum, c) => {
+      const totalFromCabin = Number(c.booking_total_price || 0);
+      if (totalFromCabin > 0) return sum + totalFromCabin;
+      const unit = Number(c.base_price || 0);
+      const qty = Number(c.booking_total_pax || 0);
+      return sum + (Number.isFinite(unit) && Number.isFinite(qty) ? unit * qty : 0);
+    }, 0);
+  };
+
+  // Jika backend mengirim total_price, gunakan itu sebagai sumber kebenaran
+  const getDisplayTotal = () => {
+    const backendTotal = Number(bookingData?.total_price || 0);
+    if (backendTotal > 0) return backendTotal;
+    return calculateTotalPrice();
+  };
+
   const calculateTotalPrice = () => {
     const baseTotal = calculateBasePriceTotal();
     const feesTotal = calculateAdditionalFeesTotal();
     const surchargeTotal = calculateSurcharge();
     const hotelTotal = calculateHotelTotal();
-    // Cabin total jika tersedia booking_total_price pada setiap cabin
-    const cabinTotal = (bookingData?.cabin || []).reduce((sum, c) => sum + Number(c.booking_total_price || 0), 0);
+    const cabinTotal = getCabinTotal();
     return baseTotal + feesTotal + surchargeTotal + hotelTotal + cabinTotal;
   };
 
@@ -685,11 +786,19 @@ export default function Payment({
             </div>
             <hr className="my-6 border-gray-200" />
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6 mb-8">
-              {/* Base Price */}
-              <div className="mb-2">
-                <span className="font-semibold block mb-1 text-gray-900">{bookingData?.trip.type === "Open Trip" ? "Open Trip" : "Private Trip"}</span>
-                <span className="text-black">IDR {calculateBasePrice().toLocaleString('id-ID')}/pax x {(bookingData?.total_pax ?? tripCountFromQuery)} pax = <b>IDR {calculateBasePriceTotal().toLocaleString('id-ID')}</b></span>
-              </div>
+              {/* Base Price (sembunyikan jika backend sudah memberikan total_price agar tidak membingungkan) */}
+              {(() => {
+                const hasBackendTotal = Number(bookingData?.total_price || 0) > 0;
+                const tripHasBoat = bookingData?.trip?.has_boat ?? fallbackTrip?.has_boat ?? false;
+                const hasBoatSelections = (bookingData?.boat && bookingData.boat.length > 0) || (bookingData?.cabin && bookingData.cabin.length > 0);
+                if (hasBackendTotal || tripHasBoat || hasBoatSelections) return null;
+                return (
+                  <div className="mb-2">
+                    <span className="font-semibold block mb-1 text-gray-900">{bookingData?.trip.type === "Open Trip" ? "Open Trip" : "Private Trip"}</span>
+                    <span className="text-black">IDR {calculateBasePrice().toLocaleString('id-ID')}/pax x {(bookingData?.total_pax ?? tripCountFromQuery)} pax = <b>IDR {calculateBasePriceTotal().toLocaleString('id-ID')}</b></span>
+                  </div>
+                );
+              })()}
               {/* Additional Fees */}
               {bookingData?.additional_fees?.map((fee, index) => (
                 <div key={index} className="mb-2">
@@ -701,7 +810,15 @@ export default function Payment({
               {bookingData?.cabin?.map((cabin, index) => (
                 <div key={index} className="mb-2">
                   <span className="font-semibold block mb-1 text-gray-900">{cabin.cabin_name} ({cabin.bed_type})</span>
-                  <span className="text-black">{cabin.max_pax} pax</span>
+                  <span className="text-black">
+                    {(() => {
+                      const qty = Number(cabin.booking_total_pax || 0);
+                      const unit = Number(cabin.base_price || 0);
+                      const total = Number(cabin.booking_total_price || 0) || (Number.isFinite(unit) && Number.isFinite(qty) ? unit * qty : 0);
+                      const qtyText = qty > 0 ? `${qty} pax` : `${cabin.max_pax} pax`;
+                      return `IDR ${total.toLocaleString('id-ID')} (${qtyText})`;
+                    })()}
+                  </span>
                 </div>
               ))}
               {/* Hotel Details */}
@@ -719,13 +836,13 @@ export default function Payment({
             </div>
             <div className="flex justify-end items-center mb-2">
               <span className="font-bold text-lg mr-4 text-gold">Sub Total</span>
-              <span className="text-black font-bold text-lg">IDR {calculateTotalPrice().toLocaleString('id-ID')}</span>
+              <span className="text-black font-bold text-lg">IDR {getDisplayTotal().toLocaleString('id-ID')}</span>
             </div>
             <hr className="my-4 border-gold/40" />
-            <div className="flex justify-between items-center">
-              <span className="font-black text-xl md:text-2xl text-gold">Jumlah Total:</span>
-              <span className="font-black text-xl md:text-2xl text-gold">IDR {calculateTotalPrice().toLocaleString('id-ID')}</span>
-            </div>
+              <div className="flex justify-between items-center">
+                <span className="font-black text-xl md:text-2xl text-gold">Jumlah Total:</span>
+                <span className="font-black text-xl md:text-2xl text-gold">{`IDR ${getDisplayTotal().toLocaleString('id-ID')}`}</span>
+              </div>
           </div>
           {/* Right Section: Payment Method & Upload, dst tetap ada seperti sebelumnya */}
           <div className="w-full md:w-1/2 pl-0 md:pl-8">
@@ -834,7 +951,7 @@ export default function Payment({
                     type="file"
                     ref={fileInputRef}
                     style={{ display: "none" }}
-                    accept="image/*,application/pdf"
+                    accept="image/jpeg,image/png,image/jpg"
                     onChange={handleFileChange}
                     disabled={isFinalized}
                   />
@@ -975,21 +1092,31 @@ export default function Payment({
                                 formData.append('assets[0][file]', assets[0].file);
                               }
                               
-                              await apiRequest(
-                                'POST',
-                                '/api/landing-page/transactions',
-                                formData,
-                                {
-                                  headers: {
-                                    'Content-Type': 'multipart/form-data'
+                              try {
+                                await apiRequest(
+                                  'POST',
+                                  '/api/landing-page/transactions',
+                                  formData,
+                                  {
+                                    headers: {
+                                      'Content-Type': 'multipart/form-data'
+                                    }
                                   }
+                                );
+                                setSubmitSuccess(true);
+                                setTimeout(() => {
+                                  setShowDialog(false);
+                                  setSubmitSuccess(false);
+                                }, 4000);
+                              } catch (err: unknown) {
+                                const anyErr = err as { response?: { data?: { message?: string } } ; message?: string }
+                                const apiMsg = (anyErr?.response?.data?.message || anyErr?.message || '').toString();
+                                if (apiMsg.includes('validation.mimes')) {
+                                  setSubmitError('Format file tidak didukung server. Gunakan JPG/ JPEG/ PNG.');
+                                } else {
+                                  setSubmitError(apiMsg || 'Gagal mengirim pembayaran. Coba lagi.');
                                 }
-                              );
-                              setSubmitSuccess(true);
-                              setTimeout(() => {
-                                setShowDialog(false);
-                                setSubmitSuccess(false);
-                              }, 4000);
+                              }
                             }}
                           >
                             Konfirmasi
