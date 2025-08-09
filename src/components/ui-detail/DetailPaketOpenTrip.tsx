@@ -88,6 +88,7 @@ interface PackageData {
   boat_ids?: number[];
   operational_days?: string[];
   tentation?: "Yes" | "No";
+  note?: string; // Tambahkan field note dari API
 }
 
 const dayNameToIndex: Record<string, number> = {
@@ -124,17 +125,6 @@ const DetailPaketOpenTrip: React.FC<DetailPaketOpenTripProps> = ({ data }) => {
     if (allowedDaysSet.size === 0) return false; // jika tidak ada konfigurasi, izinkan semua hari
     return !allowedDaysSet.has(date.getDay());
   };
-
-  // Tambahkan log untuk memeriksa nilai mainImage dan data.images
-  console.log("Query Main Image:", searchParams.get("mainImage"));
-  console.log("Data Main Image:", data.mainImage);
-  console.log("Final Main Image Path:", mainImage);
-  console.log("Data Images Array:", data.images);
-
-  // Tambahkan log untuk memeriksa data boat
-  console.log("Has Boat:", data.has_boat);
-  console.log("Boat Images:", data.boatImages);
-  console.log("Full Data:", data);
 
   const handleBookNow = (packageId: string) => {
     if (selectedDate) {
@@ -463,7 +453,7 @@ const DetailPaketOpenTrip: React.FC<DetailPaketOpenTripProps> = ({ data }) => {
               </>
             ) : (
               <Button
-                onClick={() => window.open("https://wa.me/6282144553899?text=Halo,%20saya%20tertarik%20dengan%20paket%20" + encodeURIComponent(data.title), "_blank")}
+                onClick={() => window.open("https://wa.me/628123867588?text=Halo,%20saya%20tertarik%20dengan%20paket%20" + encodeURIComponent(data.title), "_blank")}
                 className="bg-green-500 hover:bg-green-600 text-white px-8 py-2 rounded-lg font-semibold text-sm transition-all duration-300 flex items-center gap-2"
               >
                 <svg 
@@ -483,7 +473,7 @@ const DetailPaketOpenTrip: React.FC<DetailPaketOpenTripProps> = ({ data }) => {
       </motion.div>
 
       {/* Section 3.5: Additional Information */}
-      {(data.operational_days || data.tentation) && (
+      {(data.operational_days && data.operational_days.length > 0) || (data.boat_ids && data.boat_ids.length > 0) ? (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -527,30 +517,6 @@ const DetailPaketOpenTrip: React.FC<DetailPaketOpenTripProps> = ({ data }) => {
               </motion.div>
             )}
 
-            {data.tentation && (
-              <motion.div
-                whileHover={{ scale: 1.02 }}
-                transition={{ type: "spring", stiffness: 300 }}
-                className="flex items-center space-x-4"
-              >
-                <div className="p-2">
-                  <Image
-                    src="/img/icon-destination.png"
-                    alt="Tentation Icon"
-                    width={40}
-                    height={40}
-                    className="min-w-[40px]"
-                  />
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-gold font-semibold">Jadwal Fleksibel</span>
-                  <span className="text-gray-600">
-                    {data.tentation === "Yes" ? "Tersedia" : "Tidak Tersedia"}
-                  </span>
-                </div>
-              </motion.div>
-            )}
-
             {data.boat_ids && data.boat_ids.length > 0 && (
               <motion.div
                 whileHover={{ scale: 1.02 }}
@@ -576,7 +542,7 @@ const DetailPaketOpenTrip: React.FC<DetailPaketOpenTripProps> = ({ data }) => {
             )}
           </div>
         </motion.div>
-      )}
+      ) : null}
 
       {/* Section 4: Navigation Tabs */}
       <motion.div
@@ -785,17 +751,28 @@ const DetailPaketOpenTrip: React.FC<DetailPaketOpenTripProps> = ({ data }) => {
                     <h2 className="text-xl font-bold text-gray-800 mb-4">
                       Description
                     </h2>
-                    {Array.isArray(data.description)
-                      ? <ul className="list-disc pl-5 text-gray-600 text-sm space-y-1">
-                          {data.description.map((item, idx) => <li key={idx}>{item.replace(/^\*\s?/, "")}</li>)}
-                        </ul>
-                      :
-                        <ul className="list-disc pl-5 text-gray-600 text-sm space-y-1">
-                          {data.description.split(/\r?\n/).filter(line => line.trim().startsWith("*")).map((line, idx) => (
-                            <li key={idx}>{line.replace(/^\*\s?/, "")}</li>
-                          ))}
-                        </ul>
-                    }
+                    
+                    {data.note ? (
+                      // Jika ada note, tampilkan sebagai HTML content
+                      <div
+                        className="text-gray-600 text-sm [&_ol]:list-decimal [&_ul]:list-disc [&_ol]:pl-5 [&_ul]:pl-5 [&_ol]:space-y-2 [&_ul]:space-y-2 [&_p]:my-0 [&_li]:pl-2 [&_li]:relative [&_li]:leading-normal"
+                        dangerouslySetInnerHTML={{
+                          __html: data.note,
+                        }}
+                      />
+                    ) : Array.isArray(data.description) ? (
+                      // Jika description adalah array
+                      <ul className="list-disc pl-5 text-gray-600 text-sm space-y-1">
+                        {data.description.map((item, idx) => <li key={idx}>{item.replace(/^\*\s?/, "")}</li>)}
+                      </ul>
+                    ) : (
+                      // Jika description adalah string
+                      <ul className="list-disc pl-5 text-gray-600 text-sm space-y-1">
+                        {data.description.split(/\r?\n/).filter(line => line.trim().startsWith("*")).map((line, idx) => (
+                          <li key={idx}>{line.replace(/^\*\s?/, "")}</li>
+                        ))}
+                      </ul>
+                    )}
                   </div>
                 </div>
               </div>

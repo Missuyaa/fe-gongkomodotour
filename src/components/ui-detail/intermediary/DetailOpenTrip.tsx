@@ -72,6 +72,7 @@ interface PackageData {
   boat_ids?: number[];
   operational_days?: string[];
   tentation?: "Yes" | "No";
+  note?: string; // Tambahkan field note
 }
 
 interface BoatResponse {
@@ -311,6 +312,7 @@ export default function DetailOpenTrip() {
         id: boat.id.toString(),
       }))
     ),
+    note: selectedPackage.note, // Tambahkan field note ke transformedData
   };
 
   return (
