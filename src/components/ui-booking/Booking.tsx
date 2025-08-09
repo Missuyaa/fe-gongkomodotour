@@ -941,20 +941,7 @@ export default function Booking() {
         })
       };
 
-      // Tampilkan data request
-      console.log('Booking Request Data:', JSON.stringify(bookingData, null, 2));
-
-      // Tampilkan alert dengan data request
-      alert('Data yang akan dikirim ke backend:\n\n' + JSON.stringify(bookingData, null, 2));
-
-      // Tanya user apakah ingin melanjutkan
-      const shouldContinue = window.confirm('Apakah Anda ingin melanjutkan dengan booking ini?');
-
-      if (!shouldContinue) {
-        return;
-      }
-
-      // Kirim data ke API
+      // Kirim data ke API (tanpa dialog konfirmasi)
       const response = await apiRequest<BookingResponse>(
         'POST',
         '/api/landing-page/bookings',

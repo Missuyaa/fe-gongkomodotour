@@ -62,6 +62,18 @@ interface Trip {
   surcharges: Surcharge[];
 }
 
+// Minimal trip detail response for fallback when booking payload misses relations
+interface TripDetailResponse {
+  data: {
+    id: number;
+    name: string;
+    type: string;
+    has_boat?: boolean;
+    trip_durations: TripDuration[];
+    surcharges: Surcharge[];
+  };
+}
+
 interface Customer {
   id: number;
   user_id: number;
@@ -161,6 +173,8 @@ interface BookingData {
   status: string;
   created_at: string;
   updated_at: string;
+  start_date?: string;
+  end_date?: string;
   trip: Trip;
   trip_duration: TripDuration;
   customer: Customer;
@@ -213,6 +227,12 @@ export default function Payment({
   const [hotelRequests, setHotelRequests] = useState<string[]>([]);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isFinalized, setIsFinalized] = useState(false);
+  // Fallback trip detail if booking response lacks needed relations
+  const [fallbackTrip, setFallbackTrip] = useState<TripDetailResponse["data"] | null>(null);
+  // Parse primitive fallbacks from URL
+  // const bookingIdFromQuery = searchParams.get('bookingId');
+  // const packageIdFromQuery = searchParams.get('packageId');
+  const tripCountFromQuery = Number(searchParams.get('tripCount') || 0);
 
   // Ambil tanggal perjalanan dari query param jika ada
   const tripStartDateParam = searchParams.get('date');
@@ -224,16 +244,69 @@ export default function Payment({
       if (!bookingId) return;
       
       try {
-        const response = await apiRequest<{ data: BookingData }>(
+        const response = await apiRequest<Record<string, unknown>>(
           'GET',
           `/api/landing-page/bookings/${bookingId}`
         );
+        console.log('Booking API raw response:', response);
         
-        if (response.data) {
-          setBookingData(response.data);
+        // Normalize various possible backend response shapes
+        const extractBooking = (raw: Record<string, unknown>): BookingData | null => {
+          if (!raw) return null;
+          // { data: {...} }
+          const maybeData = (raw as { data?: unknown }).data;
+          if (maybeData && typeof maybeData === 'object' && !Array.isArray(maybeData)) return (maybeData as unknown) as BookingData;
+          // { booking: {...} }
+          const maybeBooking = (raw as { booking?: unknown }).booking;
+          if (maybeBooking && typeof maybeBooking === 'object') return (maybeBooking as unknown) as BookingData;
+          // Direct object
+          if ((raw as { id?: unknown }).id && (raw as { trip_id?: unknown }).trip_id) return (raw as unknown) as BookingData;
+          return null;
+        };
+
+        const booking = extractBooking(response);
+        console.log('Normalized booking object:', booking);
+        if (booking) {
+          setBookingData(booking);
+          // If important relations are missing, fetch trip detail as fallback
+          const needsTripFallback = !booking.trip_duration || !booking.trip_duration.trip_prices || booking.trip_duration.trip_prices.length === 0 || !booking.trip?.surcharges;
+          if (needsTripFallback) {
+            try {
+              const tripRes = await apiRequest<TripDetailResponse>(
+                'GET',
+                `/api/landing-page/trips/${booking.trip_id}`
+              );
+              if (tripRes?.data) setFallbackTrip(tripRes.data);
+            } catch {
+              // ignore; we'll render without fallback
+            }
+          }
+        } else {
+          // If response shape is unexpected, try fallback to trip
+          if (packageId) {
+            try {
+              const tripRes = await apiRequest<TripDetailResponse>(
+                'GET',
+                `/api/landing-page/trips/${packageId}`
+              );
+              if (tripRes?.data) setFallbackTrip(tripRes.data);
+            } catch {}
+          }
         }
       } catch (error) {
         console.error('Error fetching booking data:', error);
+        // Jika API booking error (500), coba fallback ke trip detail berdasarkan packageId
+        if (packageId) {
+          try {
+            const tripRes = await apiRequest<TripDetailResponse>(
+              'GET',
+              `/api/landing-page/trips/${packageId}`
+            );
+            if (tripRes?.data) setFallbackTrip(tripRes.data);
+          } catch (err) {
+            console.error('Fallback trip fetch failed:', err);
+          }
+        }
       } finally {
         setIsLoading(false);
       }
@@ -241,8 +314,17 @@ export default function Payment({
 
     // Jika tidak ada bookingId, gunakan packageId dan properti lainnya
     if (!bookingId && packageId) {
-      // TODO: Implementasi logika untuk membuat booking baru dengan packageId
-      console.log('Creating new booking with:', { packageId, packageType, date, tripCount });
+      // Fallback: hanya ambil detail trip agar tetap bisa render estimasi harga
+      (async () => {
+        try {
+          const tripRes = await apiRequest<TripDetailResponse>(
+            'GET',
+            `/api/landing-page/trips/${packageId}`
+          );
+          if (tripRes?.data) setFallbackTrip(tripRes.data);
+        } catch {}
+        setIsLoading(false);
+      })();
     } else {
       fetchBookingData();
     }
@@ -290,12 +372,27 @@ export default function Payment({
   };
 
   const calculateBasePrice = () => {
-    if (!bookingData) return 0;
-    const prices = bookingData.trip_duration.trip_prices;
-    const region = getRegionFromCountry(bookingData.customer_country);
+    // Tentukan sumber data: booking atau fallback trip
+    const pax = bookingData?.total_pax ?? tripCountFromQuery;
+    if (!bookingData && !fallbackTrip) return 0;
+
+    // Jika trip mengikuti boat/cabin, abaikan base price dari trip_prices (harga mengikuti cabin)
+    const tripHasBoat = bookingData?.trip?.has_boat ?? fallbackTrip?.has_boat ?? false;
+    const hasBoatSelections = (bookingData?.boat && bookingData.boat.length > 0) || (bookingData?.cabin && bookingData.cabin.length > 0);
+    if (tripHasBoat || hasBoatSelections) return 0;
+    let prices: TripPrice[] | undefined = bookingData?.trip_duration?.trip_prices;
+    // Fallback: ambil harga dari trip detail berdasar trip_duration_id
+    if ((!prices || prices.length === 0) && fallbackTrip?.trip_durations) {
+      const durationId = bookingData?.trip_duration_id ?? fallbackTrip.trip_durations[0]?.id;
+      const dur = fallbackTrip.trip_durations.find(d => d.id === durationId);
+      prices = dur?.trip_prices;
+    }
+    if (!prices || prices.length === 0) return 0;
+
+    const region = getRegionFromCountry(bookingData?.customer_country);
     const price = prices.find(p =>
-      bookingData.total_pax >= p.pax_min &&
-      bookingData.total_pax <= p.pax_max &&
+      pax >= p.pax_min &&
+      pax <= p.pax_max &&
       (p.region === 'Domestic & Overseas' ||
        (region === 'domestic' && p.region === 'Domestic') ||
        (region === 'overseas' && p.region === 'Overseas'))
@@ -305,7 +402,7 @@ export default function Payment({
 
   const calculateBasePriceTotal = () => {
     const basePrice = calculateBasePrice();
-    const total = basePrice * (bookingData?.total_pax || 0);
+    const total = basePrice * (bookingData?.total_pax ?? tripCountFromQuery);
     
     console.log('Payment Base Price Calculation:', {
       basePrice,
@@ -314,6 +411,48 @@ export default function Payment({
     });
     
     return total;
+  };
+
+  // Hitung total additional fees berdasarkan unit
+  const calculateAdditionalFeesTotal = () => {
+    const fees = bookingData?.additional_fees || [];
+    const pax = bookingData?.total_pax ?? tripCountFromQuery;
+    // Durasi hari untuk fee per_day/per_day_guide
+    const days = bookingData?.trip_duration?.duration_days || fallbackTrip?.trip_durations[0]?.duration_days || 0;
+
+    return fees.reduce((sum, fee) => {
+      const price = Number(fee.price || 0);
+      switch (fee.unit) {
+        case 'per_pax':
+          return sum + price * pax;
+        case 'per_5pax':
+          return sum + price * Math.ceil(pax / 5);
+        case 'per_day':
+        case 'per_day_guide':
+          return sum + price * Math.max(days, 0);
+        default:
+          return sum + price;
+      }
+    }, 0);
+  };
+
+  // Hitung total hotel sederhana (harga per malam x malam). Jika backend mengirim data lebih detail, ini akan ditimpa oleh total_price backend.
+  const calculateHotelTotal = () => {
+    if (!bookingData?.hotel_occupancy) return 0;
+    const pricePerNight = Number(bookingData.hotel_occupancy.price || 0);
+    const nights = bookingData.trip_duration?.duration_nights ?? Math.max((bookingData.trip_duration?.duration_days || 0) - 1, 0);
+    return pricePerNight * Math.max(nights, 0);
+  };
+
+  // Total keseluruhan (estimasi di frontend bila backend tidak memberi total_price)
+  const calculateTotalPrice = () => {
+    const baseTotal = calculateBasePriceTotal();
+    const feesTotal = calculateAdditionalFeesTotal();
+    const surchargeTotal = calculateSurcharge();
+    const hotelTotal = calculateHotelTotal();
+    // Cabin total jika tersedia booking_total_price pada setiap cabin
+    const cabinTotal = (bookingData?.cabin || []).reduce((sum, c) => sum + Number(c.booking_total_price || 0), 0);
+    return baseTotal + feesTotal + surchargeTotal + hotelTotal + cabinTotal;
   };
 
   // Fungsi untuk menormalkan tanggal ke jam 00:00:00
@@ -325,9 +464,9 @@ export default function Payment({
 
   // Fungsi untuk mendapatkan array tanggal perjalanan
   const getTripDates = () => {
-    if (!bookingData) return [];
-    const startDateStr = tripStartDateParam || bookingData.trip?.start_time || bookingData.created_at;
-    const days = bookingData.trip_duration?.duration_days || 0;
+    // Prioritaskan start_date dari booking, fallback ke query param, lalu created_at
+    const startDateStr = bookingData?.start_date || tripStartDateParam || bookingData?.trip?.start_time || bookingData?.created_at;
+    const days = bookingData?.trip_duration?.duration_days || fallbackTrip?.trip_durations[0]?.duration_days || 0;
     if (!startDateStr || !days) return [];
     const startDate = normalizeDate(startDateStr);
     return Array.from({ length: days }, (_, i) => {
@@ -341,14 +480,15 @@ export default function Payment({
   // Perhitungan surcharge berdasarkan tanggal perjalanan
   const calculateSurcharge = () => {
     console.log('DEBUG bookingData:', bookingData);
-    if (!bookingData?.trip?.surcharges) {
+    const surcharges = bookingData?.trip?.surcharges || fallbackTrip?.surcharges;
+    if (!surcharges) {
       console.log('DEBUG: Tidak ada surcharges di trip');
       return 0;
     }
     const tripDates = getTripDates();
     console.log('DEBUG tripDates:', tripDates);
     let surchargeAmount = 0;
-    bookingData.trip.surcharges.forEach(surcharge => {
+    surcharges.forEach(surcharge => {
       const start = normalizeDate(surcharge.start_date);
       const end = normalizeDate(surcharge.end_date);
       console.log('DEBUG surcharge period:', start, end, 'price:', surcharge.surcharge_price);
@@ -357,7 +497,7 @@ export default function Payment({
         surchargeAmount = Number(surcharge.surcharge_price);
       }
     });
-    return surchargeAmount * (bookingData.total_pax || 1);
+    return surchargeAmount * ((bookingData?.total_pax || 1));
   };
 
   // Tambahkan fungsi handlePrintInvoice
@@ -521,20 +661,25 @@ export default function Payment({
             <h2 className="text-2xl md:text-3xl font-bold text-left mb-8 tracking-tight border-l-4 border-gold pl-4 text-gold">DETAILS</h2>
             <div className="mb-8">
               <div className="flex flex-col gap-2 mb-4">
-                <span className="font-bold text-base md:text-lg text-gray-900">Booking Code: <span className="font-black text-black">#{bookingData?.id.toString().padStart(6, '0')}</span></span>
+                <span className="font-bold text-base md:text-lg text-gray-900">Booking Code: <span className="font-black text-black">#
+                  {(() => {
+                    const id = bookingData?.id ?? (bookingId ? Number(bookingId) : undefined);
+                    return id ? id.toString().padStart(6, '0') : '';
+                  })()}
+                </span></span>
               </div>
               <div className="flex items-start gap-3 mb-2">
                 <MdOutlineDescription className="text-gold text-xl mt-1" />
                 <div>
-                  <span className="font-semibold block leading-tight text-gray-900">Deskripsi</span>
-                  <span className="text-black block">{bookingData?.trip.name}</span>
+                <span className="font-semibold block leading-tight text-gray-900">Deskripsi</span>
+                <span className="text-black block">{(bookingData && bookingData.trip ? bookingData.trip.name : (fallbackTrip?.name || '-'))}</span>
                 </div>
               </div>
               <div className="flex items-start gap-3 mb-2">
                 <FaCalendarAlt className="text-gold text-xl mt-1" />
                 <div>
                   <span className="font-semibold block leading-tight text-gray-900">Date</span>
-                  <span className="text-black block">Bayar sebelum {new Date(bookingData?.created_at || "").toLocaleString()}</span>
+                  <span className="text-black block">Bayar sebelum {new Date(tripStartDateParam ?? (bookingData ? bookingData.created_at : Date.now())).toLocaleString('id-ID')}</span>
                 </div>
               </div>
             </div>
@@ -543,17 +688,17 @@ export default function Payment({
               {/* Base Price */}
               <div className="mb-2">
                 <span className="font-semibold block mb-1 text-gray-900">{bookingData?.trip.type === "Open Trip" ? "Open Trip" : "Private Trip"}</span>
-                <span className="text-black">IDR {calculateBasePrice().toLocaleString('id-ID')}/pax x {bookingData?.total_pax} pax = <b>IDR {calculateBasePriceTotal().toLocaleString('id-ID')}</b></span>
+                <span className="text-black">IDR {calculateBasePrice().toLocaleString('id-ID')}/pax x {(bookingData?.total_pax ?? tripCountFromQuery)} pax = <b>IDR {calculateBasePriceTotal().toLocaleString('id-ID')}</b></span>
               </div>
               {/* Additional Fees */}
-              {bookingData?.additional_fees.map((fee, index) => (
+              {bookingData?.additional_fees?.map((fee, index) => (
                 <div key={index} className="mb-2">
                   <span className="font-semibold block mb-1 text-gray-900">{fee.fee_category}</span>
                   <span className="text-black">IDR {Number(fee.price).toLocaleString('id-ID')}{fee.unit === 'per_pax' ? '/pax' : ''}{fee.unit === 'per_5pax' ? '/5 pax' : ''}{fee.unit === 'per_day' ? '/hari' : ''}{fee.unit === 'per_day_guide' ? '/hari' : ''}</span>
                 </div>
               ))}
               {/* Cabin Details */}
-              {bookingData?.cabin.map((cabin, index) => (
+              {bookingData?.cabin?.map((cabin, index) => (
                 <div key={index} className="mb-2">
                   <span className="font-semibold block mb-1 text-gray-900">{cabin.cabin_name} ({cabin.bed_type})</span>
                   <span className="text-black">{cabin.max_pax} pax</span>
@@ -569,17 +714,17 @@ export default function Payment({
               {/* Surcharge Details */}
               <div className="mb-2">
                 <span className="font-semibold block mb-1 text-gray-900">Surcharge (High Peak Season)</span>
-                <span className="text-black">IDR {(bookingData && bookingData.total_pax ? (calculateSurcharge() / bookingData.total_pax) : 0).toLocaleString('id-ID')}/pax x {bookingData?.total_pax} pax = <b>IDR {calculateSurcharge().toLocaleString('id-ID')}</b></span>
+                <span className="text-black">IDR {(bookingData && bookingData.total_pax ? (calculateSurcharge() / bookingData.total_pax) : 0).toLocaleString('id-ID')}/pax x {(bookingData?.total_pax ?? tripCountFromQuery)} pax = <b>IDR {calculateSurcharge().toLocaleString('id-ID')}</b></span>
               </div>
             </div>
             <div className="flex justify-end items-center mb-2">
               <span className="font-bold text-lg mr-4 text-gold">Sub Total</span>
-              <span className="text-black font-bold text-lg">IDR {Number(bookingData?.total_price || 0).toLocaleString('id-ID')}</span>
+              <span className="text-black font-bold text-lg">IDR {calculateTotalPrice().toLocaleString('id-ID')}</span>
             </div>
             <hr className="my-4 border-gold/40" />
             <div className="flex justify-between items-center">
               <span className="font-black text-xl md:text-2xl text-gold">Jumlah Total:</span>
-              <span className="font-black text-xl md:text-2xl text-gold">IDR {Number(bookingData?.total_price || 0).toLocaleString('id-ID')}</span>
+              <span className="font-black text-xl md:text-2xl text-gold">IDR {calculateTotalPrice().toLocaleString('id-ID')}</span>
             </div>
           </div>
           {/* Right Section: Payment Method & Upload, dst tetap ada seperti sebelumnya */}
