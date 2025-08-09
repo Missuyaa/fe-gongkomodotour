@@ -305,13 +305,13 @@ export default function DetailOpenTrip() {
           : "Not specified",
       },
     },
-    boatImages: boats.flatMap((boat) =>
-      boat.assets.map((asset) => ({
-        image: getImageUrl(asset.file_url),
+    boatImages: boats
+      .filter(boat => selectedPackage.boat_ids?.includes(boat.id))
+      .map((boat) => ({
+        image: getImageUrl(boat.assets?.[0]?.file_url || ""),
         title: boat.boat_name,
         id: boat.id.toString(),
-      }))
-    ),
+      })),
     note: selectedPackage.note, // Tambahkan field note ke transformedData
   };
 

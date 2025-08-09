@@ -14,7 +14,7 @@ import {
   AccordionTrigger,
   AccordionContent,
 } from "@/components/ui/accordion";
-import { FaChevronDown, FaUsers, FaBed, FaBath } from "react-icons/fa";
+import { FaChevronDown, FaUsers, FaBed, FaBath, FaImage } from "react-icons/fa";
 import { Boat } from "@/types/boats";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -361,7 +361,7 @@ export default function DetailBoat({ boat }: DetailBoatProps) {
                               <div className="space-y-0">
                                 {/* Gambar Atas - 2 Column Merge */}
                                 <div className="relative w-full aspect-[16/9] mb-0">
-                                  {cabin.assets[0] && (
+                                  {cabin.assets && cabin.assets.length > 0 ? (
                                     <Image
                                       src={cabin.assets[0].file_url.startsWith('http') 
                                         ? cabin.assets[0].file_url 
@@ -374,32 +374,41 @@ export default function DetailBoat({ boat }: DetailBoatProps) {
                                         ? cabin.assets[0].file_url 
                                         : `${API_URL}${cabin.assets[0].file_url}`)}
                                     />
+                                  ) : (
+                                    <div className="w-full h-full bg-gray-200 flex items-center justify-center rounded-lg">
+                                      <div className="text-center text-gray-500">
+                                        <FaImage className="w-12 h-12 mx-auto mb-2" />
+                                        <p className="text-sm">Gambar Cabin Belum Tersedia</p>
+                                      </div>
+                                    </div>
                                   )}
                                 </div>
                                 {/* Gambar Bawah - 2 Column */}
-                                <div className="flex flex-wrap">
-                                  {cabin.assets.slice(1, 3).map((asset, index) => (
-                                    <motion.div
-                                      key={asset.id}
-                                      className="relative w-1/2 aspect-square cursor-pointer"
-                                      whileHover={{ scale: 1.02, zIndex: 10 }}
-                                      transition={{ type: "spring", stiffness: 300 }}
-                                      onClick={() => setSelectedImage(asset.file_url.startsWith('http') 
-                                        ? asset.file_url 
-                                        : `${API_URL}${asset.file_url}`)}
-                                    >
-                                      <Image
-                                        src={asset.file_url.startsWith('http') 
+                                {cabin.assets && cabin.assets.length > 1 && (
+                                  <div className="flex flex-wrap">
+                                    {cabin.assets.slice(1, 3).map((asset, index) => (
+                                      <motion.div
+                                        key={asset.id}
+                                        className="relative w-1/2 aspect-square cursor-pointer"
+                                        whileHover={{ scale: 1.02, zIndex: 10 }}
+                                        transition={{ type: "spring", stiffness: 300 }}
+                                        onClick={() => setSelectedImage(asset.file_url.startsWith('http') 
                                           ? asset.file_url 
-                                          : `${API_URL}${asset.file_url}`}
-                                        alt={asset.title || `Cabin Image ${index + 1}`}
-                                        fill
-                                        className="object-cover hover:opacity-90 transition-opacity"
-                                        quality={100}
-                                      />
-                                    </motion.div>
-                                  ))}
-                                </div>
+                                          : `${API_URL}${asset.file_url}`)}
+                                      >
+                                        <Image
+                                          src={asset.file_url.startsWith('http') 
+                                            ? asset.file_url 
+                                            : `${API_URL}${asset.file_url}`}
+                                          alt={asset.title || `Cabin Image ${index + 1}`}
+                                          fill
+                                          className="object-cover hover:opacity-90 transition-opacity"
+                                          quality={100}
+                                        />
+                                      </motion.div>
+                                    ))}
+                                  </div>
+                                )}
                               </div>
 
                               {/* Kolom Kanan - Informasi */}
@@ -426,18 +435,18 @@ export default function DetailBoat({ boat }: DetailBoatProps) {
                                     className="flex items-center justify-between bg-gold/5 p-4 rounded-lg"
                                     whileHover={{ scale: 1.02 }}
                                   >
-                                    <span className="text-gray-600">Add Person</span>
+                                    <span className="text-gray-600">Kapasitas Minimum ({cabin.min_pax} pax)</span>
                                     <span className="font-semibold">
-                                      IDR {parseInt(cabin.additional_price).toLocaleString('id-ID')}/pax
+                                      IDR {parseInt(cabin.base_price).toLocaleString('id-ID')}/pax
                                     </span>
                                   </motion.div>
                                   <motion.div 
                                     className="flex items-center justify-between bg-gold/5 p-4 rounded-lg"
                                     whileHover={{ scale: 1.02 }}
                                   >
-                                    <span className="text-gray-600">Min {cabin.min_pax} Pax</span>
+                                    <span className="text-gray-600">Tambahan Per Pax</span>
                                     <span className="font-semibold">
-                                      IDR {parseInt(cabin.base_price).toLocaleString('id-ID')}/pax
+                                      IDR {parseInt(cabin.additional_price).toLocaleString('id-ID')}/pax
                                     </span>
                                   </motion.div>
                                 </div>
@@ -489,7 +498,7 @@ export default function DetailBoat({ boat }: DetailBoatProps) {
                               <div className="space-y-0">
                                 {/* Gambar Atas - 2 Column Merge */}
                                 <div className="relative w-full aspect-[16/9] mb-0">
-                                  {cabin.assets[0] && (
+                                  {cabin.assets && cabin.assets.length > 0 ? (
                                     <Image
                                       src={cabin.assets[0].file_url.startsWith('http') 
                                         ? cabin.assets[0].file_url 
@@ -502,32 +511,41 @@ export default function DetailBoat({ boat }: DetailBoatProps) {
                                         ? cabin.assets[0].file_url 
                                         : `${API_URL}${cabin.assets[0].file_url}`)}
                                     />
+                                  ) : (
+                                    <div className="w-full h-full bg-gray-200 flex items-center justify-center rounded-lg">
+                                      <div className="text-center text-gray-500">
+                                        <FaImage className="w-12 h-12 mx-auto mb-2" />
+                                        <p className="text-sm">Gambar Cabin Belum Tersedia</p>
+                                      </div>
+                                    </div>
                                   )}
                                 </div>
                                 {/* Gambar Bawah - 2 Column */}
-                                <div className="flex flex-wrap">
-                                  {cabin.assets.slice(1, 3).map((asset, index) => (
-                                    <motion.div
-                                      key={asset.id}
-                                      className="relative w-1/2 aspect-square cursor-pointer"
-                                      whileHover={{ scale: 1.02, zIndex: 10 }}
-                                      transition={{ type: "spring", stiffness: 300 }}
-                                      onClick={() => setSelectedImage(asset.file_url.startsWith('http') 
-                                        ? asset.file_url 
-                                        : `${API_URL}${asset.file_url}`)}
-                                    >
-                                      <Image
-                                        src={asset.file_url.startsWith('http') 
+                                {cabin.assets && cabin.assets.length > 1 && (
+                                  <div className="flex flex-wrap">
+                                    {cabin.assets.slice(1, 3).map((asset, index) => (
+                                      <motion.div
+                                        key={asset.id}
+                                        className="relative w-1/2 aspect-square cursor-pointer"
+                                        whileHover={{ scale: 1.02, zIndex: 10 }}
+                                        transition={{ type: "spring", stiffness: 300 }}
+                                        onClick={() => setSelectedImage(asset.file_url.startsWith('http') 
                                           ? asset.file_url 
-                                          : `${API_URL}${asset.file_url}`}
-                                        alt={asset.title || `Cabin Image ${index + 1}`}
-                                        fill
-                                        className="object-cover hover:opacity-90 transition-opacity"
-                                        quality={100}
-                                      />
-                                    </motion.div>
-                                  ))}
-                                </div>
+                                          : `${API_URL}${asset.file_url}`)}
+                                      >
+                                        <Image
+                                          src={asset.file_url.startsWith('http') 
+                                            ? asset.file_url 
+                                            : `${API_URL}${asset.file_url}`}
+                                          alt={asset.title || `Cabin Image ${index + 1}`}
+                                          fill
+                                          className="object-cover hover:opacity-90 transition-opacity"
+                                          quality={100}
+                                        />
+                                      </motion.div>
+                                    ))}
+                                  </div>
+                                )}
                               </div>
 
                               {/* Kolom Kanan - Informasi */}
@@ -554,18 +572,18 @@ export default function DetailBoat({ boat }: DetailBoatProps) {
                                     className="flex items-center justify-between bg-gold/5 p-4 rounded-lg"
                                     whileHover={{ scale: 1.02 }}
                                   >
-                                    <span className="text-gray-600">Add Person</span>
+                                    <span className="text-gray-600">Kapasitas Minimum ({cabin.min_pax} pax)</span>
                                     <span className="font-semibold">
-                                      IDR {parseInt(cabin.additional_price).toLocaleString('id-ID')}/pax
+                                      IDR {parseInt(cabin.base_price).toLocaleString('id-ID')}/pax
                                     </span>
                                   </motion.div>
                                   <motion.div 
                                     className="flex items-center justify-between bg-gold/5 p-4 rounded-lg"
                                     whileHover={{ scale: 1.02 }}
                                   >
-                                    <span className="text-gray-600">Min {cabin.min_pax} Pax</span>
+                                    <span className="text-gray-600">Tambahan Per Pax</span>
                                     <span className="font-semibold">
-                                      IDR {parseInt(cabin.base_price).toLocaleString('id-ID')}/pax
+                                      IDR {parseInt(cabin.additional_price).toLocaleString('id-ID')}/pax
                                     </span>
                                   </motion.div>
                                 </div>
