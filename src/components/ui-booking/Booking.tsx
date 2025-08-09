@@ -400,12 +400,27 @@ export default function Booking() {
     fetchTripData();
   }, [packageId]);
 
-  // Update tripCount ke pax_min setelah selectedPackage diisi
+  // Set tripCount ke minimal pax saat paket/durasi berubah
+  // Catatan: Jangan bergantung pada tripCount agar tidak me-reset saat user menambah
   useEffect(() => {
-    if (selectedPackage?.trip_durations?.[0]?.trip_prices?.[0]?.pax_min) {
-      setTripCount(selectedPackage.trip_durations[0].trip_prices[0].pax_min);
-    }
-  }, [selectedPackage, calculateTotalBoatCapacity, tripCount]);
+    if (!selectedPackage?.trip_durations || selectedPackage.trip_durations.length === 0) return;
+
+    const duration = selectedPackage.trip_durations.find(
+      (d) => d.duration_label === selectedDuration
+    ) || selectedPackage.trip_durations[0];
+
+    const minFromPrices = duration?.trip_prices?.reduce((min, price) => {
+      const currentMin = Number(price.pax_min ?? Infinity);
+      return Number.isFinite(currentMin) ? Math.min(min, currentMin) : min;
+    }, Infinity);
+
+    const minimumPax = Number.isFinite(minFromPrices) ? Number(minFromPrices) : 1;
+
+    setTripCount((prev) => {
+      const current = Number(prev) || 0;
+      return current < minimumPax ? minimumPax : current;
+    });
+  }, [selectedPackage, selectedDuration]);
 
   useEffect(() => {
     if (selectedDuration && selectedPackage?.trip_durations) {
