@@ -68,6 +68,7 @@ interface PackageData {
     id: number;
     duration_label: string;
     duration_days: number;
+    duration_nights?: number;
     trip_prices?: TripPrice[];
     itineraries: { day: string; activities: string }[];
   }[];
@@ -149,6 +150,22 @@ export default function Booking() {
   const [hotels, setHotels] = useState<Hotel[]>([]);
   const [isLoadingHotels, setIsLoadingHotels] = useState(false);
   const [selectedHotelRooms, setSelectedHotelRooms] = useState<{ hotelId: string, rooms: number, pax: number }[]>([]);
+  // Helper: hitung jumlah malam dari data durasi
+  const computeNights = useCallback((duration?: { duration_label: string; duration_days: number; duration_nights?: number; }) => {
+    if (!duration) return 0;
+    // 1) Coba parse dari label, contoh: "4D5N", "4d 5n"
+    const match = duration.duration_label?.match(/(\d+)\s*[dD][^\d]*?(\d+)\s*[nN]/);
+    if (match) {
+      const nightsFromLabel = Number(match[2]);
+      if (Number.isFinite(nightsFromLabel) && nightsFromLabel >= 0) return nightsFromLabel;
+    }
+    // 2) Pakai duration_nights bila tersedia
+    if (typeof duration.duration_nights === 'number' && duration.duration_nights >= 0) {
+      return duration.duration_nights;
+    }
+    // 3) Fallback: days - 1
+    return Math.max((duration.duration_days || 0) - 1, 0);
+  }, []);
   const [userRegion, setUserRegion] = useState<"domestic" | "overseas">("domestic");
   const [formData, setFormData] = useState({
     name: "",
@@ -608,8 +625,8 @@ export default function Booking() {
       d => d.duration_label === selectedDuration
     );
 
-    // Hitung jumlah malam (durasi hari - 1)
-    const nights = (durationData?.duration_days || 0) - 1;
+    // Hitung jumlah malam dengan helper yang konsisten
+    const nights = computeNights(durationData);
 
     return selectedHotelRooms.reduce((total, room) => {
       const hotel = hotels.find(h => h.id.toString() === room.hotelId);
@@ -843,15 +860,18 @@ export default function Booking() {
       const currentPax = currentRoom?.pax || 0;
       const remainingPax = tripCount - (totalPaxAllocated - currentPax);
 
-      if (!currentRoom) {
-        if (!increment || remainingPax < maxPaxPerRoom) return prev;
-        return [...prev, { hotelId, rooms: 1, pax: maxPaxPerRoom }];
-      }
+    if (!currentRoom) {
+      // Izinkan tambah kamar meski remainingPax < maxPaxPerRoom (contoh: pax 1, double occupancy)
+      if (!increment || remainingPax <= 0) return prev;
+      const initialPax = Math.min(maxPaxPerRoom, remainingPax);
+      return [...prev, { hotelId, rooms: 1, pax: initialPax }];
+    }
 
-      if (increment) {
-        if (remainingPax < maxPaxPerRoom) return prev;
-        const newRooms = currentRoom.rooms + 1;
-        const newPax = Math.min(currentPax + maxPaxPerRoom, remainingPax);
+    if (increment) {
+      // Tambah kamar: naikkan rooms, alokasikan pax hingga sisa (remainingPax)
+      if (remainingPax <= 0) return prev;
+      const newRooms = currentRoom.rooms + 1;
+      const newPax = Math.min(currentPax + maxPaxPerRoom, Math.max(remainingPax, 0));
         return prev.map(room =>
           room.hotelId === hotelId ? { ...room, rooms: newRooms, pax: newPax } : room
         );
@@ -860,7 +880,7 @@ export default function Booking() {
           return prev.filter(room => room.hotelId !== hotelId);
         }
         const newRooms = currentRoom.rooms - 1;
-        const newPax = currentPax - maxPaxPerRoom;
+      const newPax = Math.max(currentPax - maxPaxPerRoom, 0);
         return prev.map(room =>
           room.hotelId === hotelId ? { ...room, rooms: newRooms, pax: newPax } : room
         );
@@ -880,7 +900,9 @@ export default function Booking() {
         d => d.duration_label === selectedDuration
       );
       const endDate = new Date(selectedDate);
-      endDate.setDate(endDate.getDate() + (durationData?.duration_days || 0) - 1);
+      // Lama inap untuk hotel mengikuti jumlah malam, bukan hari
+      const nights = computeNights(durationData);
+      endDate.setDate(endDate.getDate() + nights);
 
       // Siapkan data booking
       const bookingData = {
@@ -1161,7 +1183,8 @@ export default function Booking() {
                         {selectedHotelRooms.map(room => {
                           const hotel = hotels.find(h => h.id.toString() === room.hotelId);
                           if (!hotel) return null;
-                          const nights = (selectedPackage?.trip_durations?.find(d => d.duration_label === selectedDuration)?.duration_days || 0) - 1;
+                          const durationData = selectedPackage?.trip_durations?.find(d => d.duration_label === selectedDuration);
+                          const nights = computeNights(durationData);
                           const totalHotel = Number(hotel.price) * room.rooms * Math.max(nights, 0);
                           return (
                             <p key={hotel.id} className="text-gray-600 ml-4">- {hotel.hotel_name}: IDR {totalHotel.toLocaleString('id-ID')}</p>
