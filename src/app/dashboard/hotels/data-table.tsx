@@ -12,6 +12,8 @@ import {
   getPaginationRowModel,
   getSortedRowModel,
   useReactTable,
+  ExpandedState,
+  getExpandedRowModel,
 } from "@tanstack/react-table"
 
 import {
@@ -48,6 +50,7 @@ import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { apiRequest } from "@/lib/api"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
+import { Badge } from "@/components/ui/badge"
 
 interface DataTableProps<TData> {
   columns: ColumnDef<TData, string>[]
@@ -166,6 +169,62 @@ const exportToPDF = (data: Hotel[]) => {
   doc.save("hotel-report.pdf")
 }
 
+// Komponen untuk menampilkan surcharge dalam expandable row
+const SurchargeRow = ({ hotel }: { hotel: Hotel }) => {
+  if (!hotel.surcharges || hotel.surcharges.length === 0) {
+    return (
+      <div className="px-6 py-4 bg-gray-50 border-t">
+        <p className="text-gray-500 text-sm">Tidak ada data surcharge untuk hotel ini.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="px-6 py-4 bg-gray-50 border-t">
+      <div className="mb-3">
+        <h4 className="font-medium text-gray-900 mb-2">Data Surcharge</h4>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-gray-200">
+              <th className="text-left py-2 px-3 font-medium text-gray-700">Season</th>
+              <th className="text-left py-2 px-3 font-medium text-gray-700">Start Date</th>
+              <th className="text-left py-2 px-3 font-medium text-gray-700">End Date</th>
+              <th className="text-left py-2 px-3 font-medium text-gray-700">Surcharge Price</th>
+              <th className="text-left py-2 px-3 font-medium text-gray-700">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {hotel.surcharges.map((surcharge) => (
+              <tr key={surcharge.id} className="border-b border-gray-100">
+                <td className="py-2 px-3">{surcharge.season}</td>
+                <td className="py-2 px-3">
+                  {new Date(surcharge.start_date).toLocaleDateString('id-ID')}
+                </td>
+                <td className="py-2 px-3">
+                  {new Date(surcharge.end_date).toLocaleDateString('id-ID')}
+                </td>
+                <td className="py-2 px-3">
+                  {new Intl.NumberFormat("id-ID", {
+                    style: "currency",
+                    currency: "IDR",
+                  }).format(surcharge.surcharge_price)}
+                </td>
+                <td className="py-2 px-3">
+                  <Badge className={`${surcharge.status === "Aktif" ? "bg-emerald-500" : "bg-red-500"} text-white text-xs`}>
+                    {surcharge.status}
+                  </Badge>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+};
+
 export function DataTable({
   columns,
   data,
@@ -176,6 +235,7 @@ export function DataTable({
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({})
   const [rowSelection, setRowSelection] = useState({})
+  const [expanded, setExpanded] = useState<ExpandedState>({})
   const [pagination, setPagination] = useState({
     pageIndex: 0,
     pageSize: 10,
@@ -269,10 +329,12 @@ export function DataTable({
     ],
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
+    onExpandedChange: setExpanded,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
+    getExpandedRowModel: getExpandedRowModel(),
     onColumnVisibilityChange: setColumnVisibility,
     onRowSelectionChange: setRowSelection,
     onPaginationChange: setPagination,
@@ -281,6 +343,7 @@ export function DataTable({
       columnFilters,
       columnVisibility,
       rowSelection,
+      expanded,
       pagination,
     },
   })
@@ -413,19 +476,27 @@ export function DataTable({
           <TableBody>
             {table.getRowModel().rows?.length ? (
               table.getRowModel().rows.map((row) => (
-                <TableRow
-                  key={row.id}
-                  data-state={row.getIsSelected() && "selected"}
-                >
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext()
-                      )}
-                    </TableCell>
-                  ))}
-                </TableRow>
+                <React.Fragment key={row.id}>
+                  <TableRow
+                    data-state={row.getIsSelected() && "selected"}
+                  >
+                    {row.getVisibleCells().map((cell) => (
+                      <TableCell key={cell.id}>
+                        {flexRender(
+                          cell.column.columnDef.cell,
+                          cell.getContext()
+                        )}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                  {row.getIsExpanded() && (
+                    <TableRow>
+                      <TableCell colSpan={row.getVisibleCells().length}>
+                        <SurchargeRow hotel={row.original} />
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </React.Fragment>
               ))
             ) : (
               <TableRow>

@@ -48,7 +48,6 @@ export function NavUser({
     try {
       // Panggil API logout
       await apiRequest('POST', '/api/logout', {}, {
-        credentials: 'include',
         headers: {
           'Accept': 'application/json',
           'Authorization': `Bearer ${document.cookie.split('access_token=')[1]?.split(';')[0]}`

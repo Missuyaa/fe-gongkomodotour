@@ -1,0 +1,11 @@
+---
+deployment:
+  tasks:
+    # 1. Definisikan path tujuan
+    - export DEPLOYPATH=/home/gongkomo/fe-gongkomodotour/
+    
+    # 2. Salin semua file dari repositori ke folder live
+    - /bin/cp -r * $DEPLOYPATH
+    
+    # 3. Aktifkan Node.js virtual environment
+    - source /home/gongkomo/nodevenv/fe-gongkomodotour/22/bin/activate

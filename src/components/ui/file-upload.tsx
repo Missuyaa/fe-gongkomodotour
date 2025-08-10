@@ -24,7 +24,7 @@ interface FileUploadProps {
   accept?: Record<string, string[]>
 }
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.gongkomodotour.com'
 
 export function FileUpload({
   onUpload,
@@ -106,12 +106,18 @@ export function FileUpload({
 
   // Fungsi untuk mengubah URL relatif menjadi URL absolut
   const getImageUrl = (url: string) => {
+    console.log('Original URL:', url)
+    
     if (url.startsWith('http')) {
+      console.log('Returning absolute URL:', url)
       return url
     }
+    
     // Hapus leading slash jika ada
     const cleanUrl = url.startsWith('/') ? url.slice(1) : url
-    return `${API_URL}/${cleanUrl}`
+    const fullUrl = `${API_URL}/${cleanUrl}`
+    console.log('Constructed URL:', fullUrl)
+    return fullUrl
   }
 
   return (
@@ -230,6 +236,9 @@ export function FileUpload({
                     alt={file.title}
                     fill
                     className="object-cover"
+                    onError={() => {
+                      console.error('Failed to load image:', file.file_url)
+                    }}
                   />
                   {onDelete && (
                     <button

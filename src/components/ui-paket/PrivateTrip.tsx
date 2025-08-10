@@ -16,6 +16,7 @@ import { useState, useEffect } from "react";
 import { apiRequest } from "@/lib/api";
 import { Trip } from "@/types/trips";
 import { Button } from "@/components/ui/button";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface TripResponse {
   data: Trip[];
@@ -23,9 +24,10 @@ interface TripResponse {
   status?: string;
 }
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+import { getImageUrl } from "@/lib/imageUrl";
 
 export default function PrivateTrip() {
+  const { t } = useLanguage();
   const [trips, setTrips] = useState<Trip[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
@@ -37,10 +39,8 @@ export default function PrivateTrip() {
   useEffect(() => {
     const fetchPrivateTrips = async () => {
       try {
-        const response = await apiRequest<TripResponse>('GET', '/api/landing-page/trips');
-        let privateTrips = Array.isArray(response.data) 
-          ? response.data.filter(trip => trip.type === "Private Trip")
-          : [];
+        const response = await apiRequest<TripResponse>('GET', '/api/landing-page/trips?status=1&type=private');
+        let privateTrips = Array.isArray(response.data) ? response.data : [];
 
         // Extract unique durations
         const durations = new Set<string>();
@@ -56,14 +56,14 @@ export default function PrivateTrip() {
         // Apply sorting
         if (sortBy === "high-low") {
           privateTrips.sort((a, b) => {
-            const priceA = parseInt(a.trip_durations?.[0]?.trip_prices?.[0]?.price_per_pax || "0");
-            const priceB = parseInt(b.trip_durations?.[0]?.trip_prices?.[0]?.price_per_pax || "0");
+            const priceA = parseInt(String(a.trip_durations?.[0]?.trip_prices?.[0]?.price_per_pax || "0"));
+            const priceB = parseInt(String(b.trip_durations?.[0]?.trip_prices?.[0]?.price_per_pax || "0"));
             return priceB - priceA;
           });
         } else if (sortBy === "low-high") {
           privateTrips.sort((a, b) => {
-            const priceA = parseInt(a.trip_durations?.[0]?.trip_prices?.[0]?.price_per_pax || "0");
-            const priceB = parseInt(b.trip_durations?.[0]?.trip_prices?.[0]?.price_per_pax || "0");
+            const priceA = parseInt(String(a.trip_durations?.[0]?.trip_prices?.[0]?.price_per_pax || "0"));
+            const priceB = parseInt(String(b.trip_durations?.[0]?.trip_prices?.[0]?.price_per_pax || "0"));
             return priceA - priceB;
           });
         }
@@ -124,7 +124,7 @@ export default function PrivateTrip() {
           className="absolute inset-0 bg-black/40 flex items-center justify-center"
         >
           <h1 className="text-5xl font-bold text-white tracking-wide">
-            PRIVATE TRIP
+            {t('privateTripTitle')}
           </h1>
         </motion.div>
       </motion.section>
@@ -140,10 +140,10 @@ export default function PrivateTrip() {
             className="md:w-2/3 bg-white p-8 rounded-lg shadow-lg"
           >
             <h2 className="text-2xl font-semibold mb-4 text-gray-800">
-              About Private Trip
+              {t('aboutPrivateTripTitle')}
             </h2>
             <p className="text-gray-600 leading-relaxed">
-              Private Trip is an exclusive travel package specially designed for groups or individuals, where participants can arrange the itinerary according to their needs. This package offers a more personal and flexible experience.
+              {t('aboutPrivateTripDescription')}
             </p>
           </motion.div>
 
@@ -155,26 +155,26 @@ export default function PrivateTrip() {
             className="md:w-1/3 bg-white p-8 rounded-lg shadow-lg"
           >
             <h3 className="text-xl font-semibold mb-6 text-gray-800">
-              Find Your Trip
+              {t('findYourTripTitle')}
             </h3>
             <div className="space-y-6">
               <Select value={sortBy} onValueChange={setSortBy}>
                 <SelectTrigger className="w-full border-gray-300 focus:ring-2 focus:ring-gold">
-                  <SelectValue placeholder="Sort By" />
+                  <SelectValue placeholder={t('sortBy')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="high-low">Price: High to Low</SelectItem>
-                  <SelectItem value="low-high">Price: Low to High</SelectItem>
+                  <SelectItem value="high-low">{t('priceHighToLow')}</SelectItem>
+                  <SelectItem value="low-high">{t('priceLowToHigh')}</SelectItem>
                 </SelectContent>
               </Select>
               <Select value={duration} onValueChange={setDuration}>
                 <SelectTrigger className="w-full border-gray-300 focus:ring-2 focus:ring-gold">
-                  <SelectValue placeholder="Duration" />
+                  <SelectValue placeholder={t('duration')} />
                 </SelectTrigger>
                 <SelectContent>
-                  {availableDurations.map((duration) => (
-                    <SelectItem key={duration} value={duration}>
-                      {duration}
+                  {availableDurations.map((durationLabel) => (
+                    <SelectItem key={durationLabel} value={durationLabel}>
+                      {durationLabel}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -194,10 +194,10 @@ export default function PrivateTrip() {
             className="text-center mb-12"
           >
             <h2 className="text-3xl font-bold mb-4 text-gray-800">
-              Private Trip Tours
+              {t('privateTripToursTitle')}
             </h2>
             <p className="text-gray-600 mb-8 leading-relaxed max-w-2xl mx-auto">
-              Discover our selection of exclusive travel packages, perfect for those who want a personalized experience.
+              {t('privateTripToursDescription')}
             </p>
           </motion.div>
           
@@ -205,7 +205,7 @@ export default function PrivateTrip() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {currentTrips.map((trip, index) => {
               const imageUrl = trip.assets?.[0]?.file_url 
-                ? `${API_URL}${trip.assets[0].file_url}`
+                ? getImageUrl(trip.assets[0].file_url)
                 : '/img/default-trip.jpg';
 
               return (
@@ -231,7 +231,7 @@ export default function PrivateTrip() {
                     </div>
                     
                     <div className="absolute top-4 left-4">
-                      <Badge variant="secondary" className="bg-orange-500 hover:bg-orange-600 text-white border-none">
+                      <Badge variant="secondary" className="bg-blue-500 hover:bg-blue-600 text-white border-none">
                         {trip.type}
                       </Badge>
                     </div>
@@ -249,7 +249,7 @@ export default function PrivateTrip() {
                               className="w-4 h-4 brightness-200 invert"
                             />
                             <span className="text-sm">
-                              {trip.trip_durations?.[0]?.duration_label || trip.duration || "Custom Duration"}
+                              {trip.trip_durations?.[0]?.duration_label || t('customDuration')}
                             </span>
                           </div>
                           {trip.trip_durations?.[0]?.trip_prices?.[0]?.price_per_pax && (
@@ -262,7 +262,7 @@ export default function PrivateTrip() {
                                 className="w-4 h-4 brightness-200 invert"
                               />
                               <span className="text-sm">
-                                IDR {parseInt(trip.trip_durations[0].trip_prices[0].price_per_pax).toLocaleString('id-ID')}/pax
+                                IDR {parseInt(String(trip.trip_durations[0].trip_prices[0].price_per_pax)).toLocaleString('id-ID')}{t('perPax')}
                               </span>
                             </div>
                           )}
@@ -279,7 +279,7 @@ export default function PrivateTrip() {
                             whileTap={{ scale: 0.95 }}
                             className="w-full bg-gold text-white py-2 rounded-lg hover:bg-gold-dark transition-colors duration-300"
                           >
-                            View Details
+                            {t('viewDetails')}
                           </motion.button>
                         </Link>
                       </div>
@@ -298,7 +298,7 @@ export default function PrivateTrip() {
                 onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
                 disabled={currentPage === 1}
               >
-                Previous
+                {t('previous')}
               </Button>
               {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
                 <Button
@@ -315,7 +315,7 @@ export default function PrivateTrip() {
                 onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
                 disabled={currentPage === totalPages}
               >
-                Next
+                {t('next')}
               </Button>
             </div>
           )}

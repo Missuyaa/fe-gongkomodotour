@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-M-8">
+    <title>Tes Cookie Sanctum Minimal</title>
+    <style>
+        body { font-family: sans-serif; padding: 2em; }
+        button { font-size: 1.2em; padding: 0.5em 1em; }
+        #status { font-weight: bold; }
+        .success { color: green; }
+        .error { color: red; }
+    </style>
+</head>
+<body>
+    <h1>Tes CSRF Minimal</h1>
+    <p>Tes ini hanya akan melakukan satu hal: meminta cookie CSRF dari API Anda dan mencoba menyimpannya. Buka DevTools (F12) sebelum mengklik tombol.</p>
+    <button onclick="getCookie()">1. Dapatkan Cookie CSRF</button>
+    <button onclick="checkCookie()">2. Periksa Cookie</button>
+    <p id="status">Status: Diam</p>
+
+    <script>
+        async function getCookie() {
+            const statusEl = document.getElementById('status');
+            statusEl.className = '';
+            statusEl.innerText = 'Status: Mengambil cookie dari API...';
+            try {
+                const response = await fetch('https://api.gongkomodotour.com/sanctum/csrf-cookie', {
+                    method: 'GET',
+                    credentials: 'include', // Kredensial diizinkan
+                });
+
+                if (response.ok) {
+                    statusEl.className = 'success';
+                    statusEl.innerText = `Status: Permintaan selesai dengan status ${response.status}. Server telah mengirim cookie. Sekarang klik Tombol 2.`;
+                } else {
+                    statusEl.className = 'error';
+                    statusEl.innerText = `Status: Error! Server merespons dengan status ${response.status}.`;
+                }
+                console.log('Respons dari server:', response);
+
+            } catch (error) {
+                statusEl.className = 'error';
+                statusEl.innerText = `Status: Terjadi Error Jaringan! ${error.message}`;
+                console.error('Error saat fetch:', error);
+            }
+        }
+
+        function checkCookie() {
+            const statusEl = document.getElementById('status');
+            const xsrfToken = document.cookie.split('; ').find(row => row.startsWith('XSRF-TOKEN='));
+
+            if (xsrfToken) {
+                statusEl.className = 'success';
+                statusEl.innerText = 'HASIL: BERHASIL! Cookie XSRF-TOKEN ditemukan di browser.';
+                console.log('Cookie ditemukan:', xsrfToken);
+            } else {
+                statusEl.className = 'error';
+                statusEl.innerText = 'HASIL: GAGAL! Cookie XSRF-TOKEN TIDAK ditemukan. Browser Anda memblokirnya.';
+                console.error('Semua cookie saat ini:', document.cookie);
+            }
+        }
+    </script>
+</body>
+</html>

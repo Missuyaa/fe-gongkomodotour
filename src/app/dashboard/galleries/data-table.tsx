@@ -261,28 +261,28 @@ export function DataTable({
           {gallery.assets && gallery.assets.length > 0 && (
             <div className="bg-white p-6 rounded-lg shadow-sm">
               <h4 className="font-semibold text-lg mb-4 text-gray-800 border-b pb-2">Gambar Gallery</h4>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                {gallery.assets.map((asset, index) => {
+              <div className="flex justify-center">
+                {gallery.assets.slice(0, 1).map((asset, index) => {
                   const imageUrl = getImageUrl(asset.file_url)
                   return (
                     <div 
                       key={index} 
-                      className="space-y-2 cursor-pointer group"
+                      className="space-y-2 cursor-pointer group max-w-md"
                       onClick={() => setSelectedImage(asset)}
                     >
                       <div className="relative aspect-[4/3] rounded-lg overflow-hidden border border-gray-200">
                         <Image
                           src={imageUrl}
-                          alt={asset.title || `Gambar ${index + 1}`}
+                          alt={asset.title || `Gambar Gallery`}
                           fill
-                          sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, (max-width: 1024px) 25vw, 20vw"
+                          sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, 400px"
                           className="object-cover transition-transform duration-200 group-hover:scale-105"
                           onError={(e) => {
-                            console.error(`Error loading image ${index}:`, e)
+                            console.error(`Error loading image:`, e)
                             const target = e.target as HTMLImageElement
                             target.src = '/placeholder-image.png'
                           }}
-                          priority={index < 5}
+                          priority={true}
                         />
                         <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-200" />
                       </div>

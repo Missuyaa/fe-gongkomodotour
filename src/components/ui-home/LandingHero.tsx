@@ -1,10 +1,12 @@
 "use client";
 
+import * as React from "react";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Autoplay, Pagination, Navigation, EffectFade } from "swiper/modules";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { motion } from "framer-motion";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 // Impor gaya Swiper
 import "swiper/css";
@@ -39,12 +41,39 @@ const customStyles = `
 `;
 
 export default function LandingHero() {
-  const slides = [
-    "/img/landingpage/hero-slide1.png",
+  const { t } = useLanguage();
+  
+  // State untuk menyimpan data carousel dari API
+  const [slides, setSlides] = React.useState<string[]>([
+    "/img/landingpage/hero-slide1.png", // Default images if API fails
     "/img/boat/bg-luxury.jpg",
     "/img/boat/luxury_phinisi.jpg",
     "/img/landingpage/hero-slide2.png",
-  ];
+  ]);
+  
+  // State untuk loading
+  const [isLoading, setIsLoading] = React.useState(true);
+
+  // Fetch carousel data from API when component mounts
+  React.useEffect(() => {
+    const fetchCarouselImages = async () => {
+      try {
+        const response = await fetch('/api/carousel');
+        if (response.ok) {
+          const data = await response.json();
+          if (data && data.length > 0) {
+            setSlides(data);
+          }
+        }
+      } catch (error) {
+        console.error("Failed to fetch carousel images:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchCarouselImages();
+  }, []);
 
   const fadeInUp = {
     initial: { opacity: 0, y: 60 },
@@ -125,7 +154,7 @@ export default function LandingHero() {
                   >
                     TOUR
                   </motion.h1>
-                  <Link href="/trip">
+                  <Link href="/paket/open-trip">
                     <motion.div
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
@@ -138,7 +167,7 @@ export default function LandingHero() {
                           padding: "clamp(2rem, 2.75vw, 1.5rem) clamp(2rem, 4.5vw, 2.75rem)",
                         }}
                       >
-                        Check Trip
+                        {t('heroButton')}
                       </Button>
                     </motion.div>
                   </Link>

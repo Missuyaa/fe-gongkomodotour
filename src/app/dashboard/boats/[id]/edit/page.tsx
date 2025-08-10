@@ -40,10 +40,10 @@ const boatSchema = z.object({
   cabins: z.array(z.object({
     cabin_name: z.string().min(1, "Nama kabin harus diisi"),
     bed_type: z.string().min(1, "Tipe bed harus diisi"),
-    min_pax: z.number().min(1, "Minimal pax harus diisi"),
-    max_pax: z.number().min(1, "Maksimal pax harus diisi"),
-    base_price: z.number().min(0, "Harga dasar harus diisi"),
-    additional_price: z.number().min(0, "Harga tambahan harus diisi"),
+    min_pax: z.coerce.number().min(1, "Minimal pax harus diisi"),
+    max_pax: z.coerce.number().min(1, "Maksimal pax harus diisi"),
+    base_price: z.coerce.number().min(0, "Harga dasar harus diisi"),
+    additional_price: z.coerce.number().min(0, "Harga tambahan harus diisi"),
     status: z.enum(["Aktif", "Non Aktif"])
   }))
 })
@@ -476,9 +476,21 @@ export default function EditBoatPage({ params }: EditBoatPageProps) {
                             render={({ field }) => (
                               <FormItem>
                                 <FormLabel>Tipe Bed</FormLabel>
-                                <FormControl>
-                                  <Input placeholder="Contoh: Queen Bed" {...field} />
-                                </FormControl>
+                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                  <FormControl>
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="Pilih tipe bed" />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent>
+                                    <SelectItem value="King">King Bed</SelectItem>
+                                    <SelectItem value="Queen">Queen Bed</SelectItem>
+                                    <SelectItem value="Double">Double Bed</SelectItem>
+                                    <SelectItem value="Single">Single Bed</SelectItem>
+                                    <SelectItem value="Single Bunk Bed">Single Bunk Bed</SelectItem>
+                                    <SelectItem value="Double Bunk Bed">Double Bunk Bed</SelectItem>
+                                  </SelectContent>
+                                </Select>
                                 <FormMessage />
                               </FormItem>
                             )}
@@ -490,12 +502,12 @@ export default function EditBoatPage({ params }: EditBoatPageProps) {
                               <FormItem>
                                 <FormLabel>Minimal Pax</FormLabel>
                                 <FormControl>
-                                  <Input 
-                                    type="number" 
-                                    min="1"
-                                    {...field}
-                                    onChange={e => field.onChange(parseInt(e.target.value))}
-                                  />
+                            <Input 
+                              type="number" 
+                              min="1"
+                              value={field.value ?? 1}
+                              onChange={e => field.onChange(Number(e.target.value))}
+                            />
                                 </FormControl>
                                 <FormMessage />
                               </FormItem>
@@ -508,12 +520,12 @@ export default function EditBoatPage({ params }: EditBoatPageProps) {
                               <FormItem>
                                 <FormLabel>Maksimal Pax</FormLabel>
                                 <FormControl>
-                                  <Input 
-                                    type="number" 
-                                    min="1"
-                                    {...field}
-                                    onChange={e => field.onChange(parseInt(e.target.value))}
-                                  />
+                            <Input 
+                              type="number" 
+                              min="1"
+                              value={field.value ?? 1}
+                              onChange={e => field.onChange(Number(e.target.value))}
+                            />
                                 </FormControl>
                                 <FormMessage />
                               </FormItem>
@@ -529,12 +541,12 @@ export default function EditBoatPage({ params }: EditBoatPageProps) {
                               <FormItem>
                                 <FormLabel>Harga Dasar</FormLabel>
                                 <FormControl>
-                                  <Input 
-                                    type="number" 
-                                    min="0"
-                                    {...field}
-                                    onChange={e => field.onChange(parseInt(e.target.value))}
-                                  />
+                            <Input 
+                              type="number" 
+                              min="0"
+                              value={field.value ?? 0}
+                              onChange={e => field.onChange(Number(e.target.value))}
+                            />
                                 </FormControl>
                                 <FormMessage />
                               </FormItem>
@@ -547,12 +559,12 @@ export default function EditBoatPage({ params }: EditBoatPageProps) {
                               <FormItem>
                                 <FormLabel>Harga Tambahan</FormLabel>
                                 <FormControl>
-                                  <Input 
-                                    type="number" 
-                                    min="0"
-                                    {...field}
-                                    onChange={e => field.onChange(parseInt(e.target.value))}
-                                  />
+                            <Input 
+                              type="number" 
+                              min="0"
+                              value={field.value ?? 0}
+                              onChange={e => field.onChange(Number(e.target.value))}
+                            />
                                 </FormControl>
                                 <FormMessage />
                               </FormItem>

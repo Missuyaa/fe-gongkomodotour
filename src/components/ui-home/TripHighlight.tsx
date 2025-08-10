@@ -7,21 +7,35 @@ import Image from "next/image";
 import { useState, useEffect } from "react";
 import { apiRequest } from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface Trip {
   id: number;
   name: string;
   type: string;
+  is_highlight: string;
+  status: string;
   assets: {
     id: number;
     file_url: string;
+    original_file_url?: string;
     is_external: boolean;
   }[];
   trip_durations: {
+    id: number;
+    duration_label: string;
+    duration_days: string;
+    duration_nights: string;
+    status: string;
     trip_prices: {
+      id: number;
+      trip_duration_id: string;
+      pax_min: string;
+      pax_max: string;
       price_per_pax: string;
+      status: string;
+      region: string;
     }[];
   }[];
 }
@@ -32,7 +46,8 @@ interface TripResponse {
   status?: string;
 }
 
-// Gaya kustom untuk efek shadow dan transisi
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.gongkomodotour.com';
+
 const customStyles = `
   .text-shadow-nike {
     text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7), 0 0 10px rgba(0, 0, 0, 0.5);
@@ -59,14 +74,29 @@ const customStyles = `
     margin-top: 0;
     line-height: 1;
   }
+  .trip-overlay {
+    background: linear-gradient(to top, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0.4) 50%, transparent 100%);
+  }
+  .trip-info {
+    transform: translateY(100%);
+    transition: transform 0.3s ease-in-out;
+  }
+  .group:hover .trip-info {
+    transform: translateY(0);
+  }
+  .line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
 `;
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 export default function TripHighlight() {
   const [highlights, setHighlights] = useState<Trip[]>([]);
   const [loading, setLoading] = useState(true);
-  const [hoveredCard, setHoveredCard] = useState<number | null>(null);
+  const [imageErrors, setImageErrors] = useState<Set<number>>(new Set());
+  const { t } = useLanguage();
 
   const container = {
     hidden: { opacity: 0 },
@@ -94,13 +124,65 @@ export default function TripHighlight() {
   useEffect(() => {
     const fetchHighlights = async () => {
       try {
-        const response: TripResponse = await apiRequest<TripResponse>(
+        const response = await apiRequest<TripResponse>(
           'GET',
-          '/api/landing-page/highlighted-trips'
+          '/api/landing-page/trips?status=1&is_highlight=Yes'
         );
+        console.log('Trip Highlight Response:', response);
+        console.log('Trip Highlight Data:', response.data);
+        
+        // Log basic info for debugging
+        if (response.data && response.data.length > 0) {
+          console.log(`Loaded ${response.data.length} highlighted trips`);
+        } else {
+          console.warn('No trip data received from API');
+        }
+        
         setHighlights(response.data || []);
       } catch (error) {
         console.error('Error fetching highlighted trips:', error);
+        
+        // Jika API down, gunakan data dummy sementara
+        console.log('API server down, using dummy data');
+        const dummyData: Trip[] = [
+          {
+            id: 1,
+            name: "Komodo Island Adventure",
+            type: "Open Trip",
+            is_highlight: "Yes",
+            status: "Aktif",
+            assets: [],
+            trip_durations: []
+          },
+          {
+            id: 2,
+            name: "Private Komodo Tour",
+            type: "Private Trip",
+            is_highlight: "Yes",
+            status: "Aktif",
+            assets: [],
+            trip_durations: []
+          },
+          {
+            id: 3,
+            name: "Luxury Phinisi Cruise",
+            type: "Open Trip",
+            is_highlight: "Yes",
+            status: "Aktif",
+            assets: [],
+            trip_durations: []
+          },
+          {
+            id: 4,
+            name: "Weekend Getaway",
+            type: "Private Trip",
+            is_highlight: "Yes",
+            status: "Aktif",
+            assets: [],
+            trip_durations: []
+          }
+        ];
+        setHighlights(dummyData);
       } finally {
         setLoading(false);
       }
@@ -109,13 +191,58 @@ export default function TripHighlight() {
     fetchHighlights();
   }, []);
 
+  const handleImageError = (tripId: number) => {
+    console.error(`Image failed to load for trip ID: ${tripId}`);
+    setImageErrors(prev => new Set(prev).add(tripId));
+  };
+
+  const getImageSource = (trip: Trip) => {
+    // Jika ada error pada gambar ini, gunakan fallback
+    if (imageErrors.has(trip.id)) {
+      return '/img/default-trip.jpg';
+    }
+
+    // Jika tidak ada assets atau file_url kosong
+    if (!trip.assets || trip.assets.length === 0) {
+      console.warn(`Trip ${trip.id} (${trip.name}) has no assets`);
+      return '/img/default-trip.jpg';
+    }
+
+    const asset = trip.assets[0];
+
+    const toSafeUrl = (raw: string) => {
+      try {
+        // Jika sudah absolute
+        if (/^https?:\/\//.test(raw)) {
+          return encodeURI(raw);
+        }
+        // Relative path dari API
+        return encodeURI(`${API_URL}${raw}`);
+      } catch {
+        return `${API_URL}${raw}`;
+      }
+    };
+
+    // Gunakan original_file_url yang bisa diakses langsung
+    if (asset.original_file_url) {
+      return toSafeUrl(asset.original_file_url);
+    }
+
+    if (asset.file_url && !asset.file_url.includes('placeholder')) {
+      // Gunakan file_url jika bukan placeholder
+      return toSafeUrl(asset.file_url);
+    }
+
+    return '/img/default-trip.jpg';
+  };
+
   if (loading) {
     return (
       <section className="p-4 py-10 bg-gray-50">
         <div className="container mx-auto">
           <div className="text-center mb-6">
-            <h2 className="text-3xl font-bold text-gray-800">Our Trip Highlights</h2>
-            <p className="text-muted-foreground mt-2">Loading...</p>
+            <h2 className="text-3xl font-bold text-gray-800">{t('tripHighlightTitle')}</h2>
+            <p className="text-muted-foreground mt-2">{t('loading')}</p>
           </div>
         </div>
       </section>
@@ -132,7 +259,8 @@ export default function TripHighlight() {
           transition={{ duration: 0.8, ease: "easeOut" }}
           className="text-center mb-6"
         >
-          <h2 className="text-3xl font-bold text-gray-800">Our Trip Highlights</h2>
+          <h2 className="text-3xl font-bold text-gray-800">{t('tripHighlightTitle')}</h2>
+          <p className="text-gray-600 mt-2">{t('tripHighlightSubtitle')}</p>
         </motion.div>
 
         <motion.div 
@@ -141,99 +269,73 @@ export default function TripHighlight() {
           animate="show"
           className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4"
         >
-          {highlights.map((highlight) => {
-            const imageUrl = highlight.assets?.[0]?.file_url 
-              ? `${API_URL}${highlight.assets[0].file_url}`
-              : '/images/placeholder.jpg';
+          {highlights.length === 0 ? (
+            <div className="col-span-full text-center py-8">
+              <p className="text-gray-500">{t('noData')}</p>
+            </div>
+          ) : (
+            highlights.map((highlight) => {
+              console.log('Rendering highlight:', highlight);
+              console.log('Original asset URL:', highlight.assets?.[0]?.file_url);
+              
+              const imageUrl = getImageSource(highlight);
+              console.log('Final image URL to display:', imageUrl);
 
-            return (
-              <motion.div
-                key={highlight.id}
-                variants={item}
-              >
-                <Link
-                  href={`/detail-paket/${
-                    highlight.type === "Open Trip" ? "open-trip" : "private-trip"
-                  }?id=${highlight.id}`}
-                  className="aspect-[3/2] block"
+              return (
+                <motion.div
+                  key={highlight.id}
+                  variants={item}
                 >
-                  <Card
-                    className="custom-card rounded-tr-sm overflow-hidden cursor-pointer h-full"
-                    onMouseEnter={() => setHoveredCard(highlight.id)}
-                    onMouseLeave={() => setHoveredCard(null)}
+                  <Link
+                    href={`/detail-paket/${
+                      highlight.type === "Open Trip" ? "open-trip" : "private-trip"
+                    }?id=${highlight.id}`}
+                    className="aspect-[3/2] block group"
                   >
-                    <CardContent className="p-0 relative h-full">
-                      <motion.div 
-                        className="relative w-full h-full"
-                        whileHover={{ scale: 1.05 }}
-                        transition={{ duration: 0.5, ease: "easeInOut" }}
-                      >
-                        <Image
-                          src={imageUrl}
-                          alt={highlight.name}
-                          fill
-                          className="object-cover rounded-sm"
-                          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                          quality={100}
-                          priority={true}
-                        />
-                      </motion.div>
-                      <div
-                        className={`absolute inset-0 transition-opacity duration-800 ${
-                          hoveredCard === highlight.id ? "opacity-65 bg-black" : "opacity-0"
-                        }`}
-                      />
-                      <Badge
-                        variant="default"
-                        className={`absolute top-5 left-5 ${
-                          highlight.type === "Open Trip" ? "bg-emerald-500 hover:bg-emerald-600" : "bg-orange-500 hover:bg-orange-600"
-                        } text-white`}
-                      >
-                        {highlight.type}
-                      </Badge>
-
-                      <div
-                        className={`absolute left-0 right-0 text-center transition-all duration-800 hover-text hover-text-top ${
-                          hoveredCard === highlight.id
-                            ? "hovered top-[40%] -translate-y-1/2 opacity-100"
-                            : "top-0 opacity-0"
-                        }`}
-                      >
-                        <p className="m-0 text-lg font-bold text-shadow-nike text-gold-light-30">
-                          {highlight.type}
-                        </p>
-                      </div>
-
-                      <div
-                        className={`absolute left-0 right-0 text-center transition-all duration-800 hover-text hover-text-bottom ${
-                          hoveredCard === highlight.id
-                            ? "hovered bottom-[40%] translate-y-1/2 opacity-100"
-                            : "bottom-0 opacity-0"
-                        }`}
-                      >
-                        <p className="m-0 text-lg text-shadow-nike text-gold-light-20">
-                          {highlight.name}
-                        </p>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </Link>
-              </motion.div>
-            );
-          })}
+                    <Card
+                      className="custom-card rounded-tr-sm overflow-hidden cursor-pointer h-full"
+                    >
+                      <CardContent className="p-0 relative h-full">
+                        <motion.div 
+                          className="relative w-full h-full"
+                          whileHover={{ scale: 1.05 }}
+                          transition={{ duration: 0.5, ease: "easeInOut" }}
+                        >
+                          <Image
+                            src={imageUrl}
+                            alt={highlight.name || 'Trip Image'}
+                            fill
+                            className="object-cover rounded-sm"
+                            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                            quality={100}
+                            unoptimized={true}
+                            onError={() => {
+                              console.error(`Image failed to load for trip ${highlight.id}: ${imageUrl}`);
+                              handleImageError(highlight.id);
+                            }}
+                            priority={false}
+                            onLoad={() => console.log(`Image loaded successfully for trip ${highlight.id}: ${imageUrl}`)}
+                          />
+                          <div className="absolute inset-0 trip-overlay opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                          <div className="absolute bottom-0 left-0 right-0 p-4 trip-info">
+                            <h3 className="text-white text-sm font-semibold text-center line-clamp-2 mb-2">
+                              {highlight.name || 'Trip Name'}
+                            </h3>
+                            <Badge className="mt-2 bg-gold text-white text-xs">
+                              {highlight.type || 'Trip Type'}
+                            </Badge>
+                          </div>
+                        </motion.div>
+                      </CardContent>
+                    </Card>
+                  </Link>
+                </motion.div>
+              );
+            })
+          )}
         </motion.div>
-        <motion.div 
-          initial={{ opacity: 0, y: 40 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.6, duration: 0.6 }}
-          className="text-center mt-8"
-        >
-          <Link href="/paket/open-trip">
-            <Button className="bg-gold text-white hover:bg-gold-dark-10 px-6 py-3 rounded-md hover:scale-105 transition-all duration-300">
-              See more
-            </Button>
-          </Link>
-        </motion.div>
+        
+
       </div>
     </section>
   );

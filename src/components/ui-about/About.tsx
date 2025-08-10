@@ -7,10 +7,12 @@ import { motion } from "framer-motion";
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { apiRequest } from '@/lib/api';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const MotionDiv = motion.div;
 
 export default function AboutUsPage() {
+  const { t } = useLanguage();
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -32,14 +34,14 @@ export default function AboutUsPage() {
 
     try {
       await apiRequest('POST', '/api/contact', formData);
-      toast.success('Pesan berhasil dikirim!');
+      toast.success(t('messageSentSuccess'));
       setFormData({
         name: '',
         email: '',
         message: ''
       });
     } catch (error) {
-      toast.error('Gagal mengirim pesan. Silakan coba lagi.');
+      toast.error(t('messageSentError'));
       console.error('Error sending message:', error);
     } finally {
       setIsLoading(false);
@@ -77,7 +79,7 @@ export default function AboutUsPage() {
           className="absolute inset-0 bg-gradient-to-b from-black/60 to-black/40 flex items-center justify-center"
         >
           <h1 className="text-5xl font-bold text-white tracking-wide text-center px-4">
-            ABOUT US
+            {t('aboutUsHeroTitle')}
           </h1>
         </motion.div>
       </motion.section>
@@ -93,13 +95,10 @@ export default function AboutUsPage() {
         >
           <div className="bg-white p-8 md:p-12 rounded-xl shadow-lg flex flex-col md:flex-row items-center gap-8 hover:shadow-xl transition-shadow duration-300">
             <div className="flex-1">
-              <h2 className="text-3xl font-bold text-gray-800 mb-4">About Us</h2>
-              <p className="text-lg text-gray-600 leading-relaxed">
-                Gong Komodo Tour is a trusted travel service provider based in Indonesia, 
-                specializing in exotic destinations such as Komodo Island and Flores. 
-                We are committed to delivering unforgettable travel experiences with the best service. 
-                Our team consists of experienced local guides ready to accompany you in exploring 
-                the natural beauty and culture of our destinations.
+              <h2 className="text-4xl font-bold text-gray-800 mb-6 text-center md:text-left">{t('aboutTitle')}</h2>
+              <div className="h-1 w-20 bg-gold mx-auto md:mx-0 mb-6"></div>
+              <p className="text-lg text-gray-600 leading-relaxed text-justify">
+                {t('aboutUsDescription')}
               </p>
             </div>
             <div className="flex-shrink-0">
@@ -121,7 +120,7 @@ export default function AboutUsPage() {
       </section>
 
       {/* Vision & Mission Section */}
-      <section className="py-20 px-4 md:px-8 relative">
+      <section className="py-20 px-4 md:px-8 relative bg-gray-50">
         <div className="w-full mx-auto relative overflow-visible">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
             {/* Left Column: Image */}
@@ -135,13 +134,15 @@ export default function AboutUsPage() {
               <motion.div
                 whileHover={{ scale: 1.02 }}
                 transition={{ duration: 0.3 }}
+                className="relative"
               >
+                <div className="absolute inset-0 bg-gold/20 rounded-xl transform rotate-3"></div>
                 <Image
                   src="/img/mantaabout.png"
                   alt="Manta Ray"
                   width={900}
                   height={500}
-                  className="rounded-xl shadow-lg object-cover h-auto"
+                  className="rounded-xl shadow-lg object-cover h-auto relative z-10"
                 />
               </motion.div>
             </MotionDiv>
@@ -157,12 +158,13 @@ export default function AboutUsPage() {
                 whileHover={{ scale: 1.02 }}
                 className="bg-white p-8 rounded-xl shadow-lg w-full flex items-center gap-6 border-l-4 border-gold hover:shadow-xl transition-all duration-300"
               >
-                <Eye className="w-12 h-12 text-gold flex-shrink-0" />
+                <div className="bg-gold/10 p-4 rounded-full">
+                  <Eye className="w-12 h-12 text-gold flex-shrink-0" />
+                </div>
                 <div className="flex-1">
-                  <h2 className="text-2xl font-semibold text-gray-800 mb-3">Our Vision</h2>
-                  <p className="text-gray-600 leading-relaxed">
-                    To become a leading travel service provider in Indonesia known for quality, 
-                    reliability, and extraordinary travel experiences.
+                  <h2 className="text-3xl font-bold text-gray-800 mb-4">{t('vision')}</h2>
+                  <p className="text-gray-600 leading-relaxed text-lg">
+                    {t('visionDescription')}
                   </p>
                 </div>
               </motion.div>
@@ -170,13 +172,45 @@ export default function AboutUsPage() {
                 whileHover={{ scale: 1.02 }}
                 className="bg-white p-8 rounded-xl shadow-lg w-full flex items-center gap-6 border-l-4 border-gold hover:shadow-xl transition-all duration-300"
               >
-                <Target className="w-12 h-12 text-gold flex-shrink-0" />
+                <div className="bg-gold/10 p-4 rounded-full">
+                  <Target className="w-12 h-12 text-gold flex-shrink-0" />
+                </div>
                 <div className="flex-1">
-                  <h2 className="text-2xl font-semibold text-gray-800 mb-3">Our Mission</h2>
-                  <p className="text-gray-600 leading-relaxed">
-                    To provide safe, enjoyable, and memorable travel experiences with a focus 
-                    on preserving nature and local culture.
-                  </p>
+                  <h2 className="text-3xl font-bold text-gray-800 mb-4">{t('mission')}</h2>
+                  <ul className="space-y-3 text-gray-600 leading-relaxed text-lg">
+                    <li className="flex items-start gap-2">
+                      <span className="text-gold font-bold">1.</span>
+                      {t('missionPoint1')}
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-gold font-bold">2.</span>
+                      {t('missionPoint2')}
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-gold font-bold">3.</span>
+                      {t('missionPoint3')}
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-gold font-bold">4.</span>
+                      {t('missionPoint4')}
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-gold font-bold">5.</span>
+                      {t('missionPoint5')}
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-gold font-bold">6.</span>
+                      {t('missionPoint6')}
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-gold font-bold">7.</span>
+                      {t('missionPoint7')}
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-gold font-bold">8.</span>
+                      {t('missionPoint8')}
+                    </li>
+                  </ul>
                 </div>
               </motion.div>
             </MotionDiv>
@@ -195,11 +229,10 @@ export default function AboutUsPage() {
         >
           <div className="text-center mb-16">
             <h1 className="text-4xl font-bold text-gray-800 mb-4">
-              Contact Us
+              {t('contactUs')}
             </h1>
             <p className="text-gray-600 max-w-2xl mx-auto">
-              If you have any questions or want to book a tour package, please don&apos;t hesitate 
-              to contact us through the information below.
+              {t('contactUsDescription')}
             </p>
           </div>
 
@@ -217,7 +250,7 @@ export default function AboutUsPage() {
                     <Home className="w-8 h-8 text-gold" />
                   </div>
                   <h2 className="text-2xl font-semibold text-gray-800">
-                    Our Office
+                    {t('ourOffice')}
                   </h2>
                 </div>
                 <div className="space-y-4">
@@ -266,10 +299,10 @@ export default function AboutUsPage() {
                 whileHover={{ scale: 1.02 }}
                 className="bg-white p-8 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
               >
-                <h2 className="text-2xl font-semibold text-gray-800 mb-6">Get in Touch</h2>
+                <h2 className="text-2xl font-semibold text-gray-800 mb-6">{t('getInTouch')}</h2>
                 <form onSubmit={handleSubmit} className="space-y-6">
                   <div className="space-y-2">
-                    <label htmlFor="name" className="text-sm font-medium text-gray-700">Your Name</label>
+                    <label htmlFor="name" className="text-sm font-medium text-gray-700">{t('yourName')}</label>
                     <input 
                       id="name"
                       name="name"
@@ -281,7 +314,7 @@ export default function AboutUsPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <label htmlFor="email" className="text-sm font-medium text-gray-700">Your Email</label>
+                    <label htmlFor="email" className="text-sm font-medium text-gray-700">{t('yourEmail')}</label>
                     <input 
                       id="email"
                       name="email"
@@ -293,7 +326,7 @@ export default function AboutUsPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <label htmlFor="message" className="text-sm font-medium text-gray-700">Your Message</label>
+                    <label htmlFor="message" className="text-sm font-medium text-gray-700">{t('yourMessage')}</label>
                     <textarea 
                       id="message"
                       name="message"
@@ -312,7 +345,7 @@ export default function AboutUsPage() {
                       isLoading ? 'opacity-50 cursor-not-allowed' : ''
                     }`}
                   >
-                    {isLoading ? 'Mengirim...' : 'Send Message'}
+                    {isLoading ? t('sending') : t('sendMessage')}
                   </motion.button>
                 </form>
               </motion.div>
@@ -325,7 +358,7 @@ export default function AboutUsPage() {
                 whileHover={{ scale: 1.02 }}
                 className="bg-white p-8 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
               >
-                <h2 className="text-2xl font-semibold text-gray-800 mb-6">Our Location</h2>
+                <h2 className="text-2xl font-semibold text-gray-800 mb-6">{t('ourLocation')}</h2>
                 <div className="w-full h-[400px] rounded-lg overflow-hidden">
                   <iframe
                     src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d986.6146146146146!2d115.236496!3d-8.6744023!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x2dd24058b0ad051d%3A0x3df400f051a54b7a!2sGong%20Komodo%20Tour!5e0!3m2!1sen!2sus!4v1698765432100!5m2!1sen!2sus."
@@ -343,14 +376,14 @@ export default function AboutUsPage() {
                 whileHover={{ scale: 1.02 }}
                 className="bg-white p-8 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
               >
-                <h2 className="text-2xl font-semibold text-gray-800 mb-6">Follow Us</h2>
+                <h2 className="text-2xl font-semibold text-gray-800 mb-6">{t('followUs')}</h2>
                 <div className="flex justify-center gap-6">
                   <motion.div whileHover={{ scale: 1.1, y: -5 }} whileTap={{ scale: 0.95 }}>
                     <Link href="https://www.instagram.com/gongkomodo/" target="_blank" className="flex flex-col items-center gap-2">
                       <div className="bg-pink-500/10 p-4 rounded-full">
                         <FaInstagram className="w-8 h-8 text-pink-500" />
                       </div>
-                      <span className="text-sm text-gray-600">Instagram</span>
+                      <span className="text-sm text-gray-600">{t('instagram')}</span>
                     </Link>
                   </motion.div>
                   <motion.div whileHover={{ scale: 1.1, y: -5 }} whileTap={{ scale: 0.95 }}>
@@ -358,7 +391,7 @@ export default function AboutUsPage() {
                       <div className="bg-green-500/10 p-4 rounded-full">
                         <FaWhatsapp className="w-8 h-8 text-green-500" />
                       </div>
-                      <span className="text-sm text-gray-600">WhatsApp</span>
+                      <span className="text-sm text-gray-600">{t('whatsapp')}</span>
                     </Link>
                   </motion.div>
                   <motion.div whileHover={{ scale: 1.1, y: -5 }} whileTap={{ scale: 0.95 }}>
@@ -366,7 +399,7 @@ export default function AboutUsPage() {
                       <div className="bg-green-600/10 p-4 rounded-full">
                         <FaTripadvisor className="w-8 h-8 text-green-600" />
                       </div>
-                      <span className="text-sm text-gray-600">TripAdvisor</span>
+                      <span className="text-sm text-gray-600">{t('tripAdvisor')}</span>
                     </Link>
                   </motion.div>
                 </div>

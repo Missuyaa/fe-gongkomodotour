@@ -33,7 +33,6 @@ import {
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuTrigger,
-  DropdownMenuItem,
 } from "@/components/ui/dropdown-menu"
 import {
   Select,
@@ -42,32 +41,24 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { ChevronDown, FileDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, MoreHorizontal, Pencil, Trash } from 'lucide-react'
+import { ChevronDown, FileDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Plus } from 'lucide-react'
 import { useState } from "react"
 import jsPDF from "jspdf"
 import autoTable from "jspdf-autotable"
 import { Testimonial } from "@/types/testimonials"
 import { useRouter } from "next/navigation"
-import { toast } from "sonner"
-import { apiRequest } from "@/lib/api"
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
+import { formatDate } from "@/lib/utils"
+import { Badge } from "@/components/ui/badge"
 
 interface DataTableProps<TData> {
   columns: ColumnDef<TData, string>[]
   data: TData[]
-  setData: (data: TData[]) => void
-}
-
-interface TestimonialResponse {
-  data: Testimonial[]
-  message?: string
-  status?: string
 }
 
 const exportToPDF = (data: Testimonial[]) => {
   const doc = new jsPDF()
   const pageWidth = doc.internal.pageSize.getWidth()
-  
+
   // Add header section (centered)
   doc.setFontSize(16)
   doc.setFont("helvetica", "bold")
@@ -76,7 +67,7 @@ const exportToPDF = (data: Testimonial[]) => {
   const companyNameX = (pageWidth - companyNameWidth) / 2
   const companyNameY = 20
   doc.text(companyName, companyNameX, companyNameY)
-  
+
   // Address and phone (centered below company name)
   doc.setFontSize(10)
   doc.setFont("helvetica", "normal")
@@ -86,7 +77,7 @@ const exportToPDF = (data: Testimonial[]) => {
     "Bali 80234",
     "0812-3867-588"
   ]
-  
+
   let yPos = companyNameY + 10
   address.forEach(line => {
     const lineWidth = doc.getTextWidth(line)
@@ -98,7 +89,7 @@ const exportToPDF = (data: Testimonial[]) => {
   // Add divider line
   doc.setLineWidth(0.5)
   doc.line(14, yPos + 5, pageWidth - 14, yPos + 5)
-  
+
   // Add report title (centered)
   doc.setFontSize(14)
   doc.setFont("helvetica", "bold")
@@ -106,13 +97,13 @@ const exportToPDF = (data: Testimonial[]) => {
   const reportTitleWidth = doc.getTextWidth(reportTitle)
   const reportTitleX = (pageWidth - reportTitleWidth) / 2
   doc.text(reportTitle, reportTitleX, yPos + 20)
-  
+
   // Add generated date (right aligned)
   doc.setFontSize(10)
   doc.setFont("helvetica", "normal")
   const dateText = `Generated on: ${new Date().toLocaleString()}`
   doc.text(dateText, pageWidth - 14, yPos + 30, { align: 'right' })
-  
+
   // Define the columns for the table
   const tableColumn = [
     "No",
@@ -124,11 +115,11 @@ const exportToPDF = (data: Testimonial[]) => {
     "Created At",
     "Updated At"
   ]
-  
+
   // Map the data to match the columns
   const tableRows = data.map((item, index) => [
     index + 1,
-    item.customer.user.name,
+    item.customer_name,
     item.rating,
     item.review,
     item.is_approved ? "Approved" : "Pending",
@@ -172,7 +163,6 @@ const exportToPDF = (data: Testimonial[]) => {
 export function DataTable({
   columns,
   data,
-  setData,
 }: DataTableProps<Testimonial>) {
   const router = useRouter()
   const [sorting, setSorting] = useState<SortingState>([])
@@ -184,60 +174,11 @@ export function DataTable({
     pageIndex: 0,
     pageSize: 10,
   })
-  const [isDeleting, setIsDeleting] = useState(false)
-
-  const handleEdit = (testimonial: Testimonial) => {
-    router.push(`/dashboard/testimonials/${testimonial.id}/edit`)
-  }
-
-  const handleDelete = async (testimonial: Testimonial) => {
-    try {
-      setIsDeleting(true)
-      await apiRequest('DELETE', `/api/testimonials/${testimonial.id}`)
-      toast.success("Testimonial berhasil dihapus")
-      // Refresh data dengan memanggil ulang API
-      const response = await apiRequest<TestimonialResponse>('GET', '/api/testimonials')
-      setData(response.data || [])
-    } catch (error) {
-      console.error("Error deleting Testimonial:", error)
-      toast.error("Gagal menghapus Testimonial")
-    } finally {
-      setIsDeleting(false)
-    }
-  }
-
-  const DeleteConfirmationDialog = ({ testimonial, children }: { testimonial: Testimonial, children: React.ReactNode }) => {
-    return (
-      <AlertDialog>
-        <AlertDialogTrigger asChild>
-          {children}
-        </AlertDialogTrigger>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Konfirmasi Hapus</AlertDialogTitle>
-            <AlertDialogDescription>
-              Apakah Anda yakin ingin menghapus Testimonial ini? Tindakan ini tidak dapat dibatalkan.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Batal</AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={() => handleDelete(testimonial)}
-              disabled={isDeleting}
-              className="bg-red-500 hover:bg-red-600"
-            >
-              {isDeleting ? "Menghapus..." : "Hapus"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    )
-  }
 
   const renderSubComponent = ({ row }: { row: Row<Testimonial> }) => {
     const testimonial = row.original
-    const customer = testimonial.customer
-    
+    const trip = testimonial.trip
+
     return (
       <div className="p-4 bg-muted/50 rounded-lg">
         <div className="space-y-4 max-w-5xl mx-auto">
@@ -245,6 +186,7 @@ export function DataTable({
             <h4 className="font-semibold text-lg mb-4 text-gray-800 border-b pb-2">Detail Testimonial</h4>
             <div className="grid gap-4">
               <div className="space-y-4">
+                {/* Review Section */}
                 <div>
                   <p className="text-gray-600 font-medium mb-2">Review:</p>
                   <div className="bg-gray-50 p-3 rounded-md">
@@ -253,41 +195,88 @@ export function DataTable({
                     </div>
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+
+                {/* Trip Information */}
+                {trip && (
                   <div>
-                    <p className="text-gray-600 font-medium mb-2">Nama Customer:</p>
+                    <p className="text-gray-600 font-medium mb-2">Paket Tour:</p>
                     <div className="bg-gray-50 p-3 rounded-md">
-                      <p className="text-gray-800">{customer.user.name}</p>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <p className="text-gray-600 text-sm">Nama Paket</p>
+                          <p className="text-gray-800 font-medium">{trip.name}</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-600 text-sm">Tipe</p>
+                          <p className="text-gray-800 font-medium">{trip.type}</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-600 text-sm">Include</p>
+                          <p className="text-gray-800 font-medium">{trip.include}</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-600 text-sm">Exclude</p>
+                          <p className="text-gray-800 font-medium">{trip.exclude}</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-600 text-sm">Meeting Point</p>
+                          <p className="text-gray-800 font-medium">{trip.meeting_point}</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-600 text-sm">Note</p>
+                          <p className="text-gray-800 font-medium">{trip.note}</p>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                  <div>
-                    <p className="text-gray-600 font-medium mb-2">Email:</p>
-                    <div className="bg-gray-50 p-3 rounded-md">
-                      <p className="text-gray-800">{customer.user.email}</p>
+                )}
+
+                {/* Customer Information */}
+                <div>
+                  <p className="text-gray-600 font-medium mb-2">Informasi Customer:</p>
+                  <div className="bg-gray-50 p-3 rounded-md">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-gray-600 text-sm">Nama Lengkap</p>
+                        <p className="text-gray-800 font-medium">{testimonial.customer_name}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-600 text-sm">Email</p>
+                        <p className="text-gray-800 font-medium">{testimonial.customer_email}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-600 text-sm">No. HP</p>
+                        <p className="text-gray-800 font-medium">{testimonial.customer_phone}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-600 text-sm">Source</p>
+                        <Badge className={`${testimonial.source === "internal" ? "bg-blue-500" : "bg-green-500"} text-white`}>
+                          {testimonial.source === "internal" ? "Internal" : "External"}
+                        </Badge>
+                      </div>
                     </div>
                   </div>
-                  <div>
-                    <p className="text-gray-600 font-medium mb-2">No. HP:</p>
-                    <div className="bg-gray-50 p-3 rounded-md">
-                      <p className="text-gray-800">{customer.no_hp}</p>
-                    </div>
-                  </div>
-                  <div>
-                    <p className="text-gray-600 font-medium mb-2">Alamat:</p>
-                    <div className="bg-gray-50 p-3 rounded-md">
-                      <p className="text-gray-800">{customer.alamat}</p>
-                    </div>
-                  </div>
-                  <div>
-                    <p className="text-gray-600 font-medium mb-2">Nasionalitas:</p>
-                    <div className="bg-gray-50 p-3 rounded-md">
-                      <p className="text-gray-800">{customer.nasionality}</p>
-                    </div>
-                  </div>
-                  <div>
-                    <p className="text-gray-600 font-medium mb-2">Region:</p>
-                    <div className="bg-gray-50 p-3 rounded-md">
-                      <p className="text-gray-800">{customer.region}</p>
+                </div>
+
+                {/* Additional Testimonial Information */}
+                <div>
+                  <p className="text-gray-600 font-medium mb-2">Informasi Tambahan:</p>
+                  <div className="bg-gray-50 p-3 rounded-md">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-gray-600 text-sm">Highlight</p>
+                        <Badge className={`${testimonial.is_highlight ? "bg-yellow-500" : "bg-gray-500"} text-white`}>
+                          {testimonial.is_highlight ? "Ya" : "Tidak"}
+                        </Badge>
+                      </div>
+                      <div>
+                        <p className="text-gray-600 text-sm">Tanggal Dibuat</p>
+                        <p className="text-gray-800 font-medium">{formatDate(testimonial.created_at)}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-600 text-sm">Tanggal Diperbarui</p>
+                        <p className="text-gray-800 font-medium">{formatDate(testimonial.updated_at)}</p>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -301,41 +290,7 @@ export function DataTable({
 
   const table = useReactTable({
     data,
-    columns: [
-      ...columns.filter(col => col.id !== "actions"),
-      {
-        id: "actions",
-        header: () => null,
-        cell: ({ row }) => {
-          const testimonial = row.original
-          return (
-            <div className="text-right">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="h-8 w-8 p-0">
-                    <span className="sr-only">Buka menu</span>
-                    <MoreHorizontal className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => handleEdit(testimonial)}>
-                    <Pencil className="mr-2 h-4 w-4" />
-                    Edit
-                  </DropdownMenuItem>
-                  <DeleteConfirmationDialog testimonial={testimonial}>
-                    <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                      <Trash className="mr-2 h-4 w-4" />
-                      Hapus
-                    </DropdownMenuItem>
-                  </DeleteConfirmationDialog>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          )
-        },
-        enableHiding: false,
-      }
-    ],
+    columns,
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
     getCoreRowModel: getCoreRowModel(),
@@ -404,7 +359,9 @@ export function DataTable({
                 .map((column) => {
                   const columnLabels: Record<string, string> = {
                     customer_name: "Nama Customer",
+                    customer_email: "Email Customer",
                     rating: "Rating",
+                    source: "Source",
                     is_approved: "Status",
                     is_highlight: "Highlight"
                   }
@@ -435,7 +392,7 @@ export function DataTable({
               >
                 Hapus Terpilih ({table.getSelectedRowModel().rows.length})
               </Button>
-              <Button 
+              <Button
                 variant="outline"
                 onClick={() => exportToPDF(table.getSelectedRowModel().rows.map(row => row.original as Testimonial))}
               >
@@ -445,6 +402,13 @@ export function DataTable({
             </>
           )}
           <Button 
+            onClick={() => router.push('/dashboard/testimonials/create')}
+            className="bg-yellow-500 hover:bg-yellow-600 text-white transition-colors duration-200"
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Tambah Testimonial
+          </Button>
+          <Button
             className="bg-red-500 hover:bg-red-600 text-white transition-colors duration-200"
             variant="outline"
             onClick={() => exportToPDF(table.getFilteredRowModel().rows.map(row => row.original as Testimonial))}
@@ -466,9 +430,9 @@ export function DataTable({
                     {header.isPlaceholder
                       ? null
                       : flexRender(
-                          header.column.columnDef.header,
-                          header.getContext()
-                        )}
+                        header.column.columnDef.header,
+                        header.getContext()
+                      )}
                   </TableHead>
                 ))}
               </TableRow>

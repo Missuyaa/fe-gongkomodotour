@@ -1,112 +1,243 @@
-import { useRef, useState } from "react";
+"use client";
+
+import { useEffect, useState, useRef } from "react";
 import Image from "next/image";
-import { Star } from "lucide-react";
+import { Star, Quote } from "lucide-react";
+import { motion } from "framer-motion";
+import { apiRequest } from "@/lib/api";
+import { useLanguage } from "@/contexts/LanguageContext";
 
-// Definisikan tipe untuk data ulasan
-interface ReviewItem {
-  judul: string;
-  nama: string;
-  tanggal: string;
-  komentar: string;
-  gambar: string;
+interface Testimonial {
+  id?: number;
+  author_name: string;
   rating: number;
+  text: string;
+  time: number;
+  profile_photo_url: string | null;
+  source: string;
+  trip?: {
+    id: number;
+    name: string;
+  } | null;
+  created_at: string;
+  updated_at: string;
 }
 
-// Definisikan tipe untuk props komponen
-interface DetailReviewProps {
-  reviews: ReviewItem[];
+interface TestimonialResponse {
+  success: boolean;
+  data: Testimonial[];
+  meta?: {
+    total: number;
+    google_count: number;
+    internal_count: number;
+  };
 }
 
-export default function DetailReview({ reviews }: DetailReviewProps) {
+export default function DetailReview() {
+  const [reviews, setReviews] = useState<Testimonial[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [showFull, setShowFull] = useState<number | null>(null);
+  const { t } = useLanguage();
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
-  const [isDragging, setIsDragging] = useState(false);
-  const [startX, setStartX] = useState(0);
-  const [scrollLeft, setScrollLeft] = useState(0);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!scrollContainerRef.current) return;
-    if (e.button !== 0) return; // Hanya klik kiri yang memicu drag
-    setIsDragging(true);
-    setStartX(e.pageX - scrollContainerRef.current.offsetLeft);
-    setScrollLeft(scrollContainerRef.current.scrollLeft);
-    scrollContainerRef.current.style.cursor = "grabbing";
-  };
+  useEffect(() => {
+    const fetchTestimonials = async () => {
+      try {
+        const response = await apiRequest<TestimonialResponse>(
+          'GET',
+          '/api/landing-page/all-testimonials'
+        );
+        
+        console.log('Testimonial Response:', response);
 
-  const handleMouseLeave = () => {
-    setIsDragging(false);
-    if (scrollContainerRef.current) {
-      scrollContainerRef.current.style.cursor = "grab";
-    }
-  };
+        if (response.success && response.data && Array.isArray(response.data)) {
+          setReviews(response.data);
+        } else {
+          throw new Error('Tidak ada testimonial yang ditemukan');
+        }
+      } catch (error) {
+        console.error('Error fetching testimonials:', error);
+        setError(error instanceof Error ? error.message : 'Terjadi kesalahan saat mengambil testimonial');
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const handleMouseUp = () => {
-    setIsDragging(false);
-    if (scrollContainerRef.current) {
-      scrollContainerRef.current.style.cursor = "grab";
-    }
-  };
+    fetchTestimonials();
+  }, []);
 
-  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!isDragging || !scrollContainerRef.current) return;
-    e.preventDefault();
-    const x = e.pageX - scrollContainerRef.current.offsetLeft;
-    const walk = (x - startX) * 2; // Mengatur kecepatan drag
-    scrollContainerRef.current.scrollLeft = scrollLeft - walk;
-  };
+  useEffect(() => {
+    if (reviews.length === 0) return;
+    intervalRef.current = setInterval(() => {
+      if (scrollContainerRef.current) {
+        const nextIndex = (currentIndex + 1) % reviews.length;
+        const scrollAmount = nextIndex * 358; // 350px card width + 8px gap
+        scrollContainerRef.current.scrollTo({
+          left: scrollAmount,
+          behavior: "smooth"
+        });
+        setCurrentIndex(nextIndex);
+      }
+    }, 3000); // Scroll every 3 seconds
 
-  return (
-    <section className="py-16 px-4 md:px-8 bg-[#f5f5f5]">
-      <div className="">
-        <h2 className="text-3xl font-bold text-gray-800 mb-6">Review</h2>
-        <div
-          ref={scrollContainerRef}
-          className="flex gap-6 overflow-x-auto scrollbar-hide select-none"
-          style={{ scrollBehavior: "smooth", cursor: "grab" }}
-          onMouseDown={handleMouseDown}
-          onMouseLeave={handleMouseLeave}
-          onMouseUp={handleMouseUp}
-          onMouseMove={handleMouseMove}
-        >
-          {reviews.map((review, index) => (
-            <div
-              key={index}
-              className="bg-white p-4 rounded-lg shadow-2xl hover:shadow-lg transition-shadow duration-300 flex-shrink-0"
-              style={{
-                minWidth: "400px", // Ukuran tetap untuk card
-                boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1)", // Bayangan seperti MoreTrip
-              }}
-            >
-              <div className="flex items-center mb-2">
-                {[...Array(5)].map((_, i) => (
-                  <Star
-                    key={i}
-                    className={`w-5 h-5 ${
-                      i < review.rating
-                        ? "text-yellow-400 fill-yellow-400"
-                        : "text-gray-300"
-                    }`}
-                  />
-                ))}
-              </div>
-              <h3 className="text-lg font-semibold text-gray-800">{review.judul}</h3>
-              <p className="text-gray-600 mt-2">{review.komentar}</p>
-              <div className="flex items-center mt-4">
-                <Image
-                  src={review.gambar}
-                  alt={review.nama}
-                  width={40}
-                  height={40}
-                  className="w-10 h-10 rounded-full mr-3"
-                />
-                <div>
-                  <p className="text-sm font-medium text-gray-800">{review.nama}</p>
-                  <p className="text-sm text-gray-500">{review.tanggal}</p>
-                </div>
-              </div>
-            </div>
-          ))}
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+    };
+  }, [currentIndex, reviews.length]);
+
+  if (loading) {
+    return (
+      <div className="py-20 bg-cover bg-center w-full flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="py-20 bg-cover bg-center w-full flex items-center justify-center">
+        <div className="bg-white/90 p-4 rounded-lg shadow-lg">
+          <p className="text-red-600">Error: {error}</p>
         </div>
       </div>
-    </section>
+    );
+  }
+
+  if (reviews.length === 0) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="text-center text-gray-500">
+          Belum ada review untuk trip ini
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <motion.section
+      initial={{ opacity: 0 }}
+      whileInView={{ opacity: 1 }}
+      transition={{ duration: 0.8 }}
+      className="py-20 w-full bg-[#e5e5e5]"
+    >
+      <div className="w-full max-w-[1800px] mx-auto px-4">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+          className="text-center mb-12"
+        >
+          <h2 className="text-4xl font-bold text-gray-800 mb-6">
+            {t('testimonialsTitle')}
+          </h2>
+          <p className="text-lg text-gray-600 mb-8 max-w-2xl mx-auto">
+            {t('testimonialsSubtitle')}
+          </p>
+        </motion.div>
+
+        <div
+          ref={scrollContainerRef}
+          className="flex overflow-x-auto gap-6 px-4 scrollbar-hide"
+          style={{ scrollBehavior: "smooth", scrollSnapType: "x mandatory" }}
+        >
+          {reviews.map((review, index) => {
+            const isLong = review.text.length > 250;
+            const displayText = showFull === index || !isLong ? review.text : review.text.slice(0, 250) + '...';
+            return (
+              <motion.div
+                key={review.id || review.time}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: index * 0.1 }}
+                whileHover={{ scale: 1.02 }}
+                className="min-w-[320px] max-w-[400px] w-full bg-white p-8 rounded-2xl shadow-lg flex-shrink-0 flex flex-col justify-between relative"
+                style={{ scrollSnapAlign: "center" }}
+              >
+                <Quote className="absolute top-6 left-6 w-8 h-8 text-yellow-400 opacity-30 z-10" />
+                <motion.div 
+                  className="flex items-center mb-4 pl-10"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.2 }}
+                >
+                  {[...Array(5)].map((_, i) => (
+                    <motion.div
+                      key={i}
+                      initial={{ opacity: 0, scale: 0 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ delay: i * 0.1 }}
+                    >
+                      <Star
+                        className={`w-5 h-5 ${
+                          i < review.rating
+                            ? "text-yellow-400 fill-yellow-400"
+                            : "text-gray-300"
+                        }`}
+                      />
+                    </motion.div>
+                  ))}
+                </motion.div>
+                <p className="text-gray-700 mb-4 text-lg leading-relaxed" style={{minHeight: '72px'}}>
+                  {displayText}
+                  {isLong && showFull !== index && (
+                    <button
+                      className="ml-2 text-blue-600 hover:underline text-sm"
+                      onClick={() => setShowFull(index)}
+                    >
+                      {t('readMore')}
+                    </button>
+                  )}
+                  {isLong && showFull === index && (
+                    <button
+                      className="ml-2 text-blue-600 hover:underline text-sm"
+                      onClick={() => setShowFull(null)}
+                    >
+                      {t('hide')}
+                    </button>
+                  )}
+                </p>
+                <div className="flex items-center mt-4 gap-3">
+                  <motion.div
+                    whileHover={{ scale: 1.1 }}
+                    className="relative w-12 h-12 rounded-full bg-white border-2 border-yellow-400 flex items-center justify-center overflow-hidden shadow-md"
+                    style={{ minWidth: 48, minHeight: 48 }}
+                  >
+                    {review.profile_photo_url ? (
+                      <Image
+                        src={review.profile_photo_url}
+                        alt={review.author_name}
+                        fill
+                        className="object-cover rounded-full"
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white font-bold text-lg">
+                        {review.author_name.charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                  </motion.div>
+                  <div className="flex flex-col justify-center">
+                    <p className="text-xs font-medium text-gray-800">
+                      {review.author_name}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      {new Date(review.time * 1000).toLocaleDateString('id-ID', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric'
+                      })}
+                    </p>
+                  </div>
+                </div>
+              </motion.div>
+            );
+          })}
+        </div>
+      </div>
+    </motion.section>
   );
 }

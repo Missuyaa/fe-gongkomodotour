@@ -4,8 +4,10 @@ import Gallery from "@/components/ui-gallery/Gallery";
 import { motion } from "framer-motion";
 import { Gallery as GalleryType, GalleryResponse } from "@/types/galleries";
 import { apiRequest } from "@/lib/api";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 export default function GalleryPage() {
+  const { t } = useLanguage();
   const [galleryData, setGalleryData] = useState<GalleryType[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -16,9 +18,32 @@ export default function GalleryPage() {
           "GET",
           "/api/landing-page/gallery"
         );
-        setGalleryData(response.data);
+        console.log("Raw API Response:", response);
+        
+        if (!response) {
+          console.error("No response received from API");
+          setGalleryData([]);
+          return;
+        }
+
+        if (!response.data) {
+          console.error("Response data is undefined or null");
+          setGalleryData([]);
+          return;
+        }
+
+        if (Array.isArray(response.data)) {
+          setGalleryData(response.data);
+        } else {
+          console.error("Invalid gallery data format. Expected array but received:", typeof response.data);
+          setGalleryData([]);
+        }
       } catch (error) {
         console.error("Error fetching gallery data:", error);
+        if (error instanceof Error) {
+          console.error("Error details:", error.message);
+        }
+        setGalleryData([]);
       } finally {
         setIsLoading(false);
       }
@@ -27,12 +52,14 @@ export default function GalleryPage() {
     fetchGalleryData();
   }, []);
 
-  const formattedGalleryData = galleryData.map((gallery) => ({
-    image: gallery.assets?.[0]?.file_url || "/img/default-gallery.jpg",
-    title: gallery.title,
-    description: gallery.description || 'No Description',
-    category: gallery.category || 'Uncategorized',
-  }));
+  const formattedGalleryData = galleryData
+    .filter(item => item.status === "Aktif" && item.assets?.[0]?.file_url)
+    .map((gallery) => ({
+      image: gallery.assets?.[0]?.file_url || "/img/default-gallery.jpg",
+      title: gallery.title,
+      description: gallery.description || t('noDescription'),
+      category: gallery.category || t('uncategorized'),
+    }));
 
   return (
     <main className="gallery-page bg-gray-100">
@@ -43,7 +70,7 @@ export default function GalleryPage() {
           transition={{ duration: 0.5 }}
           className="text-4xl font-bold text-gray-800 mb-4"
         >
-          Our Gallery: Photos & Videos from Gong Komodo Tour
+          {t('galleryPageTitle')}
         </motion.h1>
         <motion.p 
           initial={{ opacity: 0, y: 20 }}
@@ -51,9 +78,7 @@ export default function GalleryPage() {
           transition={{ duration: 0.5, delay: 0.2 }}
           className="text-gray-600 max-w-3xl mx-auto"
         >
-          Discover the beauty of Komodo through our stunning collection of photos and videos. 
-          From breathtaking landscapes to unforgettable moments, each image tells a unique story 
-          of adventure and exploration. Let these visuals inspire your next journey to Komodo!
+          {t('galleryPageSubtitle')}
         </motion.p>
       </section>
 

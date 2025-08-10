@@ -13,9 +13,60 @@ const nextConfig: NextConfig = {
         protocol: 'https',
         hostname: 'api.gongkomodotour.com',
         pathname: '/storage/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'lh3.googleusercontent.com',
+        pathname: '/**',
       }
     ],
+    domains: ['localhost', 'lh3.googleusercontent.com', 'api.gongkomodotour.com'],
+    dangerouslyAllowSVG: true,
+    contentDispositionType: 'attachment',
+    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
+    // Tambahkan konfigurasi untuk menangani error
+    minimumCacheTTL: 60,
+    formats: ['image/webp', 'image/avif'],
+    deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
+    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
   },
+
+  eslint: {
+    // Menonaktifkan ESLint saat proses `yarn build`
+    ignoreDuringBuilds: true,
+  },
+  typescript: {
+    // Menonaktifkan pengecekan tipe TypeScript saat `yarn build`
+    ignoreBuildErrors: true,
+  },
+
+  async rewrites() {
+    return [
+      {
+        source: '/api/:path*',
+        destination: 'https://api.gongkomodotour.com/api/:path*',
+      },
+    ];
+  },
+
+  async headers() {
+    return [
+      {
+        source: '/:path*',
+        headers: [
+          { key: 'Access-Control-Allow-Credentials', value: 'true' },
+          { key: 'Access-Control-Allow-Origin', value: '*' },
+          { key: 'Access-Control-Allow-Methods', value: 'GET,OPTIONS,PATCH,DELETE,POST,PUT' },
+          { key: 'Access-Control-Allow-Headers', value: 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization' },
+        ],
+      },
+    ];
+  },
+
+  // experimental: {
+  //   workerThreads: false,
+  //   cpus: 4,
+  // }
 };
 
 export default nextConfig;

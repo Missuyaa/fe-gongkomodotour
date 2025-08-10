@@ -6,11 +6,13 @@ import {
   BookOpen,
   Command,
   GalleryVerticalEnd,
-  Settings2,
   Users,
   Shield,
   SquareUserRound,
-  Compass
+  Compass,
+  Home,
+  Image as ImageIcon,
+  Film
 } from "lucide-react"
 import Image from 'next/image'
 import logo from '../../public/img/logo.png';
@@ -50,6 +52,12 @@ const data = {
     },
   ],
   navMain: [
+    {
+      title: "Dashboard",
+      url: "/dashboard",
+      icon: Home,
+      isActive: false,
+    },
     {
       title: "Trips",
       url: "/dashboard/trips",
@@ -94,71 +102,17 @@ const data = {
       ],
     },
     {
-      title: "Transaction",
+      title: "Transactions",
       url: "#",
       icon: BookOpen,
       items: [
         {
-          title: "Introduction",
-          url: "#",
+          title: "Bookings",
+          url: "/dashboard/bookings",
         },
         {
-          title: "Get Started",
-          url: "#",
-        },
-        {
-          title: "Tutorials",
-          url: "#",
-        },
-        {
-          title: "Changelog",
-          url: "#",
-        },
-      ],
-    },
-    {
-      title: "Hotels",
-      url: "#",
-      icon: Settings2,
-      items: [
-        {
-          title: "General",
-          url: "#",
-        },
-        {
-          title: "Team",
-          url: "#",
-        },
-        {
-          title: "Billing",
-          url: "#",
-        },
-        {
-          title: "Limits",
-          url: "#",
-        },
-      ],
-    },
-    {
-      title: "Gallery",
-      url: "#",
-      icon: Settings2,
-      items: [
-        {
-          title: "General",
-          url: "#",
-        },
-        {
-          title: "Team",
-          url: "#",
-        },
-        {
-          title: "Billing",
-          url: "#",
-        },
-        {
-          title: "Limits",
-          url: "#",
+          title: "Transactions",
+          url: "/dashboard/transactions",
         },
       ],
     },
@@ -178,6 +132,11 @@ const data = {
       name: "Customers",
       url: "/dashboard/customers",
       icon: SquareUserRound,
+    },
+    {
+      name: "Carousel",
+      url: "/dashboard/carousel",
+      icon: Film,
     },
   ],
 }

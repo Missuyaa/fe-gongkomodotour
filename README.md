@@ -1,36 +1,111 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Gong Komodo Tour - Frontend
 
-## Getting Started
+Frontend aplikasi untuk Gong Komodo Tour menggunakan Next.js 14, TypeScript, dan Tailwind CSS.
 
-First, run the development server:
+## Fitur Utama
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+-   Landing page responsif
+-   Sistem autentikasi
+-   Dashboard admin
+-   Manajemen konten (blog, galeri, testimonial, dll.)
+-   Booking system
+-   Multi-language support (Indonesia/English)
+
+## Komponen Image yang Diperbaiki
+
+### Masalah yang Diatasi
+
+-   Error 403 saat loading gambar dari API
+-   Token expired yang menyebabkan gambar tidak dapat dimuat
+-   Fallback yang tidak memadai saat gambar gagal dimuat
+
+### Solusi yang Diterapkan
+
+#### 1. AuthenticatedImage Component
+
+Komponen yang menangani gambar dengan autentikasi:
+
+-   Otomatis menambahkan token Bearer untuk gambar dari API
+-   Retry mechanism saat token expired
+-   Fallback ke URL asli jika autentikasi gagal
+-   Loading state dengan spinner
+
+#### 2. SafeImage Component
+
+Komponen alternatif yang lebih sederhana:
+
+-   Error handling yang robust
+-   Fallback image otomatis
+-   Loading state yang smooth
+-   Tidak memerlukan autentikasi
+
+#### 3. useAuth Hook
+
+Hook untuk menangani autentikasi:
+
+-   Refresh token otomatis
+-   State management untuk token
+-   Logout functionality
+
+### Penggunaan
+
+```tsx
+// Untuk gambar yang memerlukan autentikasi
+import { AuthenticatedImage } from '@/components/ui/authenticated-image';
+
+<AuthenticatedImage
+    src="https://api.gongkomodotour.com/storage/image.jpg"
+    alt="Description"
+    fill
+    className="object-cover"
+/>;
+
+// Untuk gambar dengan fallback sederhana
+import { SafeImage } from '@/components/ui/safe-image';
+
+<SafeImage
+    src="https://example.com/image.jpg"
+    alt="Description"
+    fill
+    className="object-cover"
+    fallbackSrc="/img/logo.png"
+/>;
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Setup Development
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+1. Install dependencies:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+yarn install
+```
 
-## Learn More
+2. Setup environment variables:
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+cp .env.example .env.local
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+3. Run development server:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+yarn dev
+```
 
-## Deploy on Vercel
+## Build untuk Production
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```bash
+yarn build
+yarn start
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Teknologi yang Digunakan
+
+-   Next.js 14
+-   TypeScript
+-   Tailwind CSS
+-   Shadcn/ui
+-   Prisma
+-   NextAuth.js
+-   React Hook Form
+-   Zod validation

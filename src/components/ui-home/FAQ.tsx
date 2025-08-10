@@ -11,6 +11,7 @@ import type { FAQ } from "@/types/faqs";
 import { useEffect, useState } from "react";
 import { apiRequest } from "@/lib/api";
 import { motion, AnimatePresence } from "framer-motion";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface FAQResponse {
   data: FAQ[];
@@ -22,6 +23,7 @@ const FAQ = () => {
   const [faqs, setFaqs] = useState<FAQ[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeIndex, setActiveIndex] = useState<string | undefined>(undefined);
+  const { t } = useLanguage();
 
   useEffect(() => {
     const fetchFaqs = async () => {
@@ -30,7 +32,7 @@ const FAQ = () => {
           'GET',
           '/api/landing-page/faq'
         );
-        setFaqs(response.data);
+        setFaqs(response.data || []);
       } finally {
         setLoading(false);
       }
@@ -96,9 +98,9 @@ const FAQ = () => {
         <div className="container mx-auto px-4">
           <div className="text-center mb-6">
             <h2 className="text-3xl font-bold text-foreground">
-              Hight Light Question (FAQ)
+              {t('faqTitle')}
             </h2>
-            <p className="text-muted-foreground mt-2">Loading...</p>
+            <p className="text-muted-foreground mt-2">{t('loading')}</p>
           </div>
         </div>
       </motion.section>
@@ -119,8 +121,8 @@ const FAQ = () => {
           transition={{ duration: 0.6 }}
           className="text-center mb-12"
         >
-          <h2 className="text-4xl font-bold text-foreground mb-4">Hight Light Question (FAQ)</h2>
-          <p className="text-lg text-muted-foreground">Frequently Asked Questions</p>
+          <h2 className="text-4xl font-bold text-foreground mb-4">{t('faqTitle')}</h2>
+          <p className="text-lg text-muted-foreground">{t('faqSubtitle')}</p>
         </motion.div>
         <Accordion 
           type="single" 

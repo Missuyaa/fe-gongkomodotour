@@ -3,17 +3,46 @@
 import { useState } from "react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
-import Link from "next/link";
-import { Calendar } from "@/components/ui/calendar";
+import { useSearchParams } from "next/navigation";
+import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import { Calendar } from "@/components/ui/calendar";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { format } from "date-fns";
-import { useRouter, useSearchParams } from "next/navigation";
+import { FlightSchedule } from "@/types/trips";
 
+const dayNameToIndex: Record<string, number> = {
+  Sunday: 0,
+  Monday: 1,
+  Tuesday: 2,
+  Wednesday: 3,
+  Thursday: 4,
+  Friday: 5,
+  Saturday: 6,
+};
+
+// Function untuk format harga Indonesia
+const formatPrice = (price: string): string => {
+  // Hapus semua karakter non-digit kecuali titik
+  const cleanPrice = price.replace(/[^\d.]/g, '');
+  
+  // Parse sebagai float
+  const numPrice = parseFloat(cleanPrice);
+  
+  if (isNaN(numPrice)) {
+    return price; // Return original jika tidak bisa di-parse
+  }
+  
+  // Format dengan pemisah ribuan menggunakan titik
+  return numPrice.toLocaleString('id-ID');
+};
+
+// Definisikan tipe untuk data paket
 interface PackageData {
   id: string;
   title: string;
@@ -22,7 +51,11 @@ interface PackageData {
   destination: string;
   daysTrip: string;
   description: string;
-  itinerary: string[];
+  itinerary: {
+    durationId: number;
+    durationLabel: string;
+    days: { day: string; activities: string }[];
+  }[];
   information: string;
   boat: string;
   groupSize?: string;
@@ -39,8 +72,19 @@ interface PackageData {
     guideFee1: string;
     guideFee2: string;
   };
-  boatImages?: { image: string; title: string }[];
-  mainImage?: string; // Tambahkan properti mainImage
+  boatImages?: { image: string; title: string; id: string }[];
+  mainImage?: string;
+  flightSchedules?: FlightSchedule[];
+  has_boat: boolean;
+  destination_count: number;
+  trip_durations: {
+    id: number;
+    duration_label: string;
+    itineraries: { day: string; activities: string }[];
+  }[];
+  boat_ids?: number[];
+  operational_days?: string[];
+  tentation?: "Yes" | "No";
 }
 
 interface DetailPaketPrivateTripProps {
@@ -58,6 +102,15 @@ const DetailPaketPrivateTrip: React.FC<DetailPaketPrivateTripProps> = ({
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const router = useRouter();
+
+  // Disabled date berdasarkan hari operasional paket
+  const allowedDaysSet = new Set(
+    (data.operational_days || []).map((d) => dayNameToIndex[d])
+  );
+  const disabledByOperationalDays = (date: Date) => {
+    if (allowedDaysSet.size === 0) return false; // jika tidak ada konfigurasi, izinkan semua hari
+    return !allowedDaysSet.has(date.getDay());
+  };
 
   const handleBookNow = (packageId: string) => {
     if (selectedDate) {
@@ -189,7 +242,7 @@ const DetailPaketPrivateTrip: React.FC<DetailPaketPrivateTripProps> = ({
         </div>
         <h1 className="text-4xl font-bold text-gray-800 mt-2">{data.title}</h1>
         <p className="text-2xl text-gray-600 mt-2">
-          Start from <strong>{data.price}</strong>
+          Start from <strong>IDR {formatPrice(data.price)}</strong>
         </p>
       </div>
 
@@ -252,11 +305,14 @@ const DetailPaketPrivateTrip: React.FC<DetailPaketPrivateTripProps> = ({
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0">
+                {" "}
                 <Calendar
                   mode="single"
                   selected={selectedDate}
                   onSelect={setSelectedDate}
+                  disabled={disabledByOperationalDays}
                   initialFocus
+                  className="rounded-md border"
                 />
               </PopoverContent>
             </Popover>
@@ -271,6 +327,79 @@ const DetailPaketPrivateTrip: React.FC<DetailPaketPrivateTripProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Section 3.5: Additional Information */}
+      {(data.operational_days || data.tentation) && (
+        <div className="bg-white p-6 rounded-lg shadow-md mb-8">
+          <h3 className="text-xl font-semibold text-gray-800 mb-4">Informasi Tambahan</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {data.operational_days && data.operational_days.length > 0 && (
+              <div className="flex items-start">
+                <Image
+                  src="/img/icon-destination.png"
+                  alt="Operational Days Icon"
+                  width={50}
+                  height={50}
+                  className="mr-2"
+                />
+                <div className="flex flex-col">
+                  <span className="text-gray-600 font-semibold">Hari Operasional</span>
+                  <span className="text-gray-600">
+                    {data.operational_days.map(day => {
+                      const dayLabels: { [key: string]: string } = {
+                        "Monday": "Senin",
+                        "Tuesday": "Selasa", 
+                        "Wednesday": "Rabu",
+                        "Thursday": "Kamis",
+                        "Friday": "Jumat",
+                        "Saturday": "Sabtu",
+                        "Sunday": "Minggu"
+                      };
+                      return dayLabels[day] || day;
+                    }).join(", ")}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {data.tentation && (
+              <div className="flex items-start">
+                <Image
+                  src="/img/icon-destination.png"
+                  alt="Tentation Icon"
+                  width={50}
+                  height={50}
+                  className="mr-2"
+                />
+                <div className="flex flex-col">
+                  <span className="text-gray-600 font-semibold">Jadwal Fleksibel</span>
+                  <span className="text-gray-600">
+                    {data.tentation === "Yes" ? "Tersedia" : "Tidak Tersedia"}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {data.boat_ids && data.boat_ids.length > 0 && (
+              <div className="flex items-start">
+                <Image
+                  src="/img/icon-destination.png"
+                  alt="Boats Icon"
+                  width={50}
+                  height={50}
+                  className="mr-2"
+                />
+                <div className="flex flex-col">
+                  <span className="text-gray-600 font-semibold">Kapal</span>
+                  <span className="text-gray-600">
+                    {data.boat_ids.length} kapal tersedia
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Section 4: Tab Navigasi dan Konten */}
       <div className="bg-white p-6 rounded-lg shadow-md">
@@ -336,12 +465,29 @@ const DetailPaketPrivateTrip: React.FC<DetailPaketPrivateTripProps> = ({
               <h1 className="text-3xl font-bold text-gray-800 mb-2">
                 Itinerary
               </h1>
-              <div className="w-[120px] h-[3px] bg-[#CFB53B] mb-6"></div>
-              <ul className="list-disc list-inside text-gray-600 space-y-2">
-                {data.itinerary.map((item, index) => (
-                  <li key={index}>{item}</li>
+              <div className="w-[120px] h-[3px] bg-[#CFB53B] mb-6"></div>{" "}
+              <div>
+                {data.trip_durations.map((duration) => (
+                  <div key={duration.id} className="mb-8">
+                    <h3 className="text-xl font-semibold mb-4">
+                      {duration.duration_label}
+                    </h3>
+                    <ul className="list-disc list-inside text-gray-600 space-y-4">
+                      {duration.itineraries.map((day, index) => (
+                        <li key={index} className="ml-4">
+                          <span className="font-semibold">{`Day ${
+                            index + 1
+                          }`}</span>
+                          <div
+                            className="mt-2"
+                            dangerouslySetInnerHTML={{ __html: day.activities }}
+                          />
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
                 ))}
-              </ul>
+              </div>
             </div>
           )}
           {activeTab === "information" && (
@@ -381,7 +527,7 @@ const DetailPaketPrivateTrip: React.FC<DetailPaketPrivateTripProps> = ({
                           {data.session?.highSeason.period}
                         </p>
                         <p className="text-[#CFB53B] font-bold mt-1 text-sm">
-                          {data.session?.highSeason.price}
+                          IDR {formatPrice(data.session?.highSeason.price || '')}
                         </p>
                       </div>
                       <div>
@@ -392,7 +538,7 @@ const DetailPaketPrivateTrip: React.FC<DetailPaketPrivateTripProps> = ({
                           {data.session?.peakSeason.period}
                         </p>
                         <p className="text-[#CFB53B] font-bold mt-1 text-sm">
-                          {data.session?.peakSeason.price}
+                          IDR {formatPrice(data.session?.peakSeason.price || '')}
                         </p>
                       </div>
                     </div>
@@ -420,14 +566,14 @@ const DetailPaketPrivateTrip: React.FC<DetailPaketPrivateTripProps> = ({
                     <h2 className="text-xl font-bold text-gray-800 mb-4">
                       Flight Information
                     </h2>
-                    <div className="space-y-2">
-                      <p className="text-gray-600 text-sm">
-                        {data.flightInfo?.guideFee1}
-                      </p>
-                      <p className="text-gray-600 text-sm">
-                        {data.flightInfo?.guideFee2}
-                      </p>
-                    </div>
+                                          <div className="space-y-2">
+                        <p className="text-gray-600 text-sm">
+                          IDR {formatPrice(data.flightInfo?.guideFee1 || '')}
+                        </p>
+                        <p className="text-gray-600 text-sm">
+                          IDR {formatPrice(data.flightInfo?.guideFee2 || '')}
+                        </p>
+                      </div>
                   </div>
                 </div>
               </div>
@@ -438,11 +584,9 @@ const DetailPaketPrivateTrip: React.FC<DetailPaketPrivateTripProps> = ({
               <h1 className="text-3xl font-bold text-gray-800 mb-2">Boat</h1>
               <div className="w-[80px] h-[3px] bg-[#CFB53B] mb-6"></div>
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 max-w-8xl mx-auto items-center mb-6">
+                {" "}
                 {data.boatImages?.map((boat, index) => (
-                  <Link
-                    key={index}
-                    href={`/detail-boat?type=${encodeURIComponent(boat.title)}`}
-                  >
+                  <Link key={index} href={`/detail-boat/${boat.id}`}>
                     <div className="relative group overflow-hidden rounded-lg shadow-lg cursor-pointer">
                       {/* Gambar Boat */}
                       <div className="relative h-[330px] w-full">

@@ -3,8 +3,9 @@ export interface TripPrice {
   trip_duration_id: number
   pax_min: number
   pax_max: number
-  price_per_pax: string
+  price_per_pax: number
   status: "Aktif" | "Non Aktif"
+  region: "Domestic" | "Overseas" | "Domestic & Overseas"
   created_at: string
   updated_at: string
 }
@@ -16,20 +17,16 @@ export interface TripDuration {
   duration_days: number
   duration_nights: number
   status: "Aktif" | "Non Aktif"
-  prices: {
-    pax_min: number
-    pax_max: number
-    price_per_pax: string
-    status: "Aktif" | "Non Aktif"
-  }[]
   created_at: string
   updated_at: string
+  itineraries: Itinerary[]
+  prices: TripPrice[]
   trip_prices: TripPrice[]
 }
 
 export interface Itinerary {
   id: number
-  trip_id: number
+  trip_duration_id: number
   day_number: number
   activities: string
   created_at: string
@@ -92,6 +89,8 @@ export interface TripAsset {
   title: string
   description: string | null
   file_url: string
+  original_file_url?: string
+  file_path?: string
   is_external: boolean
   created_at: string
   updated_at: string
@@ -100,24 +99,53 @@ export interface TripAsset {
 export interface Trip {
   id: number
   name: string
+  boat_id?: string | number | null
+  boat_ids?: number[]
   include: string
   exclude: string
   note: string
-  duration: string | null
   start_time: string
   end_time: string
   meeting_point: string
   type: "Open Trip" | "Private Trip"
   status: "Aktif" | "Non Aktif"
   is_highlight: "Yes" | "No"
+  has_boat: boolean
+  has_hotel: boolean
+  destination_count: number
+  operational_days: string[]
+  tentation: "Yes" | "No"
   created_at: string
   updated_at: string
-  itineraries: Itinerary[]
-  flight_schedules: FlightSchedule[]
   trip_durations: TripDuration[]
+  flight_schedules: FlightSchedule[]
   additional_fees: AdditionalFee[]
   surcharges: Surcharge[]
   assets: TripAsset[]
+  boat_assets: TripAsset[]
+  boat?: {
+    id: number
+    boat_name: string
+    spesification: string
+    cabin_information: string
+    facilities: string
+    status: string
+    created_at: string
+    updated_at: string
+    cabin: Array<{
+      id: number
+      boat_id: string
+      cabin_name: string
+      bed_type: string
+      min_pax: string
+      max_pax: string
+      base_price: string
+      additional_price: string
+      status: string
+      created_at: string
+      updated_at: string
+    }>
+  }
 }
 
 export type TripResponse = Trip[] 

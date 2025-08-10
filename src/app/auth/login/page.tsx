@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -19,17 +19,19 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useRouter } from "next/navigation";
-import { apiRequest } from "@/lib/api";
+import api from "@/lib/api";
+import { motion } from "framer-motion";
+import { toast } from "sonner";
 
-interface LoginResponse {
-  access_token: string;
-  token_type: string;
-  user: {
-    id: number;
-    name: string;
-    email: string;
-  };
-  status: string;
+// Helper function to set a cookie
+const setCookie = (name: string, value: string, days: number) => {
+  let expires = "";
+  if (days) {
+    const date = new Date();
+    date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+    expires = "; expires=" + date.toUTCString();
+  }
+  document.cookie = name + "=" + (value || "")  + expires + "; path=/";
 }
 
 // Define the form schema using Zod
@@ -44,6 +46,22 @@ const formSchema = z.object({
 export default function LoginPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const router = useRouter();
+
+  // Cek apakah user sudah login dan handle history
+  useEffect(() => {
+    const token = localStorage.getItem('access_token');
+    if (token) {
+      const userData = localStorage.getItem('user');
+      if (userData) {
+        const user = JSON.parse(userData);
+        if (user.roles.includes('Super Admin') || user.roles.includes('Admin')) {
+          router.replace('/dashboard');
+        } else {
+          router.replace('/');
+        }
+      }
+    }
+  }, [router]);
 
   // Initialize the form with react-hook-form and zod
   const form = useForm<z.infer<typeof formSchema>>({
@@ -60,36 +78,47 @@ export default function LoginPage() {
     try {
       setIsSubmitting(true);
       
-      const response = await apiRequest<LoginResponse>('POST', '/api/login', {
+      const response = await api.post('/api/login', {
         email: values.email,
         password: values.password,
-      }, {
-        credentials: 'include',
-        headers: {
-          'Accept': 'application/json',
-        }
       });
       
-      console.log('Login response:', response);
+      console.log('Full response:', response);
+      console.log('Response data:', response.data);
       
-      // Simpan token ke cookies
-      if (response.access_token) {
-        document.cookie = `access_token=${response.access_token}; path=/`;
-        document.cookie = `token_type=${response.token_type}; path=/`;
+      const { access_token, token_type, user, roles, permissions, customer } = response.data;
+      
+      if (access_token) {
+        console.log('Token received:', access_token);
+        console.log('User data:', user);
+        console.log('Roles:', roles);
         
-        // Simpan data user ke localStorage
-        localStorage.setItem('user', JSON.stringify({
-          id: response.user.id,
-          name: response.user.name,
-          email: response.user.email
-        }));
+        // Simpan token di localStorage dan cookie
+        localStorage.setItem('access_token', access_token);
+        setCookie('access_token', access_token, 7); // Simpan cookie selama 7 hari
+        localStorage.setItem('token_type', token_type);
+        
+        // Simpan data user di localStorage
+        localStorage.setItem('user', JSON.stringify({ ...user, roles, permissions, customer }));
+        
+        // Redirect berdasarkan role
+        if (roles && (roles.includes('Super Admin') || roles.includes('Admin'))) {
+          console.log('Redirecting to dashboard...');
+          router.push('/dashboard');
+        } else {
+          console.log('Redirecting to home...');
+          router.push('/');
+        }
+      } else {
+        console.error('No access token in response');
+        toast.error('Gagal login: Token tidak ditemukan');
       }
-      
-      // Jika login berhasil, redirect ke halaman dashboard
-      router.push('/dashboard');
+
     } catch (error) {
       console.error('Login error:', error);
-      // Di sini Anda bisa menambahkan toast notification atau alert untuk menampilkan error
+      // Tampilkan pesan error ke user
+      const errorMessage = error instanceof Error ? error.message : 'Gagal login. Silakan coba lagi.';
+      toast.error(errorMessage);
     } finally {
       setIsSubmitting(false);
     }
@@ -98,9 +127,24 @@ export default function LoginPage() {
   return (
     <div className="flex h-screen">
       {/* Left Section - Login Form */}
-      <div className="w-1/2 flex items-center justify-center bg-white p-10">
-        <div className="w-full max-w-md">
-          <h1 className="text-4xl font-bold text-gray-800 mb-6 flex items-center">
+      <motion.div 
+        initial={{ opacity: 0, x: -50 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.5 }}
+        className="w-1/2 flex items-center justify-center bg-white p-10"
+      >
+        <motion.div 
+          initial={{ scale: 0.9, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ delay: 0.2, duration: 0.5 }}
+          className="w-full max-w-md"
+        >
+          <motion.h1 
+            initial={{ y: -20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.3, duration: 0.5 }}
+            className="text-4xl font-bold text-gray-800 mb-6 flex items-center"
+          >
             <Image
               src={logo}
               alt="Gong Komodo Tour Logo"
@@ -108,10 +152,23 @@ export default function LoginPage() {
               height={100}
               className="mx-auto"
             />
-          </h1>
-          <h2 className="text-3xl font-semibold text-[#CFB53B] mb-8 text-center">Sign In</h2>
+          </motion.h1>
+          <motion.h2 
+            initial={{ y: -20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.4, duration: 0.5 }}
+            className="text-3xl font-semibold text-[#CFB53B] mb-8 text-center"
+          >
+            Sign In
+          </motion.h2>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            <motion.form 
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.5, duration: 0.5 }}
+              onSubmit={form.handleSubmit(onSubmit)} 
+              className="space-y-6"
+            >
               {/* Email Field */}
               <FormField
                 control={form.control}
@@ -194,13 +251,18 @@ export default function LoginPage() {
                   Sign Up
                 </a>
               </p>
-            </form>
+            </motion.form>
           </Form>
-        </div>
-      </div>
+        </motion.div>
+      </motion.div>
 
-      {/* Right Section - Local Image (Unchanged) */}
-      <div className="w-1/2 relative">
+      {/* Right Section - Local Image */}
+      <motion.div 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 1 }}
+        className="w-1/2 relative"
+      >
         <Image
           src={bgAuth}
           alt="Komodo Tour Background"
@@ -208,7 +270,7 @@ export default function LoginPage() {
           style={{ objectFit: 'cover' }}
           className="absolute inset-0"
         />
-      </div>
+      </motion.div>
     </div>
   );
 }
