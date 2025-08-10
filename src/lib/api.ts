@@ -39,6 +39,9 @@ export async function apiRequest<T>(
 ): Promise<T> {
   try {
     console.log(`Making ${method} request to ${url}`);
+    console.log('Request config:', { method, url, data, config });
+    console.log('API Base URL:', API_BASE_URL);
+    
     const response = await api({
       method,
       url,
@@ -46,12 +49,91 @@ export async function apiRequest<T>(
       ...config,
     });
     console.log(`Successful response from ${url}`, response.status);
+    console.log('Response data:', response.data);
     return response.data;
-  } catch (error: any) {
-    console.error(`Error in apiRequest to ${url}:`, error.message);
+  } catch (error: unknown) {
+    const axiosError = error as { 
+      message?: string; 
+      response?: { status?: number }; 
+      config?: unknown 
+    };
+    console.error(`Error in apiRequest to ${url}:`, axiosError.message || 'Unknown error');
+    console.error('Full error object:', error);
+    console.error('Error response:', axiosError.response);
+    console.error('Error config:', axiosError.config);
     
-    // If axios fails, try with native fetch as fallback
-    if (!error.response && method === 'GET') {
+    // If we get a 500 error, try alternative approaches
+    if (axiosError.response?.status === 500) {
+      console.log('Received 500 error, trying alternative approaches...');
+      
+      // Try 1: Direct fetch without axios
+      try {
+        console.log('Attempting direct fetch...');
+        const fullUrl = `${API_BASE_URL}${url}`;
+        const fetchResponse = await fetch(fullUrl, {
+          method,
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+          },
+          body: data ? JSON.stringify(data) : undefined,
+        });
+        
+        if (fetchResponse.ok) {
+          const fetchData = await fetchResponse.json();
+          console.log('Direct fetch successful:', fetchData);
+          return fetchData as T;
+        } else {
+          console.error('Direct fetch failed:', fetchResponse.status, fetchResponse.statusText);
+        }
+      } catch (fetchError) {
+        console.error('Direct fetch error:', fetchError);
+      }
+      
+      // Try 2: XHR fallback
+      if (method === 'GET') {
+        console.log('Attempting XHR fallback...');
+        return new Promise((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+          const fullUrl = `${API_BASE_URL}${url}`;
+          
+          xhr.open(method, fullUrl, true);
+          xhr.setRequestHeader('Accept', 'application/json');
+          xhr.setRequestHeader('Content-Type', 'application/json');
+          xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+          
+          xhr.timeout = 30000;
+          
+          xhr.onload = function() {
+            if (xhr.status >= 200 && xhr.status < 300) {
+              try {
+                const response = JSON.parse(xhr.responseText);
+                console.log('XHR fallback successful', response);
+                resolve(response as T);
+              } catch (e) {
+                reject(new Error(`JSON parse error: ${e}`));
+              }
+            } else {
+              reject(new Error(`HTTP error status: ${xhr.status}`));
+            }
+          };
+          
+          xhr.onerror = function() {
+            console.error('XHR error occurred');
+            reject(new Error('Network error occurred'));
+          };
+          
+          xhr.ontimeout = function() {
+            reject(new Error('Request timed out'));
+          };
+          
+          xhr.send();
+        });
+      }
+    }
+    
+    // If axios fails and no fallback worked, try with native fetch as fallback
+    if (!axiosError.response && method === 'GET') {
       console.log('Attempting fallback with XHR');
       return new Promise((resolve, reject) => {
         const xhr = new XMLHttpRequest();
