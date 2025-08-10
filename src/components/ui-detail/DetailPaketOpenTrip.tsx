@@ -17,7 +17,7 @@ import {
   DialogTrigger,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { format, getDay } from "date-fns";
+import { format } from "date-fns";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
@@ -88,13 +88,17 @@ interface PackageData {
   boat_ids?: number[];
   operational_days?: string[];
   tentation?: "Yes" | "No";
+  note?: string; // Tambahkan field note dari API
 }
 
-// Function untuk disable hari Senin-Kamis
-const disabledDays = (date: Date) => {
-  const day = getDay(date);
-  // 0 = Minggu, 1 = Senin, ..., 5 = Jumat, 6 = Sabtu
-  return day >= 1 && day <= 4; // Disable Senin(1) sampai Kamis(4)
+const dayNameToIndex: Record<string, number> = {
+  Sunday: 0,
+  Monday: 1,
+  Tuesday: 2,
+  Wednesday: 3,
+  Thursday: 4,
+  Friday: 5,
+  Saturday: 6,
 };
 
 interface DetailPaketOpenTripProps {
@@ -104,25 +108,43 @@ interface DetailPaketOpenTripProps {
 const DetailPaketOpenTrip: React.FC<DetailPaketOpenTripProps> = ({ data }) => {
   const searchParams = useSearchParams();
   const mainImage =
-    searchParams.get("mainImage") || data.mainImage || "/img/default-image.png"; // Pastikan fallback default tetap ada
+    searchParams.get("mainImage") || data.mainImage || "/img/default-trip.jpg"; // Pastikan fallback default tetap ada
   const [activeTab, setActiveTab] = useState("itinerary");
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [selectedDurationId, setSelectedDurationId] = useState<number>(
     data.itinerary[0]?.durationId || 0
   );
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [imageErrors, setImageErrors] = useState<Set<string>>(new Set());
   const router = useRouter();
 
-  // Tambahkan log untuk memeriksa nilai mainImage dan data.images
-  console.log("Query Main Image:", searchParams.get("mainImage"));
-  console.log("Data Main Image:", data.mainImage);
-  console.log("Final Main Image Path:", mainImage);
-  console.log("Data Images Array:", data.images);
+  // Debug: Log data gambar
+  console.log("DetailPaketOpenTrip - Data:", data);
+  console.log("DetailPaketOpenTrip - MainImage:", mainImage);
+  console.log("DetailPaketOpenTrip - Images array:", data.images);
 
-  // Tambahkan log untuk memeriksa data boat
-  console.log("Has Boat:", data.has_boat);
-  console.log("Boat Images:", data.boatImages);
-  console.log("Full Data:", data);
+  // Function untuk handle image error
+  const handleImageError = (imageSrc: string) => {
+    console.error("Image failed to load:", imageSrc);
+    setImageErrors(prev => new Set(prev).add(imageSrc));
+  };
+
+  // Function untuk get safe image source
+  const getSafeImageSrc = (imageSrc: string, fallback: string = "/img/default-trip.jpg") => {
+    if (imageErrors.has(imageSrc)) {
+      return fallback;
+    }
+    return imageSrc;
+  };
+
+  // Disabled date berdasarkan hari operasional paket
+  const allowedDaysSet = new Set(
+    (data.operational_days || []).map((d) => dayNameToIndex[d])
+  );
+  const disabledByOperationalDays = (date: Date) => {
+    if (allowedDaysSet.size === 0) return false; // jika tidak ada konfigurasi, izinkan semua hari
+    return !allowedDaysSet.has(date.getDay());
+  };
 
   const handleBookNow = (packageId: string) => {
     if (selectedDate) {
@@ -155,11 +177,14 @@ const DetailPaketOpenTrip: React.FC<DetailPaketOpenTripProps> = ({ data }) => {
                 onClick={() => setSelectedImage(mainImage)}
               >
                 <Image
-                  src={mainImage}
+                  src={getSafeImageSrc(mainImage)}
                   alt={data.title || "Default Image"}
                   fill
                   quality={100}
                   className="rounded-sm object-cover transition-transform duration-300 group-hover:scale-105"
+                  unoptimized={true}
+                  onError={() => handleImageError(mainImage)}
+                  onLoad={() => console.log("Main image loaded successfully:", mainImage)}
                 />
                 <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
               </div>
@@ -176,12 +201,15 @@ const DetailPaketOpenTrip: React.FC<DetailPaketOpenTripProps> = ({ data }) => {
                     className="relative"
                   >
                     <Image
-                      src={selectedImage}
+                      src={getSafeImageSrc(selectedImage)}
                       alt="Selected Image"
                       width={1200}
                       height={800}
                       quality={100}
                       className="rounded-lg"
+                      unoptimized={true}
+                      onError={() => selectedImage && handleImageError(selectedImage)}
+                      onLoad={() => console.log("Selected image loaded successfully:", selectedImage)}
                     />
                     <button
                       onClick={() => setSelectedImage(null)}
@@ -221,11 +249,14 @@ const DetailPaketOpenTrip: React.FC<DetailPaketOpenTripProps> = ({ data }) => {
                     onClick={() => setSelectedImage(image)}
                   >
                     <Image
-                      src={image}
+                      src={getSafeImageSrc(image)}
                       alt={`${data.title} ${index + 1}`}
                       fill
                       quality={100}
                       className="rounded-sm object-cover transition-transform duration-300 group-hover:scale-105"
+                      unoptimized={true}
+                      onError={() => handleImageError(image)}
+                      onLoad={() => console.log(`Small image ${index + 1} loaded successfully:`, image)}
                     />
                     <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                   </div>
@@ -242,7 +273,7 @@ const DetailPaketOpenTrip: React.FC<DetailPaketOpenTripProps> = ({ data }) => {
                         className="relative"
                       >
                         <Image
-                          src={selectedImage}
+                          src={getSafeImageSrc(selectedImage)}
                           alt="Selected Image"
                           width={1200}
                           height={800}
@@ -280,11 +311,14 @@ const DetailPaketOpenTrip: React.FC<DetailPaketOpenTripProps> = ({ data }) => {
               <DialogTrigger asChild>
                 <div className="relative h-[196px] md:h-[221px] w-full flex items-center justify-center rounded-sm cursor-pointer">
                   <Image
-                    src={data.images[4] || "/img/default-image.png"}
+                    src={getSafeImageSrc(data.images[4] || "/img/default-trip.jpg")}
                     alt="More Info Background"
                     fill
                     quality={100}
                     className="rounded-sm object-cover"
+                    unoptimized={true}
+                    onError={() => data.images[4] && handleImageError(data.images[4])}
+                    onLoad={() => console.log("Gallery image 4 loaded successfully:", data.images[4])}
                   />
                   <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
                     <p className="text-white font-semibold">More Info</p>
@@ -299,12 +333,15 @@ const DetailPaketOpenTrip: React.FC<DetailPaketOpenTripProps> = ({ data }) => {
                       key={index}
                       className="relative h-[150px] w-[150px] md:h-[200px] md:w-[200px]"
                     >
-                      <Image
-                        src={image || "/img/default-image.png"}
+                                              <Image
+                          src={getSafeImageSrc(image || "/img/default-trip.jpg")}
                         alt={`${data.title || "Default Image"} ${index + 4}`}
                         fill
                         quality={100}
                         className="rounded-sm object-cover"
+                        unoptimized={true}
+                        onError={() => handleImageError(image)}
+                        onLoad={() => console.log(`Gallery image ${index + 4} loaded successfully:`, image)}
                       />
                     </div>
                   ))}
@@ -429,7 +466,7 @@ const DetailPaketOpenTrip: React.FC<DetailPaketOpenTripProps> = ({ data }) => {
                       mode="single"
                       selected={selectedDate}
                       onSelect={setSelectedDate}
-                      disabled={disabledDays}
+                      disabled={disabledByOperationalDays}
                       initialFocus
                     />
                   </PopoverContent>
@@ -451,7 +488,7 @@ const DetailPaketOpenTrip: React.FC<DetailPaketOpenTripProps> = ({ data }) => {
               </>
             ) : (
               <Button
-                onClick={() => window.open("https://wa.me/6282144553899?text=Halo,%20saya%20tertarik%20dengan%20paket%20" + encodeURIComponent(data.title), "_blank")}
+                onClick={() => window.open("https://wa.me/628123867588?text=Halo,%20saya%20tertarik%20dengan%20paket%20" + encodeURIComponent(data.title), "_blank")}
                 className="bg-green-500 hover:bg-green-600 text-white px-8 py-2 rounded-lg font-semibold text-sm transition-all duration-300 flex items-center gap-2"
               >
                 <svg 
@@ -471,7 +508,7 @@ const DetailPaketOpenTrip: React.FC<DetailPaketOpenTripProps> = ({ data }) => {
       </motion.div>
 
       {/* Section 3.5: Additional Information */}
-      {(data.operational_days || data.tentation) && (
+      {(data.operational_days && data.operational_days.length > 0) || (data.boat_ids && data.boat_ids.length > 0) ? (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -515,30 +552,6 @@ const DetailPaketOpenTrip: React.FC<DetailPaketOpenTripProps> = ({ data }) => {
               </motion.div>
             )}
 
-            {data.tentation && (
-              <motion.div
-                whileHover={{ scale: 1.02 }}
-                transition={{ type: "spring", stiffness: 300 }}
-                className="flex items-center space-x-4"
-              >
-                <div className="p-2">
-                  <Image
-                    src="/img/icon-destination.png"
-                    alt="Tentation Icon"
-                    width={40}
-                    height={40}
-                    className="min-w-[40px]"
-                  />
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-gold font-semibold">Jadwal Fleksibel</span>
-                  <span className="text-gray-600">
-                    {data.tentation === "Yes" ? "Tersedia" : "Tidak Tersedia"}
-                  </span>
-                </div>
-              </motion.div>
-            )}
-
             {data.boat_ids && data.boat_ids.length > 0 && (
               <motion.div
                 whileHover={{ scale: 1.02 }}
@@ -564,7 +577,7 @@ const DetailPaketOpenTrip: React.FC<DetailPaketOpenTripProps> = ({ data }) => {
             )}
           </div>
         </motion.div>
-      )}
+      ) : null}
 
       {/* Section 4: Navigation Tabs */}
       <motion.div
@@ -773,17 +786,28 @@ const DetailPaketOpenTrip: React.FC<DetailPaketOpenTripProps> = ({ data }) => {
                     <h2 className="text-xl font-bold text-gray-800 mb-4">
                       Description
                     </h2>
-                    {Array.isArray(data.description)
-                      ? <ul className="list-disc pl-5 text-gray-600 text-sm space-y-1">
-                          {data.description.map((item, idx) => <li key={idx}>{item.replace(/^\*\s?/, "")}</li>)}
-                        </ul>
-                      :
-                        <ul className="list-disc pl-5 text-gray-600 text-sm space-y-1">
-                          {data.description.split(/\r?\n/).filter(line => line.trim().startsWith("*")).map((line, idx) => (
-                            <li key={idx}>{line.replace(/^\*\s?/, "")}</li>
-                          ))}
-                        </ul>
-                    }
+                    
+                    {data.note ? (
+                      // Jika ada note, tampilkan sebagai HTML content
+                      <div
+                        className="text-gray-600 text-sm [&_ol]:list-decimal [&_ul]:list-disc [&_ol]:pl-5 [&_ul]:pl-5 [&_ol]:space-y-2 [&_ul]:space-y-2 [&_p]:my-0 [&_li]:pl-2 [&_li]:relative [&_li]:leading-normal"
+                        dangerouslySetInnerHTML={{
+                          __html: data.note,
+                        }}
+                      />
+                    ) : Array.isArray(data.description) ? (
+                      // Jika description adalah array
+                      <ul className="list-disc pl-5 text-gray-600 text-sm space-y-1">
+                        {data.description.map((item, idx) => <li key={idx}>{item.replace(/^\*\s?/, "")}</li>)}
+                      </ul>
+                    ) : (
+                      // Jika description adalah string
+                      <ul className="list-disc pl-5 text-gray-600 text-sm space-y-1">
+                        {data.description.split(/\r?\n/).filter(line => line.trim().startsWith("*")).map((line, idx) => (
+                          <li key={idx}>{line.replace(/^\*\s?/, "")}</li>
+                        ))}
+                      </ul>
+                    )}
                   </div>
                 </div>
               </div>
@@ -804,11 +828,13 @@ const DetailPaketOpenTrip: React.FC<DetailPaketOpenTripProps> = ({ data }) => {
                       {/* Gambar Boat */}
                       <div className="relative h-[300px] w-full">
                         <Image
-                          src={boat.image}
+                          src={getSafeImageSrc(boat.image)}
                           alt={boat.title}
-                          layout="fill"
-                          objectFit="cover"
-                          className="rounded-lg transition-transform duration-300 group-hover:scale-110"
+                          fill
+                          className="rounded-lg transition-transform duration-300 group-hover:scale-110 object-cover"
+                          unoptimized={true}
+                          onError={() => handleImageError(boat.image)}
+                          onLoad={() => console.log("Boat image loaded successfully:", boat.image)}
                         />
                       </div>
                       {/* Overlay dengan Judul */}

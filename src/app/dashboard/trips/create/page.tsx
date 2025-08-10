@@ -169,6 +169,24 @@ export default function CreateTripPage() {
     defaultValues
   })
 
+  // Kondisi tampilan dinamis
+  const hasBoat = form.watch("has_boat")
+  const tentation = form.watch("tentation")
+
+  // Jika tidak menggunakan boat, kosongkan pilihan boat
+  useEffect(() => {
+    if (!hasBoat) {
+      form.setValue("boat_ids", [])
+    }
+  }, [hasBoat, form])
+
+  // Jika jadwal fleksibel No, kosongkan hari operasional
+  useEffect(() => {
+    if (tentation === "No") {
+      form.setValue("operational_days", [])
+    }
+  }, [tentation, form])
+
   // Debug: Monitor boat_ids changes
   const boatIds = form.watch("boat_ids")
   console.log('Current boat_ids in form:', boatIds)
@@ -609,159 +627,163 @@ export default function CreateTripPage() {
                 </div>
 
                 {/* Boat Selection */}
-                <div>
-                  <h2 className="text-xl font-semibold text-gray-900 mb-6">Pilih Kapal</h2>
-                  {isLoadingBoats ? (
-                    <div className="flex items-center justify-center py-8">
-                      <Loader2 className="h-6 w-6 animate-spin" />
-                      <span className="ml-2">Memuat data kapal...</span>
-                    </div>
-                  ) : boats.length > 0 ? (
-                    <div className="grid grid-cols-3 gap-4">
-                      {boats.map((boat) => {
-                        const currentBoatIds = form.watch("boat_ids") || [];
-                        const isChecked = currentBoatIds.includes(boat.id);
-                        
-                        return (
-                          <div key={boat.id} className="flex flex-row items-start space-x-3 space-y-0">
-                            <Checkbox
-                              checked={isChecked}
-                              onCheckedChange={(checked) => {
-                                console.log('Boat checkbox changed:', boat.id, checked);
-                                console.log('Current boats before change:', currentBoatIds);
-                                
-                                let newBoats;
-                                if (checked) {
-                                  newBoats = [...currentBoatIds, boat.id];
-                                  console.log('Adding boat, new array:', newBoats);
-                                } else {
-                                  newBoats = currentBoatIds.filter(id => id !== boat.id);
-                                  console.log('Removing boat, new array:', newBoats);
-                                }
-                                
-                                form.setValue("boat_ids", newBoats);
-                                
-                                // Force form update and log
-                                setTimeout(() => {
-                                  const updatedBoatIds = form.getValues('boat_ids');
-                                  console.log('Boat IDs after update:', updatedBoatIds);
-                                  console.log('Form state after boat update:', form.getValues());
-                                }, 100);
-                              }}
-                            />
-                            <div className="space-y-1 leading-none">
-                              <label className="text-sm font-normal cursor-pointer">
-                                {boat.boat_name}
-                              </label>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ) : (
-                    <div className="flex items-center justify-center py-8">
-                      <div className="text-center">
-                        <p className="text-gray-500 mb-2">Tidak ada data kapal tersedia</p>
-                        <p className="text-sm text-gray-400 mb-4">Silakan tambahkan kapal terlebih dahulu di menu Kapal Management</p>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() => router.push("/dashboard/boats")}
-                          className="text-blue-600 hover:text-blue-700"
-                        >
-                          Tambah Kapal
-                        </Button>
+                {hasBoat && (
+                  <div>
+                    <h2 className="text-xl font-semibold text-gray-900 mb-6">Pilih Kapal</h2>
+                    {isLoadingBoats ? (
+                      <div className="flex items-center justify-center py-8">
+                        <Loader2 className="h-6 w-6 animate-spin" />
+                        <span className="ml-2">Memuat data kapal...</span>
                       </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Operational Days */}
-                <div>
-                  <h2 className="text-xl font-semibold text-gray-900 mb-6">Hari Operasional</h2>
-                  
-                  {/* Tombol aksi untuk checklist hari operasional */}
-                  <div className="flex gap-3 mb-4">
-                    <Button 
-                      type="button" 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => {
-                        form.setValue("operational_days", ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]);
-                      }}
-                    >
-                      Semua Hari
-                    </Button>
-                    <Button 
-                      type="button" 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => {
-                        form.setValue("operational_days", ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]);
-                      }}
-                    >
-                      Weekday
-                    </Button>
-                    <Button 
-                      type="button" 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => {
-                        form.setValue("operational_days", ["Saturday", "Sunday"]);
-                      }}
-                    >
-                      Weekend
-                    </Button>
-                    <Button 
-                      type="button" 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => {
-                        form.setValue("operational_days", []);
-                      }}
-                    >
-                      Hapus Semua
-                    </Button>
-                  </div>
-
-                  <div className="grid grid-cols-7 gap-4">
-                    {DAYS_OF_WEEK.map((day) => (
-                      <FormField
-                        key={day}
-                        control={form.control}
-                        name="operational_days"
-                        render={({ field }) => (
-                          <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                            <FormControl>
+                    ) : boats.length > 0 ? (
+                      <div className="grid grid-cols-3 gap-4">
+                        {boats.map((boat) => {
+                          const currentBoatIds = form.watch("boat_ids") || [];
+                          const isChecked = currentBoatIds.includes(boat.id);
+                          
+                          return (
+                            <div key={boat.id} className="flex flex-row items-start space-x-3 space-y-0">
                               <Checkbox
-                                checked={field.value?.includes(day)}
+                                checked={isChecked}
                                 onCheckedChange={(checked) => {
-                                  const currentDays = field.value || [];
+                                  console.log('Boat checkbox changed:', boat.id, checked);
+                                  console.log('Current boats before change:', currentBoatIds);
+                                  
+                                  let newBoats;
                                   if (checked) {
-                                    field.onChange([...currentDays, day]);
+                                    newBoats = [...currentBoatIds, boat.id];
+                                    console.log('Adding boat, new array:', newBoats);
                                   } else {
-                                    field.onChange(currentDays.filter(d => d !== day));
+                                    newBoats = currentBoatIds.filter(id => id !== boat.id);
+                                    console.log('Removing boat, new array:', newBoats);
                                   }
+                                  
+                                  form.setValue("boat_ids", newBoats);
+                                  
+                                  // Force form update and log
+                                  setTimeout(() => {
+                                    const updatedBoatIds = form.getValues('boat_ids');
+                                    console.log('Boat IDs after update:', updatedBoatIds);
+                                    console.log('Form state after boat update:', form.getValues());
+                                  }, 100);
                                 }}
                               />
-                            </FormControl>
-                            <div className="space-y-1 leading-none">
-                              <FormLabel className="text-sm font-normal">
-                                {day === "Monday" && "Senin"}
-                                {day === "Tuesday" && "Selasa"}
-                                {day === "Wednesday" && "Rabu"}
-                                {day === "Thursday" && "Kamis"}
-                                {day === "Friday" && "Jumat"}
-                                {day === "Saturday" && "Sabtu"}
-                                {day === "Sunday" && "Minggu"}
-                              </FormLabel>
+                              <div className="space-y-1 leading-none">
+                                <label className="text-sm font-normal cursor-pointer">
+                                  {boat.boat_name}
+                                </label>
+                              </div>
                             </div>
-                          </FormItem>
-                        )}
-                      />
-                    ))}
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-center py-8">
+                        <div className="text-center">
+                          <p className="text-gray-500 mb-2">Tidak ada data kapal tersedia</p>
+                          <p className="text-sm text-gray-400 mb-4">Silakan tambahkan kapal terlebih dahulu di menu Kapal Management</p>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => router.push("/dashboard/boats")}
+                            className="text-blue-600 hover:text-blue-700"
+                          >
+                            Tambah Kapal
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                </div>
+                )}
+
+                {/* Operational Days */}
+                {tentation === "Yes" && (
+                  <div>
+                    <h2 className="text-xl font-semibold text-gray-900 mb-6">Hari Operasional</h2>
+                    
+                    {/* Tombol aksi untuk checklist hari operasional */}
+                    <div className="flex gap-3 mb-4">
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => {
+                          form.setValue("operational_days", ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]);
+                        }}
+                      >
+                        Semua Hari
+                      </Button>
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => {
+                          form.setValue("operational_days", ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]);
+                        }}
+                      >
+                        Weekday
+                      </Button>
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => {
+                          form.setValue("operational_days", ["Saturday", "Sunday"]);
+                        }}
+                      >
+                        Weekend
+                      </Button>
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => {
+                          form.setValue("operational_days", []);
+                        }}
+                      >
+                        Hapus Semua
+                      </Button>
+                    </div>
+
+                    <div className="grid grid-cols-7 gap-4">
+                      {DAYS_OF_WEEK.map((day) => (
+                        <FormField
+                          key={day}
+                          control={form.control}
+                          name="operational_days"
+                          render={({ field }) => (
+                            <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                              <FormControl>
+                                <Checkbox
+                                  checked={field.value?.includes(day)}
+                                  onCheckedChange={(checked) => {
+                                    const currentDays = field.value || [];
+                                    if (checked) {
+                                      field.onChange([...currentDays, day]);
+                                    } else {
+                                      field.onChange(currentDays.filter(d => d !== day));
+                                    }
+                                  }}
+                                />
+                              </FormControl>
+                              <div className="space-y-1 leading-none">
+                                <FormLabel className="text-sm font-normal">
+                                  {day === "Monday" && "Senin"}
+                                  {day === "Tuesday" && "Selasa"}
+                                  {day === "Wednesday" && "Rabu"}
+                                  {day === "Thursday" && "Kamis"}
+                                  {day === "Friday" && "Jumat"}
+                                  {day === "Saturday" && "Sabtu"}
+                                  {day === "Sunday" && "Minggu"}
+                                </FormLabel>
+                              </div>
+                            </FormItem>
+                          )}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {/* Description */}
                 <div>

@@ -13,14 +13,17 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { format, getDay } from "date-fns";
+import { format } from "date-fns";
 import { FlightSchedule } from "@/types/trips";
 
-// Function untuk disable hari Senin-Kamis
-const disabledDays = (date: Date) => {
-  const day = getDay(date);
-  // 0 = Minggu, 1 = Senin, ..., 5 = Jumat, 6 = Sabtu
-  return day >= 1 && day <= 4; // Disable Senin(1) sampai Kamis(4)
+const dayNameToIndex: Record<string, number> = {
+  Sunday: 0,
+  Monday: 1,
+  Tuesday: 2,
+  Wednesday: 3,
+  Thursday: 4,
+  Friday: 5,
+  Saturday: 6,
 };
 
 // Function untuk format harga Indonesia
@@ -99,6 +102,15 @@ const DetailPaketPrivateTrip: React.FC<DetailPaketPrivateTripProps> = ({
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const router = useRouter();
+
+  // Disabled date berdasarkan hari operasional paket
+  const allowedDaysSet = new Set(
+    (data.operational_days || []).map((d) => dayNameToIndex[d])
+  );
+  const disabledByOperationalDays = (date: Date) => {
+    if (allowedDaysSet.size === 0) return false; // jika tidak ada konfigurasi, izinkan semua hari
+    return !allowedDaysSet.has(date.getDay());
+  };
 
   const handleBookNow = (packageId: string) => {
     if (selectedDate) {
@@ -298,7 +310,7 @@ const DetailPaketPrivateTrip: React.FC<DetailPaketPrivateTripProps> = ({
                   mode="single"
                   selected={selectedDate}
                   onSelect={setSelectedDate}
-                  disabled={disabledDays}
+                  disabled={disabledByOperationalDays}
                   initialFocus
                   className="rounded-md border"
                 />

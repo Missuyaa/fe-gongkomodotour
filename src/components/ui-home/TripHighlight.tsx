@@ -209,18 +209,31 @@ export default function TripHighlight() {
     }
 
     const asset = trip.assets[0];
-    
+
+    const toSafeUrl = (raw: string) => {
+      try {
+        // Jika sudah absolute
+        if (/^https?:\/\//.test(raw)) {
+          return encodeURI(raw);
+        }
+        // Relative path dari API
+        return encodeURI(`${API_URL}${raw}`);
+      } catch {
+        return `${API_URL}${raw}`;
+      }
+    };
+
     // Gunakan original_file_url yang bisa diakses langsung
     if (asset.original_file_url) {
-      const imageUrl = `${API_URL}${asset.original_file_url}`;
-      return imageUrl;
-    } else if (asset.file_url && !asset.file_url.includes('placeholder')) {
-      // Gunakan file_url jika bukan placeholder
-      const imageUrl = asset.file_url.startsWith('http') ? asset.file_url : `${API_URL}${asset.file_url}`;
-      return imageUrl;
-    } else {
-      return '/img/default-trip.jpg';
+      return toSafeUrl(asset.original_file_url);
     }
+
+    if (asset.file_url && !asset.file_url.includes('placeholder')) {
+      // Gunakan file_url jika bukan placeholder
+      return toSafeUrl(asset.file_url);
+    }
+
+    return '/img/default-trip.jpg';
   };
 
   if (loading) {
