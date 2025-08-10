@@ -17,7 +17,7 @@ import {
   DialogTrigger,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { format, getDay } from "date-fns";
+import { format } from "date-fns";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
@@ -88,13 +88,17 @@ interface PackageData {
   boat_ids?: number[];
   operational_days?: string[];
   tentation?: "Yes" | "No";
+  note?: string; // Tambahkan field note dari API
 }
 
-// Function untuk disable hari Senin-Kamis
-const disabledDays = (date: Date) => {
-  const day = getDay(date);
-  // 0 = Minggu, 1 = Senin, ..., 5 = Jumat, 6 = Sabtu
-  return day >= 1 && day <= 4; // Disable Senin(1) sampai Kamis(4)
+const dayNameToIndex: Record<string, number> = {
+  Sunday: 0,
+  Monday: 1,
+  Tuesday: 2,
+  Wednesday: 3,
+  Thursday: 4,
+  Friday: 5,
+  Saturday: 6,
 };
 
 interface DetailPaketOpenTripProps {
@@ -104,25 +108,43 @@ interface DetailPaketOpenTripProps {
 const DetailPaketOpenTrip: React.FC<DetailPaketOpenTripProps> = ({ data }) => {
   const searchParams = useSearchParams();
   const mainImage =
-    searchParams.get("mainImage") || data.mainImage || "/img/default-image.png"; // Pastikan fallback default tetap ada
+    searchParams.get("mainImage") || data.mainImage || "/img/default-trip.jpg"; // Pastikan fallback default tetap ada
   const [activeTab, setActiveTab] = useState("itinerary");
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [selectedDurationId, setSelectedDurationId] = useState<number>(
     data.itinerary[0]?.durationId || 0
   );
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [imageErrors, setImageErrors] = useState<Set<string>>(new Set());
   const router = useRouter();
 
-  // Tambahkan log untuk memeriksa nilai mainImage dan data.images
-  console.log("Query Main Image:", searchParams.get("mainImage"));
-  console.log("Data Main Image:", data.mainImage);
-  console.log("Final Main Image Path:", mainImage);
-  console.log("Data Images Array:", data.images);
+  // Debug: Log data gambar
+  console.log("DetailPaketOpenTrip - Data:", data);
+  console.log("DetailPaketOpenTrip - MainImage:", mainImage);
+  console.log("DetailPaketOpenTrip - Images array:", data.images);
 
-  // Tambahkan log untuk memeriksa data boat
-  console.log("Has Boat:", data.has_boat);
-  console.log("Boat Images:", data.boatImages);
-  console.log("Full Data:", data);
+  // Function untuk handle image error
+  const handleImageError = (imageSrc: string) => {
+    console.error("Image failed to load:", imageSrc);
+    setImageErrors(prev => new Set(prev).add(imageSrc));
+  };
+
+  // Function untuk get safe image source
+  const getSafeImageSrc = (imageSrc: string, fallback: string = "/img/default-trip.jpg") => {
+    if (imageErrors.has(imageSrc)) {
+      return fallback;
+    }
+    return imageSrc;
+  };
+
+  // Disabled date berdasarkan hari operasional paket
+  const allowedDaysSet = new Set(
+    (data.operational_days || []).map((d) => dayNameToIndex[d])
+  );
+  const disabledByOperationalDays = (date: Date) => {
+    if (allowedDaysSet.size === 0) return false; // jika tidak ada konfigurasi, izinkan semua hari
+    return !allowedDaysSet.has(date.getDay());
+  };
 
   const handleBookNow = (packageId: string) => {
     if (selectedDate) {
@@ -155,11 +177,14 @@ const DetailPaketOpenTrip: React.FC<DetailPaketOpenTripProps> = ({ data }) => {
                 onClick={() => setSelectedImage(mainImage)}
               >
                 <Image
-                  src={mainImage}
+                  src={getSafeImageSrc(mainImage)}
                   alt={data.title || "Default Image"}
                   fill
                   quality={100}
                   className="rounded-sm object-cover transition-transform duration-300 group-hover:scale-105"
+                  unoptimized={true}
+                  onError={() => handleImageError(mainImage)}
+                  onLoad={() => console.log("Main image loaded successfully:", mainImage)}
                 />
                 <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
               </div>
@@ -176,12 +201,15 @@ const DetailPaketOpenTrip: React.FC<DetailPaketOpenTripProps> = ({ data }) => {
                     className="relative"
                   >
                     <Image
-                      src={selectedImage}
+                      src={getSafeImageSrc(selectedImage)}
                       alt="Selected Image"
                       width={1200}
                       height={800}
                       quality={100}
                       className="rounded-lg"
+                      unoptimized={true}
+                      onError={() => selectedImage && handleImageError(selectedImage)}
+                      onLoad={() => console.log("Selected image loaded successfully:", selectedImage)}
                     />
                     <button
                       onClick={() => setSelectedImage(null)}
@@ -221,11 +249,14 @@ const DetailPaketOpenTrip: React.FC<DetailPaketOpenTripProps> = ({ data }) => {
                     onClick={() => setSelectedImage(image)}
                   >
                     <Image
-                      src={image}
+                      src={getSafeImageSrc(image)}
                       alt={`${data.title} ${index + 1}`}
                       fill
                       quality={100}
                       className="rounded-sm object-cover transition-transform duration-300 group-hover:scale-105"
+                      unoptimized={true}
+                      onError={() => handleImageError(image)}
+                      onLoad={() => console.log(`Small image ${index + 1} loaded successfully:`, image)}
                     />
                     <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                   </div>
@@ -242,7 +273,7 @@ const DetailPaketOpenTrip: React.FC<DetailPaketOpenTripProps> = ({ data }) => {
                         className="relative"
                       >
                         <Image
-                          src={selectedImage}
+                          src={getSafeImageSrc(selectedImage)}
                           alt="Selected Image"
                           width={1200}
                           height={800}
@@ -280,11 +311,14 @@ const DetailPaketOpenTrip: React.FC<DetailPaketOpenTripProps> = ({ data }) => {
               <DialogTrigger asChild>
                 <div className="relative h-[196px] md:h-[221px] w-full flex items-center justify-center rounded-sm cursor-pointer">
                   <Image
-                    src={data.images[4] || "/img/default-image.png"}
+                    src={getSafeImageSrc(data.images[4] || "/img/default-trip.jpg")}
                     alt="More Info Background"
                     fill
                     quality={100}
                     className="rounded-sm object-cover"
+                    unoptimized={true}
+                    onError={() => data.images[4] && handleImageError(data.images[4])}
+                    onLoad={() => console.log("Gallery image 4 loaded successfully:", data.images[4])}
                   />
                   <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
                     <p className="text-white font-semibold">More Info</p>
@@ -299,12 +333,15 @@ const DetailPaketOpenTrip: React.FC<DetailPaketOpenTripProps> = ({ data }) => {
                       key={index}
                       className="relative h-[150px] w-[150px] md:h-[200px] md:w-[200px]"
                     >
-                      <Image
-                        src={image || "/img/default-image.png"}
+                                              <Image
+                          src={getSafeImageSrc(image || "/img/default-trip.jpg")}
                         alt={`${data.title || "Default Image"} ${index + 4}`}
                         fill
                         quality={100}
                         className="rounded-sm object-cover"
+                        unoptimized={true}
+                        onError={() => handleImageError(image)}
+                        onLoad={() => console.log(`Gallery image ${index + 4} loaded successfully:`, image)}
                       />
                     </div>
                   ))}
@@ -412,46 +449,66 @@ const DetailPaketOpenTrip: React.FC<DetailPaketOpenTripProps> = ({ data }) => {
           </div>
 
           <div className="flex items-center space-x-4 mt-6 md:mt-0 w-full md:w-auto justify-center">
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className="border-gold hover:border-gold/80 text-gold px-6 py-2 rounded-lg"
-                >
-                  {selectedDate ? format(selectedDate, "PPP") : "Select Date"}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0">
-                {" "}
-                <Calendar
-                  mode="single"
-                  selected={selectedDate}
-                  onSelect={setSelectedDate}
-                  disabled={disabledDays}
-                  initialFocus
-                />
-              </PopoverContent>
-            </Popover>
-            {selectedDate && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.2 }}
+            {data.tentation === "Yes" ? (
+              <>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="border-gold hover:border-gold/80 text-gold px-6 py-2 rounded-lg"
+                    >
+                      {selectedDate ? format(selectedDate, "PPP") : "Select Date"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0">
+                    {" "}
+                    <Calendar
+                      mode="single"
+                      selected={selectedDate}
+                      onSelect={setSelectedDate}
+                      disabled={disabledByOperationalDays}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+                {selectedDate && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <Button
+                      onClick={() => handleBookNow(data.id)}
+                      className="bg-gold text-white px-8 py-2 rounded-lg font-semibold text-sm hover:bg-gold-dark-20 hover:scale-95 transition-all duration-300"
+                    >
+                      Book Now
+                    </Button>
+                  </motion.div>
+                )}
+              </>
+            ) : (
+              <Button
+                onClick={() => window.open("https://wa.me/628123867588?text=Halo,%20saya%20tertarik%20dengan%20paket%20" + encodeURIComponent(data.title), "_blank")}
+                className="bg-green-500 hover:bg-green-600 text-white px-8 py-2 rounded-lg font-semibold text-sm transition-all duration-300 flex items-center gap-2"
               >
-                <Button
-                  onClick={() => handleBookNow(data.id)}
-                  className="bg-gold text-white px-8 py-2 rounded-lg font-semibold text-sm hover:bg-gold-dark-20 hover:scale-95 transition-all duration-300"
+                <svg 
+                  xmlns="http://www.w3.org/2000/svg" 
+                  width="20" 
+                  height="20" 
+                  viewBox="0 0 24 24" 
+                  fill="currentColor"
                 >
-                  Book Now
-                </Button>
-              </motion.div>
+                  <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+                </svg>
+                Hubungi via WhatsApp
+              </Button>
             )}
           </div>
         </div>
       </motion.div>
 
       {/* Section 3.5: Additional Information */}
-      {(data.operational_days || data.tentation) && (
+      {(data.operational_days && data.operational_days.length > 0) || (data.boat_ids && data.boat_ids.length > 0) ? (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -495,30 +552,6 @@ const DetailPaketOpenTrip: React.FC<DetailPaketOpenTripProps> = ({ data }) => {
               </motion.div>
             )}
 
-            {data.tentation && (
-              <motion.div
-                whileHover={{ scale: 1.02 }}
-                transition={{ type: "spring", stiffness: 300 }}
-                className="flex items-center space-x-4"
-              >
-                <div className="p-2">
-                  <Image
-                    src="/img/icon-destination.png"
-                    alt="Tentation Icon"
-                    width={40}
-                    height={40}
-                    className="min-w-[40px]"
-                  />
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-gold font-semibold">Jadwal Fleksibel</span>
-                  <span className="text-gray-600">
-                    {data.tentation === "Yes" ? "Tersedia" : "Tidak Tersedia"}
-                  </span>
-                </div>
-              </motion.div>
-            )}
-
             {data.boat_ids && data.boat_ids.length > 0 && (
               <motion.div
                 whileHover={{ scale: 1.02 }}
@@ -544,7 +577,7 @@ const DetailPaketOpenTrip: React.FC<DetailPaketOpenTripProps> = ({ data }) => {
             )}
           </div>
         </motion.div>
-      )}
+      ) : null}
 
       {/* Section 4: Navigation Tabs */}
       <motion.div
@@ -753,17 +786,28 @@ const DetailPaketOpenTrip: React.FC<DetailPaketOpenTripProps> = ({ data }) => {
                     <h2 className="text-xl font-bold text-gray-800 mb-4">
                       Description
                     </h2>
-                    {Array.isArray(data.description)
-                      ? <ul className="list-disc pl-5 text-gray-600 text-sm space-y-1">
-                          {data.description.map((item, idx) => <li key={idx}>{item.replace(/^\*\s?/, "")}</li>)}
-                        </ul>
-                      :
-                        <ul className="list-disc pl-5 text-gray-600 text-sm space-y-1">
-                          {data.description.split(/\r?\n/).filter(line => line.trim().startsWith("*")).map((line, idx) => (
-                            <li key={idx}>{line.replace(/^\*\s?/, "")}</li>
-                          ))}
-                        </ul>
-                    }
+                    
+                    {data.note ? (
+                      // Jika ada note, tampilkan sebagai HTML content
+                      <div
+                        className="text-gray-600 text-sm [&_ol]:list-decimal [&_ul]:list-disc [&_ol]:pl-5 [&_ul]:pl-5 [&_ol]:space-y-2 [&_ul]:space-y-2 [&_p]:my-0 [&_li]:pl-2 [&_li]:relative [&_li]:leading-normal"
+                        dangerouslySetInnerHTML={{
+                          __html: data.note,
+                        }}
+                      />
+                    ) : Array.isArray(data.description) ? (
+                      // Jika description adalah array
+                      <ul className="list-disc pl-5 text-gray-600 text-sm space-y-1">
+                        {data.description.map((item, idx) => <li key={idx}>{item.replace(/^\*\s?/, "")}</li>)}
+                      </ul>
+                    ) : (
+                      // Jika description adalah string
+                      <ul className="list-disc pl-5 text-gray-600 text-sm space-y-1">
+                        {data.description.split(/\r?\n/).filter(line => line.trim().startsWith("*")).map((line, idx) => (
+                          <li key={idx}>{line.replace(/^\*\s?/, "")}</li>
+                        ))}
+                      </ul>
+                    )}
                   </div>
                 </div>
               </div>
@@ -784,11 +828,13 @@ const DetailPaketOpenTrip: React.FC<DetailPaketOpenTripProps> = ({ data }) => {
                       {/* Gambar Boat */}
                       <div className="relative h-[300px] w-full">
                         <Image
-                          src={boat.image}
+                          src={getSafeImageSrc(boat.image)}
                           alt={boat.title}
-                          layout="fill"
-                          objectFit="cover"
-                          className="rounded-lg transition-transform duration-300 group-hover:scale-110"
+                          fill
+                          className="rounded-lg transition-transform duration-300 group-hover:scale-110 object-cover"
+                          unoptimized={true}
+                          onError={() => handleImageError(boat.image)}
+                          onLoad={() => console.log("Boat image loaded successfully:", boat.image)}
                         />
                       </div>
                       {/* Overlay dengan Judul */}

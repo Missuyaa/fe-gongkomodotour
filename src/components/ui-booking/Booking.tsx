@@ -68,6 +68,7 @@ interface PackageData {
     id: number;
     duration_label: string;
     duration_days: number;
+    duration_nights?: number;
     trip_prices?: TripPrice[];
     itineraries: { day: string; activities: string }[];
   }[];
@@ -89,6 +90,7 @@ interface PackageData {
     end_date: string;
     surcharge_price: number;
   }[];
+  operational_days?: string[];
 }
 
 type BoatResponse = {
@@ -133,7 +135,8 @@ export default function Booking() {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(
     dateParam ? new Date(dateParam) : undefined
   );
-  const [tripCount, setTripCount] = useState(0);
+  // Inisialisasi tripCount dengan 0
+  const [tripCount, setTripCount] = useState(1);
   const [selectedDuration, setSelectedDuration] = useState<string>("");
   const [selectedBoat, setSelectedBoat] = useState<string>("");
   const [additionalCharges, setAdditionalCharges] = useState<string[]>([]);
@@ -142,11 +145,27 @@ export default function Booking() {
   const [filteredBoats, setFilteredBoats] = useState<Boat[]>([]);
   const [requiredBoats, setRequiredBoats] = useState<number>(0);
   const [requiredCabins, setRequiredCabins] = useState<number>(0);
-  const [selectedCabins, setSelectedCabins] = useState<{cabinId: string, pax: number}[]>([]);
+  const [selectedCabins, setSelectedCabins] = useState<{ cabinId: string, pax: number }[]>([]);
   const [isLoadingBoats, setIsLoadingBoats] = useState(false);
   const [hotels, setHotels] = useState<Hotel[]>([]);
   const [isLoadingHotels, setIsLoadingHotels] = useState(false);
-  const [selectedHotelRooms, setSelectedHotelRooms] = useState<{hotelId: string, rooms: number, pax: number}[]>([]);
+  const [selectedHotelRooms, setSelectedHotelRooms] = useState<{ hotelId: string, rooms: number, pax: number }[]>([]);
+  // Helper: hitung jumlah malam dari data durasi
+  const computeNights = useCallback((duration?: { duration_label: string; duration_days: number; duration_nights?: number; }) => {
+    if (!duration) return 0;
+    // 1) Coba parse dari label, contoh: "4D5N", "4d 5n"
+    const match = duration.duration_label?.match(/(\d+)\s*[dD][^\d]*?(\d+)\s*[nN]/);
+    if (match) {
+      const nightsFromLabel = Number(match[2]);
+      if (Number.isFinite(nightsFromLabel) && nightsFromLabel >= 0) return nightsFromLabel;
+    }
+    // 2) Pakai duration_nights bila tersedia
+    if (typeof duration.duration_nights === 'number' && duration.duration_nights >= 0) {
+      return duration.duration_nights;
+    }
+    // 3) Fallback: days - 1
+    return Math.max((duration.duration_days || 0) - 1, 0);
+  }, []);
   const [userRegion, setUserRegion] = useState<"domestic" | "overseas">("domestic");
   const [formData, setFormData] = useState({
     name: "",
@@ -163,6 +182,24 @@ export default function Booking() {
   const isWeekend = (date: Date) => {
     const day = date.getDay();
     return day === 0 || day === 6;
+  };
+
+  // Disable kalender mengikuti operational_days
+  const dayNameToIndex: Record<string, number> = {
+    Sunday: 0,
+    Monday: 1,
+    Tuesday: 2,
+    Wednesday: 3,
+    Thursday: 4,
+    Friday: 5,
+    Saturday: 6,
+  };
+  const allowedDaysSet = new Set(
+    (selectedPackage?.operational_days || []).map((d) => dayNameToIndex[d])
+  );
+  const disabledByOperationalDays = (date: Date) => {
+    if (allowedDaysSet.size === 0) return false; // jika tidak ada konfigurasi, izinkan semua hari
+    return !allowedDaysSet.has(date.getDay());
   };
 
   const getDatesInRange = (startDate: Date, days: number) => {
@@ -186,7 +223,7 @@ export default function Booking() {
       const surchargeEnd = new Date(surcharge.end_date);
 
       // Cek apakah ada tanggal dalam range perjalanan yang masuk ke periode surcharge
-      const isInSurchargePeriod = tripDates.some(date => 
+      const isInSurchargePeriod = tripDates.some(date =>
         date >= surchargeStart && date <= surchargeEnd
       );
 
@@ -208,16 +245,16 @@ export default function Booking() {
     // Kelompokkan fee berdasarkan kategori
     const feesByCategory = selectedPackage.additional_fees.reduce((acc, fee) => {
       // Cek apakah fee berlaku untuk region yang dipilih
-      const isApplicableRegion = 
-        fee.region === "Domestic & Overseas" || 
-        (userRegion === "domestic" && fee.region === "Domestic") || 
+      const isApplicableRegion =
+        fee.region === "Domestic & Overseas" ||
+        (userRegion === "domestic" && fee.region === "Domestic") ||
         (userRegion === "overseas" && fee.region === "Overseas");
 
       if (!isApplicableRegion) return acc;
 
       const hasWeekendDay = tripDates.some(date => isWeekend(date));
       const hasWeekdayDay = tripDates.some(date => !isWeekend(date));
-      
+
       if (
         !fee.day_type ||
         (fee.day_type === "Weekend" && hasWeekendDay) ||
@@ -248,31 +285,51 @@ export default function Booking() {
     return applicableFees;
   }, [selectedPackage, selectedDate, selectedDurationDays, tripCount, userRegion]);
 
-  const calculateTotalBoatCapacity = (boat: Boat) => {
-    return boat.cabin
-      .filter(cabin => cabin.status === "Aktif")
-      .reduce((total, cabin) => total + cabin.max_pax, 0);
+  const isActive = (status: unknown) => {
+    if (typeof status === "string") {
+      const s = status.toLowerCase();
+      return s.includes("aktif") || s.includes("active") || s === "1" || s === "true";
+    }
+    if (typeof status === "number") return status === 1;
+    if (typeof status === "boolean") return status;
+    return true; // default to active if unknown
   };
 
+  const toNumber = (value: unknown) => {
+    return typeof value === "number" ? value : Number(value ?? 0);
+  };
+
+  const calculateTotalBoatCapacity = useCallback((boat: Boat) => {
+    return boat.cabin
+      .filter(cabin => isActive(cabin.status))
+      .reduce((total, cabin) => total + toNumber(cabin.max_pax), 0);
+  }, []);
+
   useEffect(() => {
-    if (tripCount > 0) {
-      const availableBoats = boats.filter(boat => {
+    // Tampilkan loading saat melakukan re-filter boat akibat perubahan pax/boats
+    setIsLoadingBoats(true);
+
+    const availableBoats = boats
+      .filter(boat => isActive(boat.status))
+      .filter(boat => {
         const totalCapacity = calculateTotalBoatCapacity(boat);
-        return totalCapacity >= tripCount;
+        const hasCabinWithMin = boat.cabin.some(cabin => isActive(cabin.status) && toNumber(cabin.min_pax) <= tripCount);
+        return totalCapacity >= tripCount && hasCabinWithMin;
       });
-      setFilteredBoats(availableBoats);
-      
-      // Reset selected boat jika boat yang dipilih tidak tersedia lagi
-      if (selectedBoat) {
-        const selectedBoatData = availableBoats.find(boat => boat.id.toString() === selectedBoat);
-        if (!selectedBoatData) {
-          setSelectedBoat("");
-        }
+    setFilteredBoats(availableBoats);
+
+    // Reset selected boat jika boat yang dipilih tidak tersedia lagi
+    if (selectedBoat) {
+      const selectedBoatData = availableBoats.find(boat => boat.id.toString() === selectedBoat);
+      if (!selectedBoatData) {
+        setSelectedBoat("");
       }
-    } else {
-      setFilteredBoats(boats);
     }
-  }, [tripCount, boats, selectedBoat]);
+
+    // Tahan indikator loading sebentar agar terlihat oleh user
+    const timeoutId = setTimeout(() => setIsLoadingBoats(false), 300);
+    return () => clearTimeout(timeoutId);
+  }, [tripCount, boats, selectedBoat, calculateTotalBoatCapacity]);
 
   useEffect(() => {
     const fetchTripData = async () => {
@@ -287,14 +344,21 @@ export default function Booking() {
         if (response.data) {
           const trip = response.data;
           console.log('Original Trip Data:', trip);
+          // Helper untuk memastikan file_url tidak double API_URL
+          const getImageUrl = (file_url: string | undefined) => {
+            if (!file_url) return "/img/default-image.png";
+            if (/^https?:\/\//.test(file_url)) return file_url;
+            return `${API_URL}${file_url}`;
+          };
+
           const transformedData: PackageData = {
             id: trip.id.toString(),
             title: trip.name,
             price: trip.trip_durations?.[0]?.trip_prices?.[0]?.price_per_pax?.toString() || "0",
             daysTrip: trip.trip_durations?.[0]?.duration_label || "",
             type: trip.type,
-            image: trip.assets?.[0]?.file_url ? `${API_URL}${trip.assets[0].file_url}` : "/img/default-image.png",
-            mainImage: trip.assets?.[0]?.file_url ? `${API_URL}${trip.assets[0].file_url}` : "/img/default-image.png",
+            image: getImageUrl(trip.assets?.[0]?.file_url),
+            mainImage: getImageUrl(trip.assets?.[0]?.file_url),
             itinerary: trip.trip_durations?.map(duration => ({
               durationId: duration.id,
               durationLabel: duration.duration_label,
@@ -304,7 +368,7 @@ export default function Booking() {
               })) || []
             })),
             boatImages: trip.boat_assets?.map(asset => ({
-              image: asset.file_url ? `${API_URL}${asset.file_url}` : "/img/default-image.png",
+              image: getImageUrl(asset.file_url),
               title: asset.title || "Boat",
               id: asset.id.toString()
             })),
@@ -337,16 +401,15 @@ export default function Booking() {
               start_date: surcharge.start_date,
               end_date: surcharge.end_date,
               surcharge_price: Number(surcharge.surcharge_price)
-            }))
+            })),
+            operational_days: trip.operational_days || []
           };
           console.log('Transformed Package Data:', transformedData);
           setSelectedPackage(transformedData);
-          
           // Set durasi otomatis jika hanya ada satu opsi
           if (transformedData.trip_durations?.length === 1) {
             setSelectedDuration(transformedData.trip_durations[0].duration_label);
           }
-          
           // Set additional charges yang required secara otomatis
           const requiredFees = trip.additional_fees
             ?.filter(fee => Boolean(fee.is_required))
@@ -361,6 +424,28 @@ export default function Booking() {
     fetchTripData();
   }, [packageId]);
 
+  // Set tripCount ke minimal pax saat paket/durasi berubah
+  // Catatan: Jangan bergantung pada tripCount agar tidak me-reset saat user menambah
+  useEffect(() => {
+    if (!selectedPackage?.trip_durations || selectedPackage.trip_durations.length === 0) return;
+
+    const duration = selectedPackage.trip_durations.find(
+      (d) => d.duration_label === selectedDuration
+    ) || selectedPackage.trip_durations[0];
+
+    const minFromPrices = duration?.trip_prices?.reduce((min, price) => {
+      const currentMin = Number(price.pax_min ?? Infinity);
+      return Number.isFinite(currentMin) ? Math.min(min, currentMin) : min;
+    }, Infinity);
+
+    const minimumPax = Number.isFinite(minFromPrices) ? Number(minFromPrices) : 1;
+
+    setTripCount((prev) => {
+      const current = Number(prev) || 0;
+      return current < minimumPax ? minimumPax : current;
+    });
+  }, [selectedPackage, selectedDuration]);
+
   useEffect(() => {
     if (selectedDuration && selectedPackage?.trip_durations) {
       const duration = selectedPackage.trip_durations.find(
@@ -372,23 +457,47 @@ export default function Booking() {
     }
   }, [selectedDuration, selectedPackage]);
 
+  // Minimum pax helper (berdasarkan trip_prices, fallback 1)
+  const getMinimumPax = useCallback(() => {
+    if (!selectedPackage?.trip_durations || selectedPackage.trip_durations.length === 0) {
+      return 1;
+    }
+    const duration = selectedPackage.trip_durations.find(
+      (d) => d.duration_label === selectedDuration
+    ) || selectedPackage.trip_durations[0];
+    const minFromPrices = duration?.trip_prices?.reduce((min, price) => {
+      const currentMin = Number(price.pax_min ?? Infinity);
+      return Number.isFinite(currentMin) ? Math.min(min, currentMin) : min;
+    }, Infinity);
+    const minPax = Number.isFinite(minFromPrices) ? Number(minFromPrices) : 1;
+    return Math.max(minPax, 1);
+  }, [selectedDuration, selectedPackage]);
+
+  // Pastikan tripCount tidak turun di bawah minimum saat state relevan berubah
+  useEffect(() => {
+    const minimumPax = getMinimumPax();
+    if (tripCount < minimumPax) {
+      setTripCount(minimumPax);
+    }
+  }, [getMinimumPax, tripCount]);
+
   useEffect(() => {
     // Update additional charges based on date and duration
     if (selectedDate && selectedDurationDays && tripCount > 0) {
       const applicableFees = getApplicableAdditionalFees();
-      
+
       // Pisahkan antara fee required dan non-required
       const requiredFees = applicableFees.filter(fee => fee.is_required);
       const nonRequiredFees = applicableFees.filter(fee => !fee.is_required);
-      
+
       // Untuk fee required, auto select yang sesuai range pax
       const requiredFeeIds = requiredFees.map(fee => fee.id.toString());
-      
+
       // Untuk non-required, pertahankan pilihan user yang masih valid
-      const validNonRequiredCharges = additionalCharges.filter(id => 
+      const validNonRequiredCharges = additionalCharges.filter(id =>
         nonRequiredFees.some(fee => fee.id.toString() === id)
       );
-      
+
       const newCharges = [...new Set([...requiredFeeIds, ...validNonRequiredCharges])];
       if (JSON.stringify(newCharges) !== JSON.stringify(additionalCharges)) {
         setAdditionalCharges(newCharges);
@@ -403,27 +512,33 @@ export default function Booking() {
   };
 
   const handleBoatChange = (value: string) => {
+    // Ganti boat: reset alokasi cabin & kebutuhan
     setSelectedBoat(value);
+    setSelectedCabins([]);
+    setRequiredBoats(0);
+    setRequiredCabins(0);
   };
 
   const calculateBasePrice = () => {
     if (!selectedPackage?.trip_durations || tripCount === 0) return 0;
-    
+    // Jika trip punya relasi boat, abaikan trip_prices (harga mengikuti boat/cabin)
+    if (selectedPackage?.has_boat) return 0;
+
     // Cari durasi yang dipilih
     const selectedDurationData = selectedPackage.trip_durations.find(
       d => d.duration_label === selectedDuration
     );
 
     if (!selectedDurationData?.trip_prices) return 0;
-    
+
     // Cari harga yang sesuai dengan jumlah pax dan region
     const applicablePrice = selectedDurationData.trip_prices.find(
       price => {
         const isInPaxRange = tripCount >= price.pax_min && tripCount <= price.pax_max;
         // Cek apakah harga sesuai dengan region atau berlaku untuk kedua region
-        const isApplicableRegion = 
-          price.region === "Domestic & Overseas" || 
-          (userRegion === "domestic" && price.region === "Domestic") || 
+        const isApplicableRegion =
+          price.region === "Domestic & Overseas" ||
+          (userRegion === "domestic" && price.region === "Domestic") ||
           (userRegion === "overseas" && price.region === "Overseas");
         return isInPaxRange && isApplicableRegion;
       }
@@ -439,15 +554,15 @@ export default function Booking() {
 
   const calculateAdditionalFeeAmount = (fee: NonNullable<PackageData['additional_fees']>[number]) => {
     // Cek apakah fee berlaku untuk region yang dipilih
-    const isApplicableRegion = 
-      fee.region === "Domestic & Overseas" || 
-      (userRegion === "domestic" && fee.region === "Domestic") || 
+    const isApplicableRegion =
+      fee.region === "Domestic & Overseas" ||
+      (userRegion === "domestic" && fee.region === "Domestic") ||
       (userRegion === "overseas" && fee.region === "Overseas");
 
     if (!isApplicableRegion) return 0;
 
     const basePrice = Number(fee.price);
-    
+
     switch (fee.unit) {
       case 'per_pax':
         return basePrice * tripCount;
@@ -470,7 +585,7 @@ export default function Booking() {
 
   const calculateAdditionalFees = () => {
     if (!selectedPackage?.additional_fees) return 0;
-    
+
     // Filter additional fees berdasarkan region
     const applicableFees = selectedPackage.additional_fees.filter(fee => {
       if (fee.region === "Domestic & Overseas") return true;
@@ -504,15 +619,15 @@ export default function Booking() {
 
   const calculateTotalHotelPrice = () => {
     if (!selectedDuration || !selectedPackage?.trip_durations) return 0;
-    
+
     // Cari durasi yang dipilih
     const durationData = selectedPackage.trip_durations.find(
       d => d.duration_label === selectedDuration
     );
-    
-    // Hitung jumlah malam (durasi hari - 1)
-    const nights = (durationData?.duration_days || 0) - 1;
-    
+
+    // Hitung jumlah malam dengan helper yang konsisten
+    const nights = computeNights(durationData);
+
     return selectedHotelRooms.reduce((total, room) => {
       const hotel = hotels.find(h => h.id.toString() === room.hotelId);
       if (!hotel) return total;
@@ -542,17 +657,20 @@ export default function Booking() {
           '/api/landing-page/boats'
         );
         console.log('Raw Boats Response:', response);
-        
+
         if (response && response.data && Array.isArray(response.data)) {
-          // Filter hanya boat yang aktif
-          const activeBoats = response.data.filter(boat => {
-            console.log('Boat Status:', boat.status);
-            return boat.status === "Aktif";
-          });
+          // Filter hanya boat yang aktif (longgar terhadap variasi status)
+          const activeBoats = response.data.filter(boat => isActive(boat.status));
           console.log('Active boats:', activeBoats);
           console.log('Number of active boats:', activeBoats.length);
           setBoats(activeBoats);
-          setFilteredBoats(activeBoats);
+          // Set filtered langsung sesuai tripCount saat ini dan min_pax cabin
+          const availableNow = activeBoats.filter(boat => {
+            const totalCapacity = calculateTotalBoatCapacity(boat);
+            const hasCabinWithMin = boat.cabin.some(cabin => isActive(cabin.status) && toNumber(cabin.min_pax) <= tripCount);
+            return totalCapacity >= tripCount && hasCabinWithMin;
+          });
+          setFilteredBoats(availableNow);
         } else {
           console.log('Invalid response format:', response);
         }
@@ -569,7 +687,14 @@ export default function Booking() {
     } else {
       console.log('Package does not have boat, skipping fetch');
     }
-  }, [selectedPackage]);
+  }, [selectedPackage, calculateTotalBoatCapacity, tripCount]);
+
+  // Reset alokasi cabin saat jumlah pax berubah
+  useEffect(() => {
+    setSelectedCabins([]);
+    setRequiredBoats(0);
+    setRequiredCabins(0);
+  }, [tripCount]);
 
   const calculateBoatAndCabinRequirements = useCallback(() => {
     if (!selectedBoat || !tripCount) return;
@@ -587,23 +712,50 @@ export default function Booking() {
     // Hitung jumlah cabin yang dibutuhkan
     const cabinsNeeded = Math.ceil(tripCount / selectedBoatData.cabin[0].max_pax);
     setRequiredCabins(cabinsNeeded);
-  }, [selectedBoat, tripCount, boats]);
+  }, [selectedBoat, tripCount, boats, calculateTotalBoatCapacity]);
 
   useEffect(() => {
     calculateBoatAndCabinRequirements();
-  }, [calculateBoatAndCabinRequirements]);
+  }, [calculateBoatAndCabinRequirements, tripCount]);
+
+  // Ambil harga per pax terendah dari cabin (base_price) untuk sebuah boat
+  const getMinimumCabinBasePriceForBoat = (boat: Boat | undefined) => {
+    if (!boat) return 0;
+    const activeCabins = boat.cabin.filter(c => c.status === "Aktif");
+    if (activeCabins.length === 0) return 0;
+    return activeCabins.reduce((min, c) => {
+      const price = Number(c.base_price || 0);
+      return min === 0 ? price : Math.min(min, price);
+    }, 0);
+  };
+
+  // Harga per pax untuk display di panel kiri
+  const calculateDisplayPricePerPax = () => {
+    // Jika mengikuti boat, tampilkan harga cabin (min base price)
+    if (selectedPackage?.has_boat) {
+      // Jika boat sudah dipilih, pakai boat tersebut
+      if (selectedBoat) {
+        const boat = boats.find(b => b.id.toString() === selectedBoat);
+        return getMinimumCabinBasePriceForBoat(boat);
+      }
+      // Jika belum pilih boat, pakai boat termurah dari daftar tersedia
+      const list = filteredBoats.length > 0 ? filteredBoats : boats;
+      if (list.length === 0) return 0;
+      const minAcrossBoats = list.reduce((min, b) => {
+        const boatMin = getMinimumCabinBasePriceForBoat(b);
+        if (boatMin === 0) return min;
+        return min === 0 ? boatMin : Math.min(min, boatMin);
+      }, 0);
+      return minAcrossBoats;
+    }
+    // Jika tidak punya boat, pakai trip base price
+    return calculateBasePrice();
+  };
 
   const calculateCabinPrice = (cabin: Cabin, pax: number) => {
     const basePrice = Number(cabin.base_price);
-    const additionalPrice = Number(cabin.additional_price);
-    const minPax = cabin.min_pax;
-    
-    if (pax <= minPax) {
-      return basePrice;
-    } else {
-      const additionalPax = pax - minPax;
-      return basePrice + (additionalPrice * additionalPax);
-    }
+    // Harga cabin per pax
+    return basePrice * pax;
   };
 
   const calculateTotalCabinPrice = () => {
@@ -611,11 +763,11 @@ export default function Booking() {
       const cabinData = boats
         .find(boat => boat.id.toString() === selectedBoat)
         ?.cabin.find(c => c.id.toString() === selectedCabin.cabinId);
-      
+
       if (!cabinData) return total;
-      
+
       const cabinPrice = calculateCabinPrice(cabinData, selectedCabin.pax);
-      
+
       return total + cabinPrice;
     }, 0);
   };
@@ -634,26 +786,31 @@ export default function Booking() {
     if (!cabin) return;
 
     if (increment) {
-      // Jika menambah pax
-      if (currentPax < cabin.max_pax && totalSelectedPax < tripCount) {
-        if (currentPax === 0) {
-          setSelectedCabins([...selectedCabins, { cabinId, pax: 1 }]);
-        } else {
-          setSelectedCabins(selectedCabins.map(sc => 
-            sc.cabinId === cabinId ? { ...sc, pax: sc.pax + 1 } : sc
-          ));
+      // Saat pertama kali add, gunakan min_pax cabin (bukan 1). Jika totalSelectedPax + min_pax > tripCount, naikkan tripCount otomatis.
+      if (currentPax === 0) {
+        const minToAdd = Math.min(cabin.min_pax, cabin.max_pax);
+        const neededTotal = totalSelectedPax + minToAdd;
+        if (neededTotal > tripCount) {
+          setTripCount(neededTotal);
         }
+        setSelectedCabins([...selectedCabins, { cabinId, pax: minToAdd }]);
+        return;
+      }
+      // Tambah 1 per klik, batasi oleh max_pax dan total tripCount
+      if (currentPax < cabin.max_pax) {
+        if (totalSelectedPax + 1 > tripCount) {
+          setTripCount(totalSelectedPax + 1);
+        }
+        setSelectedCabins(selectedCabins.map(sc =>
+          sc.cabinId === cabinId ? { ...sc, pax: sc.pax + 1 } : sc
+        ));
       }
     } else {
-      // Jika mengurangi pax
-      if (currentPax > 0) {
-        if (currentPax === 1) {
-          setSelectedCabins(selectedCabins.filter(sc => sc.cabinId !== cabinId));
-        } else {
-          setSelectedCabins(selectedCabins.map(sc => 
-            sc.cabinId === cabinId ? { ...sc, pax: sc.pax - 1 } : sc
-          ));
-        }
+      // Kurangi pax; tidak boleh kurang dari min_pax (tidak menjadi 0)
+      if (currentPax > cabin.min_pax) {
+        setSelectedCabins(selectedCabins.map(sc =>
+          sc.cabinId === cabinId ? { ...sc, pax: sc.pax - 1 } : sc
+        ));
       }
     }
   };
@@ -668,7 +825,7 @@ export default function Booking() {
           '/api/landing-page/hotels'
         );
         console.log('Hotels response:', response);
-        
+
         if (response && response.data) {
           // Filter hanya hotel yang aktif
           const activeHotels = response.data.filter(hotel => hotel.status === "Aktif");
@@ -703,16 +860,19 @@ export default function Booking() {
       const currentPax = currentRoom?.pax || 0;
       const remainingPax = tripCount - (totalPaxAllocated - currentPax);
 
-      if (!currentRoom) {
-        if (!increment || remainingPax < maxPaxPerRoom) return prev;
-        return [...prev, { hotelId, rooms: 1, pax: maxPaxPerRoom }];
-      }
+    if (!currentRoom) {
+      // Izinkan tambah kamar meski remainingPax < maxPaxPerRoom (contoh: pax 1, double occupancy)
+      if (!increment || remainingPax <= 0) return prev;
+      const initialPax = Math.min(maxPaxPerRoom, remainingPax);
+      return [...prev, { hotelId, rooms: 1, pax: initialPax }];
+    }
 
-      if (increment) {
-        if (remainingPax < maxPaxPerRoom) return prev;
-        const newRooms = currentRoom.rooms + 1;
-        const newPax = Math.min(currentPax + maxPaxPerRoom, remainingPax);
-        return prev.map(room => 
+    if (increment) {
+      // Tambah kamar: naikkan rooms, alokasikan pax hingga sisa (remainingPax)
+      if (remainingPax <= 0) return prev;
+      const newRooms = currentRoom.rooms + 1;
+      const newPax = Math.min(currentPax + maxPaxPerRoom, Math.max(remainingPax, 0));
+        return prev.map(room =>
           room.hotelId === hotelId ? { ...room, rooms: newRooms, pax: newPax } : room
         );
       } else {
@@ -720,8 +880,8 @@ export default function Booking() {
           return prev.filter(room => room.hotelId !== hotelId);
         }
         const newRooms = currentRoom.rooms - 1;
-        const newPax = currentPax - maxPaxPerRoom;
-        return prev.map(room => 
+      const newPax = Math.max(currentPax - maxPaxPerRoom, 0);
+        return prev.map(room =>
           room.hotelId === hotelId ? { ...room, rooms: newRooms, pax: newPax } : room
         );
       }
@@ -740,7 +900,9 @@ export default function Booking() {
         d => d.duration_label === selectedDuration
       );
       const endDate = new Date(selectedDate);
-      endDate.setDate(endDate.getDate() + (durationData?.duration_days || 0) - 1);
+      // Lama inap untuk hotel mengikuti jumlah malam, bukan hari
+      const nights = computeNights(durationData);
+      endDate.setDate(endDate.getDate() + nights);
 
       // Siapkan data booking
       const bookingData = {
@@ -751,7 +913,7 @@ export default function Booking() {
         customer_address: formData.address,
         customer_country: formData.country,
         customer_phone: `${getCountryCallingCode(formData.country)}${formData.phone}`,
-        hotel_occupancy_id: selectedHotelRooms.length > 0 ? 
+        hotel_occupancy_id: selectedHotelRooms.length > 0 ?
           Number(selectedHotelRooms[0].hotelId) : null,
         total_pax: tripCount,
         status: "Pending",
@@ -762,7 +924,7 @@ export default function Booking() {
           const cabinData = boats
             .find(boat => boat.id.toString() === selectedBoat)
             ?.cabin.find(c => c.id.toString() === cabin.cabinId);
-          
+
           return {
             cabin_id: Number(cabin.cabinId),
             total_pax: cabin.pax,
@@ -779,20 +941,7 @@ export default function Booking() {
         })
       };
 
-      // Tampilkan data request
-      console.log('Booking Request Data:', JSON.stringify(bookingData, null, 2));
-
-      // Tampilkan alert dengan data request
-      alert('Data yang akan dikirim ke backend:\n\n' + JSON.stringify(bookingData, null, 2));
-
-      // Tanya user apakah ingin melanjutkan
-      const shouldContinue = window.confirm('Apakah Anda ingin melanjutkan dengan booking ini?');
-      
-      if (!shouldContinue) {
-        return;
-      }
-
-      // Kirim data ke API
+      // Kirim data ke API (tanpa dialog konfirmasi)
       const response = await apiRequest<BookingResponse>(
         'POST',
         '/api/landing-page/bookings',
@@ -825,14 +974,14 @@ export default function Booking() {
   }
 
   return (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.5 }}
       className="min-h-screen bg-[#efeaea] flex justify-center p-8"
     >
       <Card className="w-full max-w-9xl p-6">
-        <motion.h1 
+        <motion.h1
           initial={{ y: -20 }}
           animate={{ y: 0 }}
           transition={{ duration: 0.5, delay: 0.2 }}
@@ -842,7 +991,7 @@ export default function Booking() {
         </motion.h1>
         <div className="flex space-x-6">
           {/* Left Section: Trip Information */}
-          <motion.div 
+          <motion.div
             initial={{ x: -20, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
             transition={{ duration: 0.5, delay: 0.3 }}
@@ -857,7 +1006,7 @@ export default function Booking() {
                 layout="responsive"
                 className="rounded-lg object-cover"
               />
-              <motion.div 
+              <motion.div
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
                 transition={{ duration: 0.3, delay: 0.4 }}
@@ -869,7 +1018,7 @@ export default function Booking() {
               </motion.div>
             </div>
             <div className="mt-4 space-y-4">
-              <motion.h2 
+              <motion.h2
                 initial={{ y: 20, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
                 transition={{ duration: 0.5, delay: 0.5 }}
@@ -877,8 +1026,8 @@ export default function Booking() {
               >
                 {selectedPackage.title}
               </motion.h2>
-              
-              <motion.div 
+
+              <motion.div
                 initial={{ y: 20, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
                 transition={{ duration: 0.5, delay: 0.6 }}
@@ -889,7 +1038,11 @@ export default function Booking() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => setTripCount((prev) => Math.max(prev - 1, 0))}
+                    onClick={() => {
+                      const minimumPax = getMinimumPax();
+                      setTripCount((prev) => Math.max(Number(prev) - 1, minimumPax));
+                    }}
+                    disabled={tripCount <= getMinimumPax()}
                     className="hover:bg-gold hover:text-white transition-colors duration-300"
                   >
                     -
@@ -904,7 +1057,7 @@ export default function Booking() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => setTripCount((prev) => prev + 1)}
+                    onClick={() => setTripCount((prev) => Number(prev) + 1)}
                     className="hover:bg-gold hover:text-white transition-colors duration-300"
                   >
                     +
@@ -912,7 +1065,7 @@ export default function Booking() {
                 </div>
               </motion.div>
 
-              <motion.div 
+              <motion.div
                 initial={{ y: 20, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
                 transition={{ duration: 0.5, delay: 0.7 }}
@@ -920,7 +1073,7 @@ export default function Booking() {
               >
                 <p className="text-gray-600">{selectedPackage.daysTrip}</p>
                 <p className="text-2xl font-bold text-gold">
-                  IDR {calculateBasePrice().toLocaleString('id-ID')}/pax
+                  IDR {calculateDisplayPricePerPax().toLocaleString('id-ID')}/pax
                 </p>
               </motion.div>
 
@@ -933,7 +1086,7 @@ export default function Booking() {
                 {selectedPackage?.has_boat && selectedBoat && (
                   <div className="space-y-4 p-4 bg-gray-50 rounded-lg">
                     <h3 className="font-semibold text-lg">Detail Boat & Cabin</h3>
-                    
+
                     <div className="space-y-2">
                       <p className="text-sm text-gray-600">
                         Jumlah Boat yang Dibutuhkan: {requiredBoats} boat
@@ -949,11 +1102,11 @@ export default function Booking() {
                         const cabinData = boats
                           .find(boat => boat.id.toString() === selectedBoat)
                           ?.cabin.find(c => c.id.toString() === cabin.cabinId);
-                        
+
                         if (!cabinData) return null;
 
                         const cabinPrice = calculateCabinPrice(cabinData, cabin.pax);
-                        
+
                         return (
                           <div key={index} className="flex flex-col p-2 bg-white rounded">
                             <div className="flex justify-between items-center">
@@ -972,7 +1125,7 @@ export default function Booking() {
                                   <span>Base Price: IDR {Number(cabinData.base_price).toLocaleString('id-ID')}</span>
                                   <br />
                                   <span>
-                                    Additional: {cabin.pax - cabinData.min_pax} pax × IDR {Number(cabinData.additional_price).toLocaleString('id-ID')} 
+                                    Additional: {cabin.pax - cabinData.min_pax} pax × IDR {Number(cabinData.additional_price).toLocaleString('id-ID')}
                                     = IDR {((cabin.pax - cabinData.min_pax) * Number(cabinData.additional_price)).toLocaleString('id-ID')}
                                   </span>
                                 </>
@@ -997,44 +1150,19 @@ export default function Booking() {
                 <div className="p-4 bg-gray-50 rounded-lg">
                   <h3 className="font-semibold text-lg mb-4">Detail Pembayaran</h3>
                   <div className="space-y-2 text-sm">
-                    <p className="text-gray-600">
-                      • {packageType === "open" ? "Open Trip" : "Private Trip"}{" "}
-                      IDR {calculateBasePrice().toLocaleString('id-ID')}/pax x {tripCount} pax = IDR {calculateBasePriceTotal().toLocaleString('id-ID')}
-                    </p>
+                    <p className="text-gray-600">• Harga Cabin: IDR {calculateTotalCabinPrice().toLocaleString('id-ID')}</p>
                     {calculateSurcharge() && (
-                      <p className="text-gray-600">
-                        • High Peak Season IDR {(parseInt(calculateSurcharge()?.toString() || "0")).toLocaleString('id-ID')}/pax x {tripCount} pax = IDR {calculateSurchargeAmount().toLocaleString('id-ID')}
-                      </p>
+                      <p className="text-gray-600">• High/Peak Season: IDR {calculateSurchargeAmount().toLocaleString('id-ID')}</p>
                     )}
                     {selectedPackage?.additional_fees && selectedPackage.additional_fees.filter(fee => additionalCharges.includes(fee.id.toString())).length > 0 && (
                       <div className="space-y-1">
                         <p className="text-gray-600">• Additional Fees:</p>
                         {selectedPackage.additional_fees
                           .filter(fee => additionalCharges.includes(fee.id.toString()))
-                          .map(fee => {
-                            const durationData = selectedPackage.trip_durations?.find(
-                              d => d.duration_label === selectedDuration
-                            );
-                            const days = durationData?.duration_days || 0;
-                            const amount = calculateAdditionalFeeAmount(fee);
-                            
-                            return (
-                              <p key={fee.id} className="text-gray-600 ml-4">
-                                - {fee.fee_category}: IDR {Number(fee.price).toLocaleString('id-ID')}
-                                {fee.unit === 'per_pax' ? `/pax × ${tripCount} pax` : ''}
-                                {fee.unit === 'per_5pax' ? `/5 pax × ${Math.ceil(tripCount / 5)} unit` : ''}
-                                {fee.unit === 'per_day' ? `/hari × ${days} hari` : ''}
-                                {fee.unit === 'per_day_guide' ? `/hari × ${days} hari` : ''}
-                                {' = '}IDR {amount.toLocaleString('id-ID')}
-                              </p>
-                            );
-                          })}
+                          .map(fee => (
+                            <p key={fee.id} className="text-gray-600 ml-4">- {fee.fee_category}: IDR {calculateAdditionalFeeAmount(fee).toLocaleString('id-ID')}</p>
+                          ))}
                       </div>
-                    )}
-                    {selectedPackage?.has_boat && selectedBoat && calculateTotalCabinPrice() > 0 && (
-                      <p className="text-gray-600">
-                        • Total Harga Cabin: IDR {calculateTotalCabinPrice().toLocaleString('id-ID')}
-                      </p>
                     )}
                     {selectedHotelRooms.length > 0 && (
                       <div className="space-y-1">
@@ -1042,24 +1170,11 @@ export default function Booking() {
                         {selectedHotelRooms.map(room => {
                           const hotel = hotels.find(h => h.id.toString() === room.hotelId);
                           if (!hotel) return null;
-                          const selectedRoom = selectedHotelRooms.find(r => r.hotelId === hotel.id.toString());
-                          const currentRooms = selectedRoom?.rooms || 0;
-                          const currentPax = selectedRoom?.pax || 0;
-                          
-                          // Hitung jumlah malam
-                          const durationData = selectedPackage?.trip_durations?.find(
-                            d => d.duration_label === selectedDuration
-                          );
-                          const nights = (durationData?.duration_days || 0) - 1;
-                          
+                          const durationData = selectedPackage?.trip_durations?.find(d => d.duration_label === selectedDuration);
+                          const nights = computeNights(durationData);
+                          const totalHotel = Number(hotel.price) * room.rooms * Math.max(nights, 0);
                           return (
-                            <p key={hotel.id} className="text-gray-600 ml-4">
-                              - {hotel.hotel_name}: {currentRooms} kamar × IDR {Number(hotel.price).toLocaleString('id-ID')}/malam × {nights} malam
-                              <br />
-                              <span className="text-xs text-gray-500">
-                                {currentPax} dari {tripCount} pax dialokasikan
-                              </span>
-                            </p>
+                            <p key={hotel.id} className="text-gray-600 ml-4">- {hotel.hotel_name}: IDR {totalHotel.toLocaleString('id-ID')}</p>
                           );
                         })}
                       </div>
@@ -1076,11 +1191,10 @@ export default function Booking() {
                 </div>
 
                 <Button
-                  className={`w-full py-6 rounded-lg font-bold text-2xl transition-all duration-300 transform hover:scale-105 ${
-                    selectedDuration && selectedDate && tripCount > 0
+                  className={`w-full py-6 rounded-lg font-bold text-2xl transition-all duration-300 transform hover:scale-105 ${selectedDuration && selectedDate && tripCount > 0
                       ? "bg-gold text-white hover:bg-gold-dark-20 shadow-lg hover:shadow-xl"
                       : "bg-gray-300 text-gray-500 cursor-not-allowed"
-                  }`}
+                    }`}
                   disabled={!selectedDuration || !selectedDate || tripCount === 0}
                   onClick={handleBooking}
                 >
@@ -1091,28 +1205,27 @@ export default function Booking() {
           </motion.div>
 
           {/* Right Section: Booking Form */}
-          <motion.div 
+          <motion.div
             initial={{ x: 20, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
             transition={{ duration: 0.5, delay: 0.4 }}
             className="w-2/3"
           >
-            <motion.div 
+            <motion.div
               initial={{ y: -20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               transition={{ duration: 0.5, delay: 0.5 }}
               className="flex justify-between mb-4"
             >
-              <Badge variant="secondary" className={`${
-                userRegion === "overseas" 
-                  ? "bg-blue-100 text-blue-700 hover:bg-blue-100/80" 
+              <Badge variant="secondary" className={`${userRegion === "overseas"
+                  ? "bg-blue-100 text-blue-700 hover:bg-blue-100/80"
                   : "bg-[#efe6e6] text-gray-700 hover:bg-[#efe6e6]/80"
-              }`}>
+                }`}>
                 {userRegion === "overseas" ? "OVERSEAS" : "DOMESTIC"}
               </Badge>
             </motion.div>
             <div className="grid grid-cols-2 gap-6">
-              <motion.div 
+              <motion.div
                 initial={{ y: 20, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
                 transition={{ duration: 0.5, delay: 0.5 }}
@@ -1122,8 +1235,8 @@ export default function Booking() {
                 <div className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="name">Name</Label>
-                    <Input 
-                      id="name" 
+                    <Input
+                      id="name"
                       value={formData.name}
                       onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
                       placeholder="Your name"
@@ -1131,9 +1244,9 @@ export default function Booking() {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="email">Email</Label>
-                    <Input 
-                      id="email" 
-                      type="email" 
+                    <Input
+                      id="email"
+                      type="email"
                       value={formData.email}
                       onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
                       placeholder="example@gmail.com"
@@ -1141,8 +1254,8 @@ export default function Booking() {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="address">Address</Label>
-                    <Input 
-                      id="address" 
+                    <Input
+                      id="address"
                       value={formData.address}
                       onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
                       placeholder="Your address"
@@ -1150,8 +1263,8 @@ export default function Booking() {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="country">Country</Label>
-                    <Select 
-                      value={formData.country} 
+                    <Select
+                      value={formData.country}
                       onValueChange={(value) => {
                         setFormData(prev => ({ ...prev, country: value }));
                         // Update region based on country
@@ -1178,8 +1291,8 @@ export default function Booking() {
                         disabled
                         className="w-1/4 text-center bg-gray-100"
                       />
-                      <Input 
-                        id="phone" 
+                      <Input
+                        id="phone"
                         value={formData.phone}
                         onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
                         placeholder="Nomor telepon"
@@ -1190,85 +1303,81 @@ export default function Booking() {
                   <div className="space-y-2">
                     <Label htmlFor="notes">Catatan Tambahan</Label>
                     <div className="space-y-4">
-                      <Input 
-                        id="notes" 
+                      <Input
+                        id="notes"
                         value={formData.notes}
                         onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
-                        placeholder="Catatan Tambahan" 
+                        placeholder="Catatan Tambahan"
                         className="h-20"
                       />
-
-                                            {selectedDuration && selectedDate && selectedPackage?.has_hotel && (
-                        <>
-                          <div className="space-y-2">
-                              <Label>Hotel</Label>
-                              <div className="space-y-4">
-                                {isLoadingHotels ? (
-                                  <div className="p-2 text-center text-sm text-gray-500">
-                                    Loading hotels...
-                                  </div>
-                                ) : hotels.length === 0 ? (
-                                  <div className="p-2 text-center text-sm text-gray-500">
-                                    Tidak ada hotel tersedia
-                                  </div>
-                                ) : (
-                                  hotels.map((hotel) => {
-                                    const selectedRoom = selectedHotelRooms.find(room => room.hotelId === hotel.id.toString());
-                                    const currentRooms = selectedRoom?.rooms || 0;
-                                    const currentPax = selectedRoom?.pax || 0;
-                                    
-                                    return (
-                                      <div key={hotel.id} className="flex items-center justify-between p-3 border rounded-lg">
-                                        <div className="space-y-1">
-                                          <div className="font-medium">{hotel.hotel_name}</div>
-                                          <div className="text-sm text-gray-500">
-                                            {hotel.hotel_type} - {hotel.occupancy}
-                                          </div>
-                                          <div className="text-sm text-gold">
-                                            IDR {Number(hotel.price).toLocaleString('id-ID')}/malam
-                                          </div>
-                                          <div className="text-xs text-gray-500">
-                                            {currentPax} dari {tripCount} pax dialokasikan
-                                          </div>
-                                        </div>
-                                        <div className="flex items-center space-x-2">
-                                          <Button
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={() => handleRoomChange(hotel.id.toString(), false)}
-                                            disabled={currentRooms <= 0}
-                                          >
-                                            -
-                                          </Button>
-                                          <Input
-                                            type="number"
-                                            value={currentRooms}
-                                            readOnly
-                                            className="w-16 text-center"
-                                          />
-                                          <Button
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={() => handleRoomChange(hotel.id.toString(), true)}
-                                            disabled={calculateTotalSelectedHotelPax() >= tripCount}
-                                          >
-                                            +
-                                          </Button>
-                                        </div>
-                                      </div>
-                                    );
-                                  })
-                                )}
+                      {/* Hotel Section */}
+                      {selectedDuration && selectedDate && selectedPackage?.has_hotel && (
+                        <div className="space-y-2">
+                          <Label>Hotel</Label>
+                          <div className="space-y-4">
+                            {isLoadingHotels ? (
+                              <div className="p-2 text-center text-sm text-gray-500">
+                                Loading hotels...
                               </div>
-                            </div>
-                          )}
-                        </>
+                            ) : hotels.length === 0 ? (
+                              <div className="p-2 text-center text-sm text-gray-500">
+                                Tidak ada hotel tersedia
+                              </div>
+                            ) : (
+                              hotels.map((hotel) => {
+                                const selectedRoom = selectedHotelRooms.find(room => room.hotelId === hotel.id.toString());
+                                const currentRooms = selectedRoom?.rooms || 0;
+                                const currentPax = selectedRoom?.pax || 0;
+                                return (
+                                  <div key={hotel.id} className="flex items-center justify-between p-3 border rounded-lg">
+                                    <div className="space-y-1">
+                                      <div className="font-medium">{hotel.hotel_name}</div>
+                                      <div className="text-sm text-gray-500">
+                                        {hotel.hotel_type} - {hotel.occupancy}
+                                      </div>
+                                      <div className="text-sm text-gold">
+                                        IDR {Number(hotel.price).toLocaleString('id-ID')}/malam
+                                      </div>
+                                      <div className="text-xs text-gray-500">
+                                        {currentPax} dari {tripCount} pax dialokasikan
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center space-x-2">
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => handleRoomChange(hotel.id.toString(), false)}
+                                        disabled={currentRooms <= 0}
+                                      >
+                                        -
+                                      </Button>
+                                      <Input
+                                        type="number"
+                                        value={currentRooms}
+                                        readOnly
+                                        className="w-16 text-center"
+                                      />
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => handleRoomChange(hotel.id.toString(), true)}
+                                        disabled={calculateTotalSelectedHotelPax() >= tripCount}
+                                      >
+                                        +
+                                      </Button>
+                                    </div>
+                                  </div>
+                                );
+                              })
+                            )}
+                          </div>
+                        </div>
                       )}
                     </div>
                   </div>
                 </div>
               </motion.div>
-              <motion.div 
+              <motion.div
                 initial={{ y: 20, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
                 transition={{ duration: 0.5, delay: 0.6 }}
@@ -1320,7 +1429,7 @@ export default function Booking() {
                           mode="single"
                           selected={selectedDate}
                           onSelect={setSelectedDate}
-                          disabled={!selectedDuration}
+                          disabled={!selectedDuration ? true : disabledByOperationalDays}
                           initialFocus
                         />
                       </PopoverContent>
@@ -1331,8 +1440,8 @@ export default function Booking() {
                     <>
                       <div className="space-y-2">
                         <Label>Boat</Label>
-                        <Select 
-                          value={selectedBoat} 
+                        <Select
+                          value={selectedBoat}
                           onValueChange={handleBoatChange}
                           disabled={isLoadingBoats}
                         >
@@ -1350,8 +1459,8 @@ export default function Booking() {
                               </div>
                             ) : (
                               filteredBoats.map((boat) => (
-                                <SelectItem 
-                                  key={boat.id} 
+                                <SelectItem
+                                  key={boat.id}
                                   value={boat.id.toString()}
                                   className="flex flex-col items-start"
                                 >
@@ -1398,7 +1507,10 @@ export default function Booking() {
                                     </Button>
                                     <Input
                                       type="number"
-                                      value={selectedCabins.find(sc => sc.cabinId === cabin.id.toString())?.pax || 0}
+                                      value={Math.max(
+                                        selectedCabins.find(sc => sc.cabinId === cabin.id.toString())?.pax || 0,
+                                        selectedCabins.find(sc => sc.cabinId === cabin.id.toString()) ? cabin.min_pax : 0
+                                      )}
                                       readOnly
                                       className="w-16 text-center"
                                     />
@@ -1436,7 +1548,7 @@ export default function Booking() {
                                 type="checkbox"
                                 id={`fee-${fee.id}`}
                                 checked={
-                                  fee.is_required 
+                                  fee.is_required
                                     ? tripCount >= fee.pax_min && tripCount <= fee.pax_max
                                     : additionalCharges.includes(fee.id.toString())
                                 }
@@ -1449,9 +1561,8 @@ export default function Booking() {
                                   }
                                 }}
                                 readOnly={fee.is_required}
-                                className={`rounded focus:ring-gold ${
-                                  fee.is_required ? 'cursor-not-allowed opacity-50' : 'text-gold'
-                                }`}
+                                className={`rounded focus:ring-gold ${fee.is_required ? 'cursor-not-allowed opacity-50' : 'text-gold'
+                                  }`}
                               />
                               <Label htmlFor={`fee-${fee.id}`} className="cursor-pointer flex items-center">
                                 <span>{fee.fee_category}</span>

@@ -7,6 +7,7 @@ import Link from "next/link";
 import { apiRequest } from "@/lib/api";
 import { Blog } from "@/types/blog";
 import { motion } from "framer-motion";
+import { getImageUrl } from "@/lib/imageUrl";
 
 const BlogContent = () => {
   const [allPosts, setAllPosts] = useState<Blog[]>([]);
@@ -38,9 +39,7 @@ const BlogContent = () => {
       ...post,
       assets: post.assets?.map((asset) => ({
         ...asset,
-        file_url: asset.file_url.startsWith("http")
-          ? asset.file_url
-          : `${process.env.NEXT_PUBLIC_API_URL}${asset.file_url}`,
+        file_url: getImageUrl(asset.file_url),
       })),
     }));
   };

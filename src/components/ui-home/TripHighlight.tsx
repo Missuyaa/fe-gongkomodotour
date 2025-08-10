@@ -19,6 +19,7 @@ interface Trip {
   assets: {
     id: number;
     file_url: string;
+    original_file_url?: string;
     is_external: boolean;
   }[];
   trip_durations: {
@@ -45,7 +46,8 @@ interface TripResponse {
   status?: string;
 }
 
-// Gaya kustom untuk efek shadow dan transisi
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.gongkomodotour.com';
+
 const customStyles = `
   .text-shadow-nike {
     text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7), 0 0 10px rgba(0, 0, 0, 0.5);
@@ -90,11 +92,10 @@ const customStyles = `
   }
 `;
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-
 export default function TripHighlight() {
   const [highlights, setHighlights] = useState<Trip[]>([]);
   const [loading, setLoading] = useState(true);
+  const [imageErrors, setImageErrors] = useState<Set<number>>(new Set());
   const { t } = useLanguage();
 
   const container = {
@@ -129,16 +130,59 @@ export default function TripHighlight() {
         );
         console.log('Trip Highlight Response:', response);
         console.log('Trip Highlight Data:', response.data);
-        console.log('Trip Highlight Data Type:', typeof response.data);
-        console.log('Trip Highlight Data Length:', response.data?.length);
+        
+        // Log basic info for debugging
         if (response.data && response.data.length > 0) {
-          console.log('First trip:', response.data[0]);
-          console.log('First trip name:', response.data[0].name);
-          console.log('First trip type:', response.data[0].type);
+          console.log(`Loaded ${response.data.length} highlighted trips`);
+        } else {
+          console.warn('No trip data received from API');
         }
+        
         setHighlights(response.data || []);
       } catch (error) {
         console.error('Error fetching highlighted trips:', error);
+        
+        // Jika API down, gunakan data dummy sementara
+        console.log('API server down, using dummy data');
+        const dummyData: Trip[] = [
+          {
+            id: 1,
+            name: "Komodo Island Adventure",
+            type: "Open Trip",
+            is_highlight: "Yes",
+            status: "Aktif",
+            assets: [],
+            trip_durations: []
+          },
+          {
+            id: 2,
+            name: "Private Komodo Tour",
+            type: "Private Trip",
+            is_highlight: "Yes",
+            status: "Aktif",
+            assets: [],
+            trip_durations: []
+          },
+          {
+            id: 3,
+            name: "Luxury Phinisi Cruise",
+            type: "Open Trip",
+            is_highlight: "Yes",
+            status: "Aktif",
+            assets: [],
+            trip_durations: []
+          },
+          {
+            id: 4,
+            name: "Weekend Getaway",
+            type: "Private Trip",
+            is_highlight: "Yes",
+            status: "Aktif",
+            assets: [],
+            trip_durations: []
+          }
+        ];
+        setHighlights(dummyData);
       } finally {
         setLoading(false);
       }
@@ -146,6 +190,51 @@ export default function TripHighlight() {
 
     fetchHighlights();
   }, []);
+
+  const handleImageError = (tripId: number) => {
+    console.error(`Image failed to load for trip ID: ${tripId}`);
+    setImageErrors(prev => new Set(prev).add(tripId));
+  };
+
+  const getImageSource = (trip: Trip) => {
+    // Jika ada error pada gambar ini, gunakan fallback
+    if (imageErrors.has(trip.id)) {
+      return '/img/default-trip.jpg';
+    }
+
+    // Jika tidak ada assets atau file_url kosong
+    if (!trip.assets || trip.assets.length === 0) {
+      console.warn(`Trip ${trip.id} (${trip.name}) has no assets`);
+      return '/img/default-trip.jpg';
+    }
+
+    const asset = trip.assets[0];
+
+    const toSafeUrl = (raw: string) => {
+      try {
+        // Jika sudah absolute
+        if (/^https?:\/\//.test(raw)) {
+          return encodeURI(raw);
+        }
+        // Relative path dari API
+        return encodeURI(`${API_URL}${raw}`);
+      } catch {
+        return `${API_URL}${raw}`;
+      }
+    };
+
+    // Gunakan original_file_url yang bisa diakses langsung
+    if (asset.original_file_url) {
+      return toSafeUrl(asset.original_file_url);
+    }
+
+    if (asset.file_url && !asset.file_url.includes('placeholder')) {
+      // Gunakan file_url jika bukan placeholder
+      return toSafeUrl(asset.file_url);
+    }
+
+    return '/img/default-trip.jpg';
+  };
 
   if (loading) {
     return (
@@ -159,9 +248,6 @@ export default function TripHighlight() {
       </section>
     );
   }
-
-  console.log('Highlights to render:', highlights);
-  console.log('Highlights count:', highlights.length);
 
   return (
     <section className="p-4 py-10 bg-gray-50">
@@ -190,9 +276,10 @@ export default function TripHighlight() {
           ) : (
             highlights.map((highlight) => {
               console.log('Rendering highlight:', highlight);
-              const imageUrl = highlight.assets?.[0]?.file_url 
-                ? `${API_URL}${highlight.assets[0].file_url}`
-                : '/images/placeholder.jpg';
+              console.log('Original asset URL:', highlight.assets?.[0]?.file_url);
+              
+              const imageUrl = getImageSource(highlight);
+              console.log('Final image URL to display:', imageUrl);
 
               return (
                 <motion.div
@@ -216,11 +303,18 @@ export default function TripHighlight() {
                         >
                           <Image
                             src={imageUrl}
-                            alt={highlight.name}
+                            alt={highlight.name || 'Trip Image'}
                             fill
                             className="object-cover rounded-sm"
                             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                             quality={100}
+                            unoptimized={true}
+                            onError={() => {
+                              console.error(`Image failed to load for trip ${highlight.id}: ${imageUrl}`);
+                              handleImageError(highlight.id);
+                            }}
+                            priority={false}
+                            onLoad={() => console.log(`Image loaded successfully for trip ${highlight.id}: ${imageUrl}`)}
                           />
                           <div className="absolute inset-0 trip-overlay opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                           <div className="absolute bottom-0 left-0 right-0 p-4 trip-info">
@@ -240,6 +334,8 @@ export default function TripHighlight() {
             })
           )}
         </motion.div>
+        
+
       </div>
     </section>
   );

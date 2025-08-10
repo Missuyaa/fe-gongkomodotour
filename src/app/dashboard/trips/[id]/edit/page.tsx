@@ -208,6 +208,27 @@ export default function EditTripPage({ params }: { params: Promise<{ id: string 
     }
   })
 
+  // Kondisi tampilan dinamis
+  const hasBoat = form.watch("has_boat")
+  const tentation = form.watch("tentation")
+  const watchedBoatIds = form.watch("boat_ids") || []
+  const showBoatSection = hasBoat || (Array.isArray(watchedBoatIds) && watchedBoatIds.length > 0)
+
+  // Jika tidak menggunakan boat dan ada pilihan boat, kosongkan (skenario user menonaktifkan)
+  useEffect(() => {
+    const current = form.getValues("boat_ids") || []
+    if (!hasBoat && current.length > 0) {
+      form.setValue("boat_ids", [])
+    }
+  }, [hasBoat, form])
+
+  // Jika jadwal fleksibel (tentation = Yes), kosongkan hari operasional
+  useEffect(() => {
+    if (tentation === "Yes") {
+      form.setValue("operational_days", [])
+    }
+  }, [tentation, form])
+
   // Fetch boats data
   useEffect(() => {
     const fetchBoats = async () => {
@@ -257,13 +278,36 @@ export default function EditTripPage({ params }: { params: Promise<{ id: string 
         }
         
         try {
-          // Pastikan setiap trip_duration memiliki field prices dengan nilai yang valid
+          // Normalisasi boat terkait dari berbagai kemungkinan bentuk response
+          type TripBoatPivot = { boat_id: number | string }
+          type BoatLite = { id: number | string }
+          type BoatIdsLike = {
+            boat_ids?: Array<number | string> | null
+            boat_id?: number | string | null
+            trip_boats?: TripBoatPivot[] | null
+            boats?: BoatLite[] | null
+            has_boat?: boolean | null
+          }
+          const dataSource = response.data as unknown as BoatIdsLike
+          let rawBoatIds: number[] = []
+
+          if (Array.isArray(dataSource.trip_boats) && dataSource.trip_boats.length > 0) {
+            rawBoatIds = dataSource.trip_boats.map((tb) => Number(tb.boat_id)).filter((n) => !Number.isNaN(n))
+          } else if (Array.isArray(dataSource.boats) && dataSource.boats.length > 0) {
+            rawBoatIds = dataSource.boats.map((b) => Number(b.id)).filter((n) => !Number.isNaN(n))
+          } else if (Array.isArray(dataSource.boat_ids) && dataSource.boat_ids.length > 0) {
+            rawBoatIds = dataSource.boat_ids.map((b) => Number(b)).filter((n) => !Number.isNaN(n))
+          } else if (dataSource.boat_id != null) {
+            const single = Number(dataSource.boat_id)
+            rawBoatIds = Number.isNaN(single) ? [] : [single]
+          }
+
           const data = {
             ...response.data,
-            // Convert boat_id to boat_ids array for compatibility
-            boat_ids: response.data.boat_id ? [Number(response.data.boat_id)] : [],
+            // Normalisasi boat_ids: dukung field boat_ids[] atau boat_id tunggal
+            boat_ids: rawBoatIds,
             destination_count: Number(response.data.destination_count) || 0,
-            has_boat: Boolean(response.data.has_boat),
+            has_boat: Boolean(dataSource.has_boat) || rawBoatIds.length > 0,
             has_hotel: Boolean(response.data.has_hotel),
             operational_days: response.data.operational_days || [],
             tentation: response.data.tentation || "No",
@@ -823,114 +867,163 @@ export default function EditTripPage({ params }: { params: Promise<{ id: string 
                 </div>
 
                 {/* Boat Selection */}
-                <div>
-                  <h2 className="text-xl font-semibold text-gray-900 mb-6">Pilih Kapal</h2>
-                  {isLoadingBoats ? (
-                    <div className="flex items-center justify-center py-8">
-                      <Loader2 className="h-6 w-6 animate-spin" />
-                      <span className="ml-2">Memuat data kapal...</span>
-                    </div>
-                  ) : boats.length > 0 ? (
-                    <div className="grid grid-cols-3 gap-4">
-                      {boats.map((boat) => {
-                        const currentBoatIds = form.watch("boat_ids") || [];
-                        const isChecked = currentBoatIds.includes(boat.id);
-                        
-                        return (
-                          <div key={boat.id} className="flex flex-row items-start space-x-3 space-y-0">
-                            <Checkbox
-                              checked={isChecked}
-                              onCheckedChange={(checked) => {
-                                console.log('Boat checkbox changed:', boat.id, checked);
-                                console.log('Current boats before change:', currentBoatIds);
-                                
-                                let newBoats;
-                                if (checked) {
-                                  newBoats = [...currentBoatIds, boat.id];
-                                  console.log('Adding boat, new array:', newBoats);
-                                } else {
-                                  newBoats = currentBoatIds.filter(id => id !== boat.id);
-                                  console.log('Removing boat, new array:', newBoats);
-                                }
-                                
-                                form.setValue("boat_ids", newBoats);
-                                
-                                // Force form update and log
-                                setTimeout(() => {
-                                  const updatedBoatIds = form.getValues('boat_ids');
-                                  console.log('Boat IDs after update:', updatedBoatIds);
-                                  console.log('Form state after boat update:', form.getValues());
-                                }, 100);
-                              }}
-                            />
-                            <div className="space-y-1 leading-none">
-                              <label className="text-sm font-normal cursor-pointer">
-                                {boat.boat_name}
-                              </label>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ) : (
-                    <div className="flex items-center justify-center py-8">
-                      <div className="text-center">
-                        <p className="text-gray-500 mb-2">Tidak ada data kapal tersedia</p>
-                        <p className="text-sm text-gray-400 mb-4">Silakan tambahkan kapal terlebih dahulu di menu Kapal Management</p>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() => router.push("/dashboard/boats")}
-                          className="text-blue-600 hover:text-blue-700"
-                        >
-                          Tambah Kapal
-                        </Button>
+                {showBoatSection && (
+                  <div>
+                    <h2 className="text-xl font-semibold text-gray-900 mb-6">Pilih Kapal</h2>
+                    {isLoadingBoats ? (
+                      <div className="flex items-center justify-center py-8">
+                        <Loader2 className="h-6 w-6 animate-spin" />
+                        <span className="ml-2">Memuat data kapal...</span>
                       </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Operational Days */}
-                <div>
-                  <h2 className="text-xl font-semibold text-gray-900 mb-6">Hari Operasional</h2>
-                  <div className="grid grid-cols-7 gap-4">
-                    {DAYS_OF_WEEK.map((day) => (
-                      <FormField
-                        key={day}
-                        control={form.control}
-                        name="operational_days"
-                        render={({ field }) => (
-                          <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                            <FormControl>
+                    ) : boats.length > 0 ? (
+                      <div className="grid grid-cols-3 gap-4">
+                        {boats.map((boat) => {
+                          const currentBoatIds = form.watch("boat_ids") || [];
+                          const isChecked = currentBoatIds.includes(boat.id);
+                          
+                          return (
+                            <div key={boat.id} className="flex flex-row items-start space-x-3 space-y-0">
                               <Checkbox
-                                checked={field.value?.includes(day)}
+                                checked={isChecked}
                                 onCheckedChange={(checked) => {
-                                  const currentDays = field.value || [];
+                                  console.log('Boat checkbox changed:', boat.id, checked);
+                                  console.log('Current boats before change:', currentBoatIds);
+                                  
+                                  let newBoats;
                                   if (checked) {
-                                    field.onChange([...currentDays, day]);
+                                    newBoats = [...currentBoatIds, boat.id];
+                                    console.log('Adding boat, new array:', newBoats);
                                   } else {
-                                    field.onChange(currentDays.filter(d => d !== day));
+                                    newBoats = currentBoatIds.filter(id => id !== boat.id);
+                                    console.log('Removing boat, new array:', newBoats);
                                   }
+                                  
+                                  form.setValue("boat_ids", newBoats);
+                                  
+                                  // Force form update and log
+                                  setTimeout(() => {
+                                    const updatedBoatIds = form.getValues('boat_ids');
+                                    console.log('Boat IDs after update:', updatedBoatIds);
+                                    console.log('Form state after boat update:', form.getValues());
+                                  }, 100);
                                 }}
                               />
-                            </FormControl>
-                            <div className="space-y-1 leading-none">
-                              <FormLabel className="text-sm font-normal">
-                                {day === "Monday" && "Senin"}
-                                {day === "Tuesday" && "Selasa"}
-                                {day === "Wednesday" && "Rabu"}
-                                {day === "Thursday" && "Kamis"}
-                                {day === "Friday" && "Jumat"}
-                                {day === "Saturday" && "Sabtu"}
-                                {day === "Sunday" && "Minggu"}
-                              </FormLabel>
+                              <div className="space-y-1 leading-none">
+                                <label className="text-sm font-normal cursor-pointer">
+                                  {boat.boat_name}
+                                </label>
+                              </div>
                             </div>
-                          </FormItem>
-                        )}
-                      />
-                    ))}
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-center py-8">
+                        <div className="text-center">
+                          <p className="text-gray-500 mb-2">Tidak ada data kapal tersedia</p>
+                          <p className="text-sm text-gray-400 mb-4">Silakan tambahkan kapal terlebih dahulu di menu Kapal Management</p>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => router.push("/dashboard/boats")}
+                            className="text-blue-600 hover:text-blue-700"
+                          >
+                            Tambah Kapal
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                </div>
+                )}
+
+                {/* Operational Days */}
+                {tentation !== "Yes" && (
+                  <div>
+                    <h2 className="text-xl font-semibold text-gray-900 mb-6">Hari Operasional</h2>
+                    
+                    {/* Tombol aksi untuk checklist hari operasional */}
+                    <div className="flex gap-3 mb-4">
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => {
+                          form.setValue("operational_days", ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]);
+                        }}
+                      >
+                        Semua Hari
+                      </Button>
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => {
+                          form.setValue("operational_days", ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]);
+                        }}
+                      >
+                        Weekday
+                      </Button>
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => {
+                          form.setValue("operational_days", ["Saturday", "Sunday"]);
+                        }}
+                      >
+                        Weekend
+                      </Button>
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => {
+                          form.setValue("operational_days", []);
+                        }}
+                      >
+                        Hapus Semua
+                      </Button>
+                    </div>
+                    
+                    <div className="grid grid-cols-7 gap-4">
+                      {DAYS_OF_WEEK.map((day) => (
+                        <FormField
+                          key={day}
+                          control={form.control}
+                          name="operational_days"
+                          render={({ field }) => (
+                            <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                              <FormControl>
+                                <Checkbox
+                                  checked={field.value?.includes(day)}
+                                  onCheckedChange={(checked) => {
+                                    const currentDays = field.value || [];
+                                    if (checked) {
+                                      field.onChange([...currentDays, day]);
+                                    } else {
+                                      field.onChange(currentDays.filter(d => d !== day));
+                                    }
+                                  }}
+                                />
+                              </FormControl>
+                              <div className="space-y-1 leading-none">
+                                <FormLabel className="text-sm font-normal">
+                                  {day === "Monday" && "Senin"}
+                                  {day === "Tuesday" && "Selasa"}
+                                  {day === "Wednesday" && "Rabu"}
+                                  {day === "Thursday" && "Kamis"}
+                                  {day === "Friday" && "Jumat"}
+                                  {day === "Saturday" && "Sabtu"}
+                                  {day === "Sunday" && "Minggu"}
+                                </FormLabel>
+                              </div>
+                            </FormItem>
+                          )}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {/* Description */}
                 <div>

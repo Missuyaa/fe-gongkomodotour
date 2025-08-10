@@ -18,6 +18,8 @@ export interface BoatAsset {
   title: string
   description: string | null
   file_url: string
+  original_file_url?: string
+  file_path?: string
   is_external: boolean
   created_at: string
   updated_at: string

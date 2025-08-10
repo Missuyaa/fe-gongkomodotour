@@ -11,8 +11,7 @@ import { useState, useEffect } from "react";
 import { apiRequest } from "@/lib/api";
 import { Trip, FlightSchedule } from "@/types/trips";
 import { Boat } from "@/types/boats";
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+import { getImageUrl } from "@/lib/imageUrl";
 
 interface ApiResponse {
   data: Trip;
@@ -73,6 +72,7 @@ interface PackageData {
   boat_ids?: number[];
   operational_days?: string[];
   tentation?: "Yes" | "No";
+  note?: string; // Tambahkan field note
 }
 
 interface BoatResponse {
@@ -103,6 +103,9 @@ export default function DetailOpenTrip() {
           `/api/landing-page/trips/${packageId}`
         );
         console.log("API Response:", response);
+        console.log("API Response Data:", response?.data);
+        console.log("API Response Assets:", response?.data?.assets);
+        console.log("API Response Assets Length:", response?.data?.assets?.length);
 
         if (!response?.data) {
           throw new Error("Data trip tidak valid");
@@ -121,7 +124,7 @@ export default function DetailOpenTrip() {
             .slice(0, 3) // Take only 3 trips
             .map((trip: Trip) => ({
               image: trip.assets?.[0]?.file_url
-                ? `${API_URL}${trip.assets[0].file_url}`
+                ? getImageUrl(trip.assets[0].file_url)
                 : "/img/default-trip.jpg",
               label: trip.type || "Open Trip",
               name: trip.name || "Trip Name",
@@ -228,22 +231,27 @@ export default function DetailOpenTrip() {
     boat: "Speed Boat", // Sesuaikan dengan data yang ada
     groupSize: "10-15 people", // Sesuaikan dengan data yang ada
     images:
-      selectedPackage.assets?.map((asset) => `${API_URL}${asset.file_url}`) ||
-      [],
+      selectedPackage.assets?.map((asset) => 
+        asset.original_file_url 
+          ? getImageUrl(asset.original_file_url)
+          : getImageUrl(asset.file_url)
+      ) || [],
     destinations: selectedPackage.destination_count || 0,
     include:
       selectedPackage.include?.split("\n").filter((item) => item.trim()) || [],
     exclude:
       selectedPackage.exclude?.split("\n").filter((item) => item.trim()) || [],
-    mainImage: selectedPackage.assets?.[0]?.file_url
-      ? `${API_URL}${selectedPackage.assets[0].file_url}`
-      : "/img/default-image.png",
+    mainImage: selectedPackage.assets?.[0]?.original_file_url
+      ? getImageUrl(selectedPackage.assets[0].original_file_url)
+      : selectedPackage.assets?.[0]?.file_url
+      ? getImageUrl(selectedPackage.assets[0].file_url)
+      : "/img/default-trip.jpg",
     flightSchedules: selectedPackage.flight_schedules || [],
     has_boat: selectedPackage.has_boat || false,
     destination_count: selectedPackage.destination_count || 0,
     boat_ids: selectedPackage.boat_ids || [],
     operational_days: selectedPackage.operational_days || [],
-    tentation: selectedPackage.tentation || "No",
+    tentation: selectedPackage.tentation === "Yes" ? "Yes" : "No",
     flightInfo: {
       guideFee1:
         selectedPackage.additional_fees
@@ -255,7 +263,8 @@ export default function DetailOpenTrip() {
       guideFee2:
         selectedPackage.additional_fees
           ?.find(
-            (fee) => fee.fee_category === "Guide Fee" && fee.unit === "per_5pax"
+            (fee) =>
+              fee.fee_category === "Guide Fee" && fee.unit === "per_5pax"
           )
           ?.price?.toString() || "0",
     },
@@ -305,16 +314,44 @@ export default function DetailOpenTrip() {
           : "Not specified",
       },
     },
-    boatImages: boats.flatMap((boat) =>
-      boat.assets.map((asset) => ({
-        image: asset.file_url.startsWith("http")
-          ? asset.file_url
-          : `${API_URL}${asset.file_url}`,
+    boatImages: boats
+      .filter(boat => selectedPackage.boat_ids?.includes(boat.id))
+      .map((boat) => ({
+        image: boat.assets?.[0]?.original_file_url
+          ? getImageUrl(boat.assets[0].original_file_url)
+          : boat.assets?.[0]?.file_url
+          ? getImageUrl(boat.assets[0].file_url)
+          : "/img/default-trip.jpg",
         title: boat.boat_name,
         id: boat.id.toString(),
-      }))
-    ),
+      })),
+    note: selectedPackage.note, // Tambahkan field note ke transformedData
   };
+
+  // Debug: Log transformed data
+  console.log("Transformed Data:", transformedData);
+  console.log("Transformed Images:", transformedData.images);
+  console.log("Transformed MainImage:", transformedData.mainImage);
+  console.log("Transformed BoatImages:", transformedData.boatImages);
+
+  // Debug: Log original asset data
+  console.log("Original Assets:", selectedPackage.assets);
+  selectedPackage.assets?.forEach((asset, index) => {
+    console.log(`Asset ${index}:`, {
+      title: asset.title,
+      file_url: asset.file_url,
+      original_file_url: asset.original_file_url,
+      processed_url: asset.original_file_url 
+        ? getImageUrl(asset.original_file_url)
+        : getImageUrl(asset.file_url)
+    });
+  });
+
+  // Test getImageUrl function
+  console.log("Testing getImageUrl function:");
+  console.log("Input: '/storage/trip/1754741902_pulau-padar.jpg'");
+  console.log("Output:", getImageUrl('/storage/trip/1754741902_pulau-padar.jpg'));
+  console.log("Expected: https://api.gongkomodotour.com/storage/trip/1754741902_pulau-padar.jpg");
 
   return (
     <div>
