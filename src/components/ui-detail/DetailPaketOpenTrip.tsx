@@ -108,14 +108,34 @@ interface DetailPaketOpenTripProps {
 const DetailPaketOpenTrip: React.FC<DetailPaketOpenTripProps> = ({ data }) => {
   const searchParams = useSearchParams();
   const mainImage =
-    searchParams.get("mainImage") || data.mainImage || "/img/default-image.png"; // Pastikan fallback default tetap ada
+    searchParams.get("mainImage") || data.mainImage || "/img/default-trip.jpg"; // Pastikan fallback default tetap ada
   const [activeTab, setActiveTab] = useState("itinerary");
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [selectedDurationId, setSelectedDurationId] = useState<number>(
     data.itinerary[0]?.durationId || 0
   );
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [imageErrors, setImageErrors] = useState<Set<string>>(new Set());
   const router = useRouter();
+
+  // Debug: Log data gambar
+  console.log("DetailPaketOpenTrip - Data:", data);
+  console.log("DetailPaketOpenTrip - MainImage:", mainImage);
+  console.log("DetailPaketOpenTrip - Images array:", data.images);
+
+  // Function untuk handle image error
+  const handleImageError = (imageSrc: string) => {
+    console.error("Image failed to load:", imageSrc);
+    setImageErrors(prev => new Set(prev).add(imageSrc));
+  };
+
+  // Function untuk get safe image source
+  const getSafeImageSrc = (imageSrc: string, fallback: string = "/img/default-trip.jpg") => {
+    if (imageErrors.has(imageSrc)) {
+      return fallback;
+    }
+    return imageSrc;
+  };
 
   // Disabled date berdasarkan hari operasional paket
   const allowedDaysSet = new Set(
@@ -157,11 +177,14 @@ const DetailPaketOpenTrip: React.FC<DetailPaketOpenTripProps> = ({ data }) => {
                 onClick={() => setSelectedImage(mainImage)}
               >
                 <Image
-                  src={mainImage}
+                  src={getSafeImageSrc(mainImage)}
                   alt={data.title || "Default Image"}
                   fill
                   quality={100}
                   className="rounded-sm object-cover transition-transform duration-300 group-hover:scale-105"
+                  unoptimized={true}
+                  onError={() => handleImageError(mainImage)}
+                  onLoad={() => console.log("Main image loaded successfully:", mainImage)}
                 />
                 <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
               </div>
@@ -178,12 +201,15 @@ const DetailPaketOpenTrip: React.FC<DetailPaketOpenTripProps> = ({ data }) => {
                     className="relative"
                   >
                     <Image
-                      src={selectedImage}
+                      src={getSafeImageSrc(selectedImage)}
                       alt="Selected Image"
                       width={1200}
                       height={800}
                       quality={100}
                       className="rounded-lg"
+                      unoptimized={true}
+                      onError={() => selectedImage && handleImageError(selectedImage)}
+                      onLoad={() => console.log("Selected image loaded successfully:", selectedImage)}
                     />
                     <button
                       onClick={() => setSelectedImage(null)}
@@ -223,11 +249,14 @@ const DetailPaketOpenTrip: React.FC<DetailPaketOpenTripProps> = ({ data }) => {
                     onClick={() => setSelectedImage(image)}
                   >
                     <Image
-                      src={image}
+                      src={getSafeImageSrc(image)}
                       alt={`${data.title} ${index + 1}`}
                       fill
                       quality={100}
                       className="rounded-sm object-cover transition-transform duration-300 group-hover:scale-105"
+                      unoptimized={true}
+                      onError={() => handleImageError(image)}
+                      onLoad={() => console.log(`Small image ${index + 1} loaded successfully:`, image)}
                     />
                     <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                   </div>
@@ -244,7 +273,7 @@ const DetailPaketOpenTrip: React.FC<DetailPaketOpenTripProps> = ({ data }) => {
                         className="relative"
                       >
                         <Image
-                          src={selectedImage}
+                          src={getSafeImageSrc(selectedImage)}
                           alt="Selected Image"
                           width={1200}
                           height={800}
@@ -282,11 +311,14 @@ const DetailPaketOpenTrip: React.FC<DetailPaketOpenTripProps> = ({ data }) => {
               <DialogTrigger asChild>
                 <div className="relative h-[196px] md:h-[221px] w-full flex items-center justify-center rounded-sm cursor-pointer">
                   <Image
-                    src={data.images[4] || "/img/default-image.png"}
+                    src={getSafeImageSrc(data.images[4] || "/img/default-trip.jpg")}
                     alt="More Info Background"
                     fill
                     quality={100}
                     className="rounded-sm object-cover"
+                    unoptimized={true}
+                    onError={() => data.images[4] && handleImageError(data.images[4])}
+                    onLoad={() => console.log("Gallery image 4 loaded successfully:", data.images[4])}
                   />
                   <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
                     <p className="text-white font-semibold">More Info</p>
@@ -301,12 +333,15 @@ const DetailPaketOpenTrip: React.FC<DetailPaketOpenTripProps> = ({ data }) => {
                       key={index}
                       className="relative h-[150px] w-[150px] md:h-[200px] md:w-[200px]"
                     >
-                      <Image
-                        src={image || "/img/default-image.png"}
+                                              <Image
+                          src={getSafeImageSrc(image || "/img/default-trip.jpg")}
                         alt={`${data.title || "Default Image"} ${index + 4}`}
                         fill
                         quality={100}
                         className="rounded-sm object-cover"
+                        unoptimized={true}
+                        onError={() => handleImageError(image)}
+                        onLoad={() => console.log(`Gallery image ${index + 4} loaded successfully:`, image)}
                       />
                     </div>
                   ))}
@@ -793,11 +828,13 @@ const DetailPaketOpenTrip: React.FC<DetailPaketOpenTripProps> = ({ data }) => {
                       {/* Gambar Boat */}
                       <div className="relative h-[300px] w-full">
                         <Image
-                          src={boat.image}
+                          src={getSafeImageSrc(boat.image)}
                           alt={boat.title}
-                          layout="fill"
-                          objectFit="cover"
-                          className="rounded-lg transition-transform duration-300 group-hover:scale-110"
+                          fill
+                          className="rounded-lg transition-transform duration-300 group-hover:scale-110 object-cover"
+                          unoptimized={true}
+                          onError={() => handleImageError(boat.image)}
+                          onLoad={() => console.log("Boat image loaded successfully:", boat.image)}
                         />
                       </div>
                       {/* Overlay dengan Judul */}
