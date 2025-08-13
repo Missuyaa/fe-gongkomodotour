@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { apiRequest } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -34,22 +35,18 @@ export default function CarouselAdmin() {
   const fetchCarouselImages = async () => {
     try {
       setIsLoading(true);
-      const response = await fetch("/api/carousel");
-      if (response.ok) {
-        const data = await response.json();
-        setImages(data);
-      } else {
-        setMessage({
-          text: "Failed to fetch carousel images",
-          type: "error"
-        });
-      }
+      const response = await apiRequest<{ data: string[] }>(
+        'GET',
+        '/api/carousels'
+      );
+      setImages(response.data || []);
+      setMessage(null);
     } catch (error) {
-      console.error("Error fetching images:", error);
       setMessage({
-        text: "An unexpected error occurred",
-        type: "error"
+        text: 'Gagal mengambil data carousel',
+        type: 'error'
       });
+      console.error('Error fetching carousel:', error);
     } finally {
       setIsLoading(false);
     }
@@ -60,34 +57,20 @@ export default function CarouselAdmin() {
 
     try {
       setIsUploading(true);
-      const response = await fetch("/api/carousel", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ imageUrl: newImageUrl }),
-      });
-
-      if (response.ok) {
-        setNewImageUrl("");
-        setMessage({
-          text: "Gambar berhasil ditambahkan ke carousel",
-          type: "success"
-        });
-        setIsAddDialogOpen(false);
-        fetchCarouselImages();
-      } else {
-        setMessage({
-          text: "Gagal menambahkan gambar ke carousel",
-          type: "error"
-        });
-      }
-    } catch (error) {
-      console.error("Error adding image:", error);
+      await apiRequest('POST', '/api/carousels', { imageUrl: newImageUrl });
+      setNewImageUrl("");
       setMessage({
-        text: "Terjadi kesalahan tidak terduga",
+        text: "Gambar berhasil ditambahkan ke carousel",
+        type: "success"
+      });
+      setIsAddDialogOpen(false);
+      fetchCarouselImages();
+    } catch (error) {
+      setMessage({
+        text: "Gagal menambahkan gambar ke carousel",
         type: "error"
       });
+      console.error("Error adding image:", error);
     } finally {
       setIsUploading(false);
     }
@@ -98,41 +81,25 @@ export default function CarouselAdmin() {
 
     try {
       setIsUploading(true);
-      const oldImageUrl = images[editImageIndex];
-      
-      const response = await fetch("/api/carousel/edit", {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ 
-          oldImageUrl,
-          newImageUrl: editImageUrl 
-        }),
+      const oldImageUrl = images[editImageIndex!];
+      await apiRequest('PUT', '/api/carousels/edit', {
+        oldImageUrl,
+        newImageUrl: editImageUrl
       });
-
-      if (response.ok) {
-        const newImages = [...images];
-        newImages[editImageIndex] = editImageUrl;
-        setImages(newImages);
-        
-        setMessage({
-          text: "Gambar berhasil diperbarui",
-          type: "success"
-        });
-        setIsEditDialogOpen(false);
-      } else {
-        setMessage({
-          text: "Gagal memperbarui gambar",
-          type: "error"
-        });
-      }
-    } catch (error) {
-      console.error("Error editing image:", error);
+      const newImages = [...images];
+      newImages[editImageIndex!] = editImageUrl;
+      setImages(newImages);
       setMessage({
-        text: "Terjadi kesalahan tidak terduga",
+        text: "Gambar berhasil diperbarui",
+        type: "success"
+      });
+      setIsEditDialogOpen(false);
+    } catch (error) {
+      setMessage({
+        text: "Gagal memperbarui gambar",
         type: "error"
       });
+      console.error("Error editing image:", error);
     } finally {
       setIsUploading(false);
       setEditImageIndex(null);
@@ -142,32 +109,18 @@ export default function CarouselAdmin() {
 
   const removeImage = async (imageUrl: string) => {
     try {
-      const response = await fetch("/api/carousel", {
-        method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ imageUrl }),
-      });
-
-      if (response.ok) {
-        setImages(images.filter((img) => img !== imageUrl));
-        setMessage({
-          text: "Gambar berhasil dihapus dari carousel",
-          type: "success"
-        });
-      } else {
-        setMessage({
-          text: "Gagal menghapus gambar dari carousel",
-          type: "error"
-        });
-      }
-    } catch (error) {
-      console.error("Error removing image:", error);
+      await apiRequest('DELETE', '/api/carousels', { imageUrl });
+      setImages(images.filter((img) => img !== imageUrl));
       setMessage({
-        text: "Terjadi kesalahan tidak terduga",
+        text: "Gambar berhasil dihapus dari carousel",
+        type: "success"
+      });
+    } catch (error) {
+      setMessage({
+        text: "Gagal menghapus gambar dari carousel",
         type: "error"
       });
+      console.error("Error removing image:", error);
     }
   };
   
@@ -225,7 +178,7 @@ export default function CarouselAdmin() {
             <Card key={index} className="overflow-hidden">
               <div className="relative aspect-video">
                 <Image
-                  src={image}
+                  src={typeof image === 'string' ? image : image.link || ''}
                   alt={`Carousel image ${index + 1}`}
                   fill
                   className="object-cover"
@@ -234,7 +187,9 @@ export default function CarouselAdmin() {
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <span className="text-sm truncate max-w-[200px]">
-                    {image.split("/").pop()}
+                    {typeof image === 'string'
+                      ? image.split("/").pop()
+                      : image.title || image.link || 'Gambar'}
                   </span>
                   <div className="flex gap-2">
                     <Button
@@ -247,7 +202,7 @@ export default function CarouselAdmin() {
                     <Button
                       variant="destructive"
                       size="sm"
-                      onClick={() => removeImage(image)}
+                      onClick={() => removeImage(typeof image === 'string' ? image : image.link)}
                     >
                       <Trash2 size={16} />
                     </Button>

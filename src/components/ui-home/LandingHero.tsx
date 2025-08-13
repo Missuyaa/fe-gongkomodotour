@@ -43,13 +43,8 @@ const customStyles = `
 export default function LandingHero() {
   const { t } = useLanguage();
   
-  // State untuk menyimpan data carousel dari API
-  const [slides, setSlides] = React.useState<string[]>([
-    "/img/landingpage/hero-slide1.png", // Default images if API fails
-    "/img/boat/bg-luxury.jpg",
-    "/img/boat/luxury_phinisi.jpg",
-    "/img/landingpage/hero-slide2.png",
-  ]);
+  // State untuk menyimpan data carousels dari API
+  const [slides, setSlides] = React.useState<string[]>([]); // Awalnya kosong
   
   // State untuk loading
   const [isLoading, setIsLoading] = React.useState(true);
@@ -58,7 +53,7 @@ export default function LandingHero() {
   React.useEffect(() => {
     const fetchCarouselImages = async () => {
       try {
-        const response = await fetch('/api/carousel');
+        const response = await fetch('/api/carousels');
         if (response.ok) {
           const data = await response.json();
           if (data && data.length > 0) {
@@ -66,7 +61,7 @@ export default function LandingHero() {
           }
         }
       } catch (error) {
-        console.error("Failed to fetch carousel images:", error);
+        console.error("Failed to fetch carousels images:", error);
       } finally {
         setIsLoading(false);
       }
@@ -98,85 +93,95 @@ export default function LandingHero() {
   return (
     <section className="relative h-[80vh] w-screen">
       <style>{customStyles}</style>
-      <Swiper
-        modules={[Autoplay, Pagination, Navigation, EffectFade]}
-        spaceBetween={0}
-        slidesPerView={1}
-        effect="fade"
-        autoplay={{
-          delay: 5000,
-          disableOnInteraction: false,
-        }}
-        pagination={{ clickable: true }}
-        navigation
-        className="h-full w-full"
-      >
-        {slides.map((slide, index) => (
-          <SwiperSlide key={index}>
-            <div
-              className="h-full w-full bg-cover bg-center flex items-center justify-start px-50"
-              style={{ backgroundImage: `url(${slide})` }}
-            >
-              <motion.div 
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 1 }}
-                className="absolute inset-0 bg-black/20"
-              />
-              <motion.div 
-                variants={staggerContainer}
-                initial="initial"
-                animate="animate"
-                className="relative z-10 px-4 flex flex-col items-start gap-2"
+      {isLoading ? (
+        <div className="flex items-center justify-center h-full">
+          <span>Memuat carousel...</span>
+        </div>
+      ) : slides.length === 0 ? (
+        <div className="flex items-center justify-center h-full">
+          <span>Tidak ada gambar carousel tersedia.</span>
+        </div>
+      ) : (
+        <Swiper
+          modules={[Autoplay, Pagination, Navigation, EffectFade]}
+          spaceBetween={0}
+          slidesPerView={1}
+          effect="fade"
+          autoplay={{
+            delay: 5000,
+            disableOnInteraction: false,
+          }}
+          pagination={{ clickable: true }}
+          navigation
+          className="h-full w-full"
+        >
+          {slides.map((slide, index) => (
+            <SwiperSlide key={index}>
+              <div
+                className="h-full w-full bg-cover bg-center flex items-center justify-start px-50"
+                style={{ backgroundImage: `url(${slide})` }}
               >
-                {/* Baris pertama: GONG KOMODO */}
-                <motion.h1
-                  variants={fadeInUp}
-                  className="text-white uppercase font-bold text-center"
-                  style={{
-                    fontSize: "clamp(3rem, 4vw, 2.5rem)",
-                    lineHeight: "1",
-                  }}
-                >
-                  GONG KOMODO
-                </motion.h1>
-                {/* Baris kedua: TOUR dan tombol */}
                 <motion.div 
-                  variants={fadeInUp}
-                  className="flex items-center gap-6"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 1 }}
+                  className="absolute inset-0 bg-black/20"
+                />
+                <motion.div 
+                  variants={staggerContainer}
+                  initial="initial"
+                  animate="animate"
+                  className="relative z-10 px-4 flex flex-col items-start gap-2"
                 >
+                  {/* Baris pertama: GONG KOMODO */}
                   <motion.h1
+                    variants={fadeInUp}
                     className="text-white uppercase font-bold text-center"
                     style={{
-                      fontSize: "clamp(3rem, 4vw, 2.5rem)", // Reduced font size
+                      fontSize: "clamp(3rem, 4vw, 2.5rem)",
                       lineHeight: "1",
                     }}
                   >
-                    TOUR
+                    GONG KOMODO
                   </motion.h1>
-                  <Link href="/paket/open-trip">
-                    <motion.div
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-
+                  {/* Baris kedua: TOUR dan tombol */}
+                  <motion.div 
+                    variants={fadeInUp}
+                    className="flex items-center gap-6"
+                  >
+                    <motion.h1
+                      className="text-white uppercase font-bold text-center"
+                      style={{
+                        fontSize: "clamp(3rem, 4vw, 2.5rem)", // Reduced font size
+                        lineHeight: "1",
+                      }}
                     >
-                      <Button
-                        className="bg-gold text-white hover:bg-gold-dark-10 rounded-full"
-                        style={{
-                          fontSize: "clamp(2rem, 2.75vw, 1.75rem)",
-                          padding: "clamp(2rem, 2.75vw, 1.5rem) clamp(2rem, 4.5vw, 2.75rem)",
-                        }}
+                      TOUR
+                    </motion.h1>
+                    <Link href="/paket/open-trip">
+                      <motion.div
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+
                       >
-                        {t('heroButton')}
-                      </Button>
-                    </motion.div>
-                  </Link>
+                        <Button
+                          className="bg-gold text-white hover:bg-gold-dark-10 rounded-full"
+                          style={{
+                            fontSize: "clamp(2rem, 2.75vw, 1.75rem)",
+                            padding: "clamp(2rem, 2.75vw, 1.5rem) clamp(2rem, 4.5vw, 2.75rem)",
+                          }}
+                        >
+                          {t('heroButton')}
+                        </Button>
+                      </motion.div>
+                    </Link>
+                  </motion.div>
                 </motion.div>
-              </motion.div>
-            </div>
-          </SwiperSlide>
-        ))}
-      </Swiper>
+              </div>
+            </SwiperSlide>
+          ))}
+        </Swiper>
+      )}
     </section>
   );
 }
