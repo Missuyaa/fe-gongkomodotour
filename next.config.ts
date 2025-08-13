@@ -18,9 +18,24 @@ const nextConfig: NextConfig = {
         protocol: 'https',
         hostname: 'lh3.googleusercontent.com',
         pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'picsum.photos',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'images.unsplash.com',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'via.placeholder.com',
+        pathname: '/**',
       }
     ],
-    domains: ['localhost', 'lh3.googleusercontent.com', 'api.gongkomodotour.com'],
+    domains: ['localhost', 'lh3.googleusercontent.com', 'api.gongkomodotour.com', 'picsum.photos', 'images.unsplash.com', 'via.placeholder.com'],
     dangerouslyAllowSVG: true,
     contentDispositionType: 'attachment',
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
