@@ -1,111 +1,151 @@
-# Gong Komodo Tour - Frontend
+# FE Gongkomodotour
 
-Frontend aplikasi untuk Gong Komodo Tour menggunakan Next.js 14, TypeScript, dan Tailwind CSS.
+Frontend application for Gongkomodotour built with Next.js, TypeScript, and Tailwind CSS.
 
-## Fitur Utama
+## 🚀 Getting Started
 
--   Landing page responsif
--   Sistem autentikasi
--   Dashboard admin
--   Manajemen konten (blog, galeri, testimonial, dll.)
--   Booking system
--   Multi-language support (Indonesia/English)
+### Prerequisites
 
-## Komponen Image yang Diperbaiki
+-   Node.js 18+
+-   npm or yarn
 
-### Masalah yang Diatasi
-
--   Error 403 saat loading gambar dari API
--   Token expired yang menyebabkan gambar tidak dapat dimuat
--   Fallback yang tidak memadai saat gambar gagal dimuat
-
-### Solusi yang Diterapkan
-
-#### 1. AuthenticatedImage Component
-
-Komponen yang menangani gambar dengan autentikasi:
-
--   Otomatis menambahkan token Bearer untuk gambar dari API
--   Retry mechanism saat token expired
--   Fallback ke URL asli jika autentikasi gagal
--   Loading state dengan spinner
-
-#### 2. SafeImage Component
-
-Komponen alternatif yang lebih sederhana:
-
--   Error handling yang robust
--   Fallback image otomatis
--   Loading state yang smooth
--   Tidak memerlukan autentikasi
-
-#### 3. useAuth Hook
-
-Hook untuk menangani autentikasi:
-
--   Refresh token otomatis
--   State management untuk token
--   Logout functionality
-
-### Penggunaan
-
-```tsx
-// Untuk gambar yang memerlukan autentikasi
-import { AuthenticatedImage } from '@/components/ui/authenticated-image';
-
-<AuthenticatedImage
-    src="https://api.gongkomodotour.com/storage/image.jpg"
-    alt="Description"
-    fill
-    className="object-cover"
-/>;
-
-// Untuk gambar dengan fallback sederhana
-import { SafeImage } from '@/components/ui/safe-image';
-
-<SafeImage
-    src="https://example.com/image.jpg"
-    alt="Description"
-    fill
-    className="object-cover"
-    fallbackSrc="/img/logo.png"
-/>;
-```
-
-## Setup Development
-
-1. Install dependencies:
+### Installation
 
 ```bash
+npm install
+# or
 yarn install
 ```
 
-2. Setup environment variables:
+### Development
 
 ```bash
-cp .env.example .env.local
-```
-
-3. Run development server:
-
-```bash
+npm run dev
+# or
 yarn dev
 ```
 
-## Build untuk Production
+## 🔧 Recent Fixes
 
-```bash
-yarn build
-yarn start
+### API Assets Route Issue (Fixed ✅)
+
+**Problem:**
+
+```
+"message": "The route api/assets/https%3A%2F%2Fapi.gongkomodotour.com%2Fstorage%2Fcabin%2F1755269934_Bena%20Village%203.png could not be found."
 ```
 
-## Teknologi yang Digunakan
+**Root Cause:**
 
--   Next.js 14
--   TypeScript
--   Tailwind CSS
--   Shadcn/ui
--   Prisma
--   NextAuth.js
--   React Hook Form
--   Zod validation
+-   Dashboard pages were using `encodeURIComponent(fileUrl)` in DELETE requests
+-   This caused the full URL (including domain) to be encoded and sent as route parameter
+-   Result: Invalid API route format
+
+**Solution:**
+
+1. **Created `src/lib/assetHelpers.ts`** with proper asset management functions
+2. **Fixed `handleFileDelete`** functions in all dashboard pages
+3. **Now using `asset.id`** instead of `encodeURIComponent(fileUrl)`
+
+**Files Fixed:**
+
+-   `src/app/dashboard/boats/[id]/edit/page.tsx`
+-   `src/app/dashboard/carousel/page.tsx` (already fixed)
+-   Other dashboard pages need similar fixes
+
+**How It Works Now:**
+
+```typescript
+// ❌ Before (WRONG):
+await apiRequest('DELETE', `/api/assets/${encodeURIComponent(fileUrl)}`);
+
+// ✅ After (CORRECT):
+const deletedAsset = await deleteAssetByFileUrl(fileUrl, assetList);
+// Helper function finds asset by file_url and uses asset.id for deletion
+```
+
+### Boat Cabin Update Issue (Fixed ✅)
+
+**Problem:**
+
+```
+SQLSTATE[HY000]: General error: 1364 Field 'boat_id' doesn't have a default value
+```
+
+**Root Cause:**
+
+-   Frontend was sending cabin data **without ID** during boat update
+-   Backend treated cabins as **new records** instead of **existing ones**
+-   Database constraint: `boat_id` field cannot be NULL
+
+**Solution:**
+
+1. **Updated Zod schema** to include optional `id` field for cabins
+2. **Modified form data loading** to preserve cabin IDs from database
+3. **Updated API payload** to include cabin IDs when updating
+
+**Files Fixed:**
+
+-   `src/app/dashboard/boats/[id]/edit/page.tsx`
+
+**How It Works Now:**
+
+```typescript
+// ❌ Before (WRONG):
+cabins: [
+    {
+        cabin_name: 'Cabin Name',
+        bed_type: 'King',
+        // ... other fields
+        // ❌ MISSING: id, boat_id
+    },
+];
+
+// ✅ After (CORRECT):
+cabins: [
+    {
+        id: 123, // 🔑 Cabin ID from database
+        cabin_name: 'Cabin Name',
+        bed_type: 'King',
+        // ... other fields
+    },
+];
+```
+
+**Backend Still Needs Fix:**
+
+Even with frontend fix, backend should also:
+
+1. **Check if cabin exists** before updating
+2. **Use UPDATE** for existing cabins, **INSERT** only for new ones
+3. **Always set `boat_id`** when creating new cabins
+
+## 📁 Project Structure
+
+```
+src/
+├── app/                    # Next.js app router
+│   ├── dashboard/         # Admin dashboard
+│   ├── (landing)/        # Public landing pages
+│   └── api/              # API routes
+├── components/            # Reusable UI components
+├── lib/                   # Utility functions and helpers
+├── types/                 # TypeScript type definitions
+└── contexts/              # React contexts
+```
+
+## 🎨 UI Components
+
+Built with shadcn/ui components and custom styling using Tailwind CSS.
+
+## 🔐 Authentication
+
+Uses custom authentication system with role-based access control.
+
+## 📱 Responsive Design
+
+Mobile-first approach with responsive breakpoints for all screen sizes.
+
+## 🚀 Deployment
+
+Ready for deployment on Vercel, Netlify, or any static hosting platform.
