@@ -35,7 +35,7 @@ const nextConfig: NextConfig = {
         pathname: '/**',
       }
     ],
-    domains: ['localhost', 'lh3.googleusercontent.com', 'api.gongkomodotour.com', 'picsum.photos', 'images.unsplash.com', 'via.placeholder.com'],
+    domains: ['localhost', 'lh3.googleusercontent.com', 'api.gongkomodotour.com', 'picsum.photos', 'images.unsplash.com', 'via.placeholder.com', 'source.unsplash.com'],
     dangerouslyAllowSVG: true,
     contentDispositionType: 'attachment',
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",

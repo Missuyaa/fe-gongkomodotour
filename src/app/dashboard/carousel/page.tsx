@@ -51,7 +51,14 @@ interface CarouselItem {
 export default function CarouselAdmin() {
   const [carouselItems, setCarouselItems] = useState<CarouselItem[]>([]);
   const [newImageUrl, setNewImageUrl] = useState("");
+  const [newImageFile, setNewImageFile] = useState<File | null>(null);
+  const [newTitle, setNewTitle] = useState("");
+  const [newOrderNum, setNewOrderNum] = useState("");
+  const [newIsActive, setNewIsActive] = useState("1");
   const [editImageUrl, setEditImageUrl] = useState("");
+  const [editTitle, setEditTitle] = useState("");
+  const [editOrderNum, setEditOrderNum] = useState("");
+  const [editIsActive, setEditIsActive] = useState("1");
   const [editImageIndex, setEditImageIndex] = useState<number | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -85,13 +92,74 @@ export default function CarouselAdmin() {
     }
   };
 
-  const addImage = async () => {
-    if (!newImageUrl) return;
 
+  const addImage = async () => {
+    if ((!newImageUrl && !newImageFile) || !newTitle || !newOrderNum || !newIsActive) {
+      setMessage({
+        text: "Semua field wajib diisi",
+        type: "error"
+      });
+      return;
+    }
     try {
       setIsUploading(true);
-      await apiRequest('POST', '/api/carousels', { imageUrl: newImageUrl });
+      let carouselId = null;
+      // 1. Submit data utama carousel (tanpa gambar)
+      const carouselPayload = {
+        title: newTitle,
+        order_num: parseInt(newOrderNum),
+        is_active: newIsActive === '1',
+      };
+      const response = await apiRequest('POST', '/api/carousels', carouselPayload);
+      // Ambil id dari response (pastikan backend mengembalikan id)
+
+      carouselId = (response as any)?.data?.id ?? null;
+      if (!carouselId) throw new Error('Gagal mendapatkan ID carousel');
+
+      // 2. Upload gambar jika ada file
+      if (newImageFile) {
+        const formData = new FormData();
+        formData.append('model_type', 'carousel');
+        formData.append('model_id', carouselId.toString());
+        formData.append('is_external', '0');
+        formData.append('files[]', newImageFile);
+        formData.append('file_titles[]', newTitle);
+        formData.append('file_descriptions[]', '');
+        try {
+          await apiRequest('POST', '/api/assets/multiple', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+          });
+        } catch (assetErr: any) {
+          // Coba ambil pesan error detail dari response backend
+          let errorMsg = assetErr?.message || '';
+          if (assetErr?.response?.data) {
+            errorMsg += '\n' + JSON.stringify(assetErr.response.data);
+          }
+          console.error('Error upload asset:', assetErr);
+          setMessage({
+            text: 'Gagal upload gambar ke assets: ' + errorMsg,
+            type: 'error'
+          });
+          return;
+        }
+      } else if (newImageUrl) {
+        // Jika hanya URL, update carousel dengan assets eksternal
+        await apiRequest('PUT', `/api/carousels/${carouselId}`, {
+          assets: [
+            {
+              file_url: newImageUrl,
+              title: newTitle,
+              is_external: true,
+            }
+          ]
+        });
+      }
+
       setNewImageUrl("");
+      setNewImageFile(null);
+      setNewTitle("");
+      setNewOrderNum("");
+      setNewIsActive("1");
       setMessage({
         text: "Gambar berhasil ditambahkan ke carousel",
         type: "success"
@@ -108,36 +176,50 @@ export default function CarouselAdmin() {
       setIsUploading(false);
     }
   };
+  // Handle file input change
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setNewImageFile(file);
+      setNewImageUrl(URL.createObjectURL(file)); // Tampilkan preview lokal
+    }
+  };
 
   const editImage = async () => {
-    if (!editImageUrl || editImageIndex === null) return;
-
+    if (
+      editImageIndex === null ||
+      !editImageUrl ||
+      !editTitle ||
+      !editOrderNum ||
+      !editIsActive
+    ) {
+      setMessage({
+        text: "Semua field wajib diisi",
+        type: "error"
+      });
+      return;
+    }
     try {
       setIsUploading(true);
       const currentItem = carouselItems[editImageIndex!];
-      if (!currentItem.primary_image) {
-        throw new Error('Item tidak memiliki primary image');
-      }
-      
-      const oldImageUrl = currentItem.primary_image.file_url;
-      await apiRequest('PUT', '/api/carousels/edit', {
-        oldImageUrl,
-        newImageUrl: editImageUrl
+      await apiRequest('PUT', `/api/carousels/${currentItem.id}`, {
+        title: editTitle,
+        order_num: parseInt(editOrderNum),
+        is_active: editIsActive === '1',
+        assets: [
+          {
+            file_url: editImageUrl,
+            title: editTitle,
+            is_external: true,
+          }
+        ]
       });
-      const newCarouselItems = [...carouselItems];
-      newCarouselItems[editImageIndex!] = {
-        ...currentItem,
-        primary_image: {
-          ...currentItem.primary_image,
-          file_url: editImageUrl
-        }
-      };
-      setCarouselItems(newCarouselItems);
       setMessage({
         text: "Gambar berhasil diperbarui",
         type: "success"
       });
       setIsEditDialogOpen(false);
+      fetchCarouselImages();
     } catch (error) {
       setMessage({
         text: "Gagal memperbarui gambar",
@@ -148,16 +230,15 @@ export default function CarouselAdmin() {
       setIsUploading(false);
       setEditImageIndex(null);
       setEditImageUrl("");
+      setEditTitle("");
+      setEditOrderNum("");
+      setEditIsActive("1");
     }
   };
 
   const removeImage = async (carouselItem: CarouselItem) => {
     try {
-      if (!carouselItem.primary_image) {
-        throw new Error('Item tidak memiliki primary image');
-      }
-      
-      await apiRequest('DELETE', '/api/carousels', { imageUrl: carouselItem.primary_image.file_url });
+      await apiRequest('DELETE', `/api/carousels/${carouselItem.id}`);
       setCarouselItems(carouselItems.filter((item) => item.id !== carouselItem.id));
       setMessage({
         text: "Gambar berhasil dihapus dari carousel",
@@ -180,25 +261,16 @@ export default function CarouselAdmin() {
       });
       return;
     }
-    
     setEditImageUrl(carouselItem.primary_image.file_url);
+    setEditTitle(carouselItem.title);
+    setEditOrderNum(carouselItem.order_num);
+    setEditIsActive(carouselItem.is_active);
     setEditImageIndex(index);
     setIsEditDialogOpen(true);
   };
   
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      // Untuk demo, gunakan URL.createObjectURL
-      // Pada implementasi sebenarnya, Anda akan upload file ke server/storage
-      const tempUrl = URL.createObjectURL(file);
-      if (isEditDialogOpen && editImageIndex !== null) {
-        setEditImageUrl(tempUrl);
-      } else {
-        setNewImageUrl(tempUrl);
-      }
-    }
-  };
+  // Tidak perlu handle file upload, hanya gunakan URL gambar
+  // Jika ingin preview, user bisa paste URL gambar
 
   return (
     <div className="container mx-auto py-10">
@@ -314,38 +386,58 @@ export default function CarouselAdmin() {
           <DialogHeader>
             <DialogTitle>Tambah Gambar Carousel Baru</DialogTitle>
             <DialogDescription>
-              Masukkan URL gambar atau unggah file gambar untuk ditambahkan ke carousel.
+              Masukkan data gambar carousel.
             </DialogDescription>
           </DialogHeader>
-          
           <div className="grid gap-4 py-4">
-            <div>
-              <Input
-                value={newImageUrl}
-                onChange={(e) => setNewImageUrl(e.target.value)}
-                placeholder="Masukkan URL gambar"
-                className="w-full mb-2"
-              />
-              <p className="text-xs text-muted-foreground mb-4">atau</p>
-              <div className="flex items-center gap-2">
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  onChange={handleFileChange}
-                  accept="image/*"
-                  className="hidden"
-                />
-                <Button 
-                  variant="outline" 
-                  onClick={() => fileInputRef.current?.click()}
-                  className="w-full"
-                >
-                  <Upload className="mr-2 h-4 w-4" />
-                  Unggah Gambar
-                </Button>
-              </div>
+            <Input
+              value={newTitle}
+              onChange={e => setNewTitle(e.target.value)}
+              placeholder="Judul"
+              className="w-full mb-2"
+            />
+            <Input
+              value={newOrderNum}
+              onChange={e => setNewOrderNum(e.target.value)}
+              placeholder="Urutan (order_num)"
+              className="w-full mb-2"
+              type="number"
+            />
+            <div className="mb-2">
+              <label className="mr-2">Status:</label>
+              <select
+                value={newIsActive}
+                onChange={e => setNewIsActive(e.target.value)}
+                className="border rounded px-2 py-1"
+              >
+                <option value="1">Aktif</option>
+                <option value="0">Tidak Aktif</option>
+              </select>
             </div>
-            
+            <Input
+              value={newImageUrl}
+              onChange={e => setNewImageUrl(e.target.value)}
+              placeholder="Masukkan URL gambar"
+              className="w-full mb-2"
+            />
+            <p className="text-xs text-muted-foreground mb-4">atau</p>
+            <div className="flex items-center gap-2">
+              <input
+                type="file"
+                ref={fileInputRef}
+                accept="image/*"
+                className="hidden"
+                onChange={handleFileChange}
+              />
+              <Button
+                variant="outline"
+                onClick={() => fileInputRef.current?.click()}
+                className="w-full"
+              >
+                <Upload className="mr-2 h-4 w-4" />
+                Unggah Gambar
+              </Button>
+            </div>
             {newImageUrl && (
               <div className="relative w-full aspect-video rounded-md overflow-hidden border">
                 <Image
@@ -357,20 +449,22 @@ export default function CarouselAdmin() {
               </div>
             )}
           </div>
-          
           <DialogFooter>
             <Button
               variant="outline"
               onClick={() => {
                 setNewImageUrl("");
+                setNewTitle("");
+                setNewOrderNum("");
+                setNewIsActive("1");
                 setIsAddDialogOpen(false);
               }}
             >
               Batal
             </Button>
-            <Button 
+            <Button
               onClick={addImage}
-              disabled={!newImageUrl || isUploading}
+              disabled={isUploading}
             >
               {isUploading ? "Menambahkan..." : "Tambahkan"}
             </Button>
@@ -384,38 +478,57 @@ export default function CarouselAdmin() {
           <DialogHeader>
             <DialogTitle>Edit Gambar Carousel</DialogTitle>
             <DialogDescription>
-              Ubah URL gambar atau unggah file gambar baru.
+              Ubah data gambar carousel.
             </DialogDescription>
           </DialogHeader>
-          
           <div className="grid gap-4 py-4">
-            <div>
-              <Input
-                value={editImageUrl}
-                onChange={(e) => setEditImageUrl(e.target.value)}
-                placeholder="Masukkan URL gambar baru"
-                className="w-full mb-2"
-              />
-              <p className="text-xs text-muted-foreground mb-4">atau</p>
-              <div className="flex items-center gap-2">
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  onChange={handleFileChange}
-                  accept="image/*"
-                  className="hidden"
-                />
-                <Button 
-                  variant="outline" 
-                  onClick={() => fileInputRef.current?.click()}
-                  className="w-full"
-                >
-                  <Upload className="mr-2 h-4 w-4" />
-                  Unggah Gambar Baru
-                </Button>
-              </div>
+            <Input
+              value={editTitle}
+              onChange={e => setEditTitle(e.target.value)}
+              placeholder="Judul"
+              className="w-full mb-2"
+            />
+            <Input
+              value={editOrderNum}
+              onChange={e => setEditOrderNum(e.target.value)}
+              placeholder="Urutan (order_num)"
+              className="w-full mb-2"
+              type="number"
+            />
+            <div className="mb-2">
+              <label className="mr-2">Status:</label>
+              <select
+                value={editIsActive}
+                onChange={e => setEditIsActive(e.target.value)}
+                className="border rounded px-2 py-1"
+              >
+                <option value="1">Aktif</option>
+                <option value="0">Tidak Aktif</option>
+              </select>
             </div>
-            
+            <Input
+              value={editImageUrl}
+              onChange={e => setEditImageUrl(e.target.value)}
+              placeholder="Masukkan URL gambar baru"
+              className="w-full mb-2"
+            />
+            <p className="text-xs text-muted-foreground mb-4">atau</p>
+            <div className="flex items-center gap-2">
+              <input
+                type="file"
+                ref={fileInputRef}
+                accept="image/*"
+                className="hidden"
+              />
+              <Button
+                variant="outline"
+                onClick={() => fileInputRef.current?.click()}
+                className="w-full"
+              >
+                <Upload className="mr-2 h-4 w-4" />
+                Unggah Gambar Baru
+              </Button>
+            </div>
             {editImageUrl && (
               <div className="relative w-full aspect-video rounded-md overflow-hidden border">
                 <Image
@@ -427,21 +540,23 @@ export default function CarouselAdmin() {
               </div>
             )}
           </div>
-          
           <DialogFooter>
             <Button
               variant="outline"
               onClick={() => {
                 setEditImageUrl("");
+                setEditTitle("");
+                setEditOrderNum("");
+                setEditIsActive("1");
                 setEditImageIndex(null);
                 setIsEditDialogOpen(false);
               }}
             >
               Batal
             </Button>
-            <Button 
+            <Button
               onClick={editImage}
-              disabled={!editImageUrl || isUploading}
+              disabled={isUploading}
             >
               {isUploading ? "Memperbarui..." : "Perbarui"}
             </Button>
