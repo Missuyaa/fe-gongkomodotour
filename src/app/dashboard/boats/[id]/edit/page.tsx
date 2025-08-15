@@ -30,6 +30,7 @@ import { ApiResponse } from "@/types/role"
 import { TipTapEditor } from "@/components/ui/tiptap-editor"
 import { Boat, BoatAsset } from "@/types/boats"
 import { use } from "react"
+import { deleteAssetByFileUrl } from "@/lib/assetHelpers"
 
 const boatSchema = z.object({
   boat_name: z.string().min(1, "Nama kapal harus diisi"),
@@ -38,6 +39,7 @@ const boatSchema = z.object({
   facilities: z.string().min(1, "Fasilitas harus diisi"),
   status: z.enum(["Aktif", "Non Aktif"]),
   cabins: z.array(z.object({
+    id: z.number().optional(), // 🔑 ID cabin (opsional untuk create, required untuk edit)
     cabin_name: z.string().min(1, "Nama kabin harus diisi"),
     bed_type: z.string().min(1, "Tipe bed harus diisi"),
     min_pax: z.coerce.number().min(1, "Minimal pax harus diisi"),
@@ -103,7 +105,7 @@ export default function EditBoatPage({ params }: EditBoatPageProps) {
 
         const boat = response.data
         
-        // Set form values
+        // Set form values dengan cabin ID yang lengkap
         form.reset({
           boat_name: boat.boat_name,
           spesification: boat.spesification,
@@ -111,6 +113,7 @@ export default function EditBoatPage({ params }: EditBoatPageProps) {
           facilities: boat.facilities,
           status: boat.status,
           cabins: boat.cabin.map(cabin => ({
+            id: cabin.id, // 🔑 INI YANG KURANG!
             cabin_name: cabin.cabin_name,
             bed_type: cabin.bed_type,
             min_pax: cabin.min_pax,
@@ -145,20 +148,38 @@ export default function EditBoatPage({ params }: EditBoatPageProps) {
     fetchBoat()
   }, [resolvedParams.id, form, router])
 
+
+
+  // PERBAIKAN: Fungsi handleFileDelete yang diperbaiki
+  // Sebelumnya: menggunakan encodeURIComponent(fileUrl) yang menyebabkan error route
+  // Sekarang: menggunakan helper function yang mencari asset berdasarkan file_url
   const handleFileDelete = async (fileUrl: string) => {
     try {
-      await apiRequest(
-        'DELETE',
-        `/api/assets/${encodeURIComponent(fileUrl)}`
-      )
+      // Cari asset berdasarkan file_url di boat assets
+      let deletedAsset = await deleteAssetByFileUrl(fileUrl, existingBoatAssets)
+      
+      // Jika tidak ditemukan di boat assets, cek di cabin assets
+      if (!deletedAsset) {
+        for (const cabinIndex in existingCabinAssets) {
+          const cabinAssets = existingCabinAssets[Number(cabinIndex)]
+          deletedAsset = await deleteAssetByFileUrl(fileUrl, cabinAssets)
+          if (deletedAsset) break
+        }
+      }
+      
+      if (!deletedAsset) {
+        toast.error("Asset tidak ditemukan")
+        return
+      }
+      
       toast.success("File berhasil dihapus")
       
       // Update existing assets lists
-      setExistingBoatAssets(prev => prev.filter(asset => asset.file_url !== fileUrl))
+      setExistingBoatAssets(prev => prev.filter(existingAsset => existingAsset.id !== deletedAsset!.id))
       const updatedCabinAssets = { ...existingCabinAssets }
       Object.keys(updatedCabinAssets).forEach(index => {
         updatedCabinAssets[Number(index)] = updatedCabinAssets[Number(index)].filter(
-          asset => asset.file_url !== fileUrl
+          existingAsset => existingAsset.id !== deletedAsset!.id
         )
       })
       setExistingCabinAssets(updatedCabinAssets)
@@ -172,7 +193,7 @@ export default function EditBoatPage({ params }: EditBoatPageProps) {
     try {
       setIsSubmitting(true)
       
-      // Update boat data
+      // Update boat data dengan cabin ID yang lengkap
       const boatData = {
         boat_name: values.boat_name,
         spesification: values.spesification,
@@ -180,6 +201,7 @@ export default function EditBoatPage({ params }: EditBoatPageProps) {
         facilities: values.facilities,
         status: values.status,
         cabins: values.cabins.map(cabin => ({
+          id: cabin.id, // 🔑 INI YANG KURANG!
           cabin_name: cabin.cabin_name,
           bed_type: cabin.bed_type,
           min_pax: cabin.min_pax,
@@ -189,6 +211,11 @@ export default function EditBoatPage({ params }: EditBoatPageProps) {
           status: cabin.status
         }))
       }
+
+      // Debug: Log data yang akan dikirim
+      console.log('🚢 Data boat yang akan dikirim:', boatData)
+      console.log('🔑 Boat ID:', resolvedParams.id)
+      console.log('🏠 Cabins dengan ID:', boatData.cabins.map(c => ({ id: c.id, name: c.cabin_name })))
 
       const response = await apiRequest<ApiResponse<{ id: number, cabin: Array<{ id: number }> }>>(
         'PUT',

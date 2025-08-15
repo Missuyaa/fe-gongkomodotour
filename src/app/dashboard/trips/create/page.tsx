@@ -1515,7 +1515,6 @@ export default function CreateTripPage() {
                                   <SelectContent>
                                     <SelectItem value="Weekday">Weekday</SelectItem>
                                     <SelectItem value="Weekend">Weekend</SelectItem>
-                                    <SelectItem value="null">Tidak Ada</SelectItem>
                                   </SelectContent>
                                 </Select>
                               </FormControl>
