@@ -120,6 +120,43 @@ Even with frontend fix, backend should also:
 2. **Use UPDATE** for existing cabins, **INSERT** only for new ones
 3. **Always set `boat_id`** when creating new cabins
 
+### Additional Fees Day Type Standardization (Fixed ✅)
+
+**Problem:**
+
+-   Inconsistent day type labels between create and edit trips pages
+-   Create page used English labels ("Weekday", "Weekend")
+-   Edit page used Indonesian labels ("Hari Kerja", "Akhir Pekan")
+
+**Solution:**
+
+1. **Standardized day type options** to only 2 types: Weekday and Weekend
+2. **Unified language labels** to Indonesian for consistency
+3. **Removed unnecessary options** to simplify user experience
+
+**Files Fixed:**
+
+-   `src/app/dashboard/trips/create/page.tsx`
+-   `src/app/dashboard/trips/[id]/edit/page.tsx` (already had correct labels)
+
+**How It Works Now:**
+
+```typescript
+// ✅ Consistent across all trip pages:
+day_type: z.enum(["Weekday", "Weekend"])
+
+// UI Labels (Indonesian):
+<SelectItem value="Weekday">Hari Kerja</SelectItem>
+<SelectItem value="Weekend">Akhir Pekan</SelectItem>
+```
+
+**Benefits:**
+
+-   ✅ **Simplified choices** - Only 2 day types instead of multiple options
+-   ✅ **Consistent language** - All pages use Indonesian labels
+-   ✅ **Better UX** - Users don't get confused with too many options
+-   ✅ **Easier maintenance** - Consistent data structure across the system
+
 ## 📁 Project Structure
 
 ```
