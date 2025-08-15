@@ -14,6 +14,39 @@ import "swiper/css/pagination";
 import "swiper/css/navigation";
 import "swiper/css/effect-fade";
 
+// Interface untuk data carousel dari database
+interface CarouselItem {
+  id: number;
+  title: string;
+  description: string;
+  order_num: string;
+  is_active: string;
+  assets: Array<{
+    id: number;
+    title: string;
+    description: string;
+    file_url: string;
+    original_file_url: string;
+    is_external: boolean;
+    file_path: string;
+    created_at: string;
+    updated_at: string;
+  }>;
+  primary_image: {
+    id: number;
+    title: string;
+    description: string;
+    file_url: string;
+    original_file_url: string;
+    is_external: boolean;
+    file_path: string;
+    created_at: string;
+    updated_at: string;
+  };
+  created_at: string;
+  updated_at: string;
+}
+
 // Gaya kustom untuk pagination bullets
 const customStyles = `
   .swiper-pagination-bullet {
@@ -44,7 +77,7 @@ export default function LandingHero() {
   const { t } = useLanguage();
   
   // State untuk menyimpan data carousels dari API
-  const [slides, setSlides] = React.useState<string[]>([]); // Awalnya kosong
+  const [carouselItems, setCarouselItems] = React.useState<CarouselItem[]>([]);
   
   // State untuk loading
   const [isLoading, setIsLoading] = React.useState(true);
@@ -53,11 +86,19 @@ export default function LandingHero() {
   React.useEffect(() => {
     const fetchCarouselImages = async () => {
       try {
-        const response = await fetch('/api/carousels');
+        const response = await fetch('/api/landing-page/carousels');
         if (response.ok) {
           const data = await response.json();
-          if (data && data.length > 0) {
-            setSlides(data);
+          if (data && data.data && data.data.length > 0) {
+            // Filter hanya item yang aktif dan memiliki primary image
+            const activeItems = data.data.filter((item: CarouselItem) => 
+              item.is_active === '1' && item.primary_image
+            );
+            // Sort berdasarkan order_num
+            const sortedItems = activeItems.sort((a: CarouselItem, b: CarouselItem) => 
+              parseInt(a.order_num) - parseInt(b.order_num)
+            );
+            setCarouselItems(sortedItems);
           }
         }
       } catch (error) {
@@ -97,7 +138,7 @@ export default function LandingHero() {
         <div className="flex items-center justify-center h-full">
           <span>Memuat carousel...</span>
         </div>
-      ) : slides.length === 0 ? (
+      ) : carouselItems.length === 0 ? (
         <div className="flex items-center justify-center h-full">
           <span>Tidak ada gambar carousel tersedia.</span>
         </div>
@@ -115,11 +156,13 @@ export default function LandingHero() {
           navigation
           className="h-full w-full"
         >
-          {slides.map((slide, index) => (
-            <SwiperSlide key={index}>
+          {carouselItems.map((carouselItem) => (
+            <SwiperSlide key={carouselItem.id}>
               <div
                 className="h-full w-full bg-cover bg-center flex items-center justify-start px-50"
-                style={{ backgroundImage: `url(${slide})` }}
+                style={{ 
+                  backgroundImage: `url(${carouselItem.primary_image?.file_url || carouselItem.assets?.[0]?.file_url || '/img/default-trip.jpg'})` 
+                }}
               >
                 <motion.div 
                   initial={{ opacity: 0 }}

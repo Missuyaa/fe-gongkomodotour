@@ -16,8 +16,40 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
+interface CarouselItem {
+  id: number;
+  title: string;
+  description: string;
+  order_num: string;
+  is_active: string;
+  assets: Array<{
+    id: number;
+    title: string;
+    description: string;
+    file_url: string;
+    original_file_url: string;
+    is_external: boolean;
+    file_path: string;
+    created_at: string;
+    updated_at: string;
+  }>;
+  primary_image: {
+    id: number;
+    title: string;
+    description: string;
+    file_url: string;
+    original_file_url: string;
+    is_external: boolean;
+    file_path: string;
+    created_at: string;
+    updated_at: string;
+  };
+  created_at: string;
+  updated_at: string;
+}
+
 export default function CarouselAdmin() {
-  const [images, setImages] = useState<string[]>([]);
+  const [carouselItems, setCarouselItems] = useState<CarouselItem[]>([]);
   const [newImageUrl, setNewImageUrl] = useState("");
   const [editImageUrl, setEditImageUrl] = useState("");
   const [editImageIndex, setEditImageIndex] = useState<number | null>(null);
@@ -35,11 +67,12 @@ export default function CarouselAdmin() {
   const fetchCarouselImages = async () => {
     try {
       setIsLoading(true);
-      const response = await apiRequest<{ data: string[] }>(
+      const response = await apiRequest<{ data: CarouselItem[] }>(
         'GET',
         '/api/carousels'
       );
-      setImages(response.data || []);
+      
+      setCarouselItems(response.data || []);
       setMessage(null);
     } catch (error) {
       setMessage({
@@ -81,14 +114,25 @@ export default function CarouselAdmin() {
 
     try {
       setIsUploading(true);
-      const oldImageUrl = images[editImageIndex!];
+      const currentItem = carouselItems[editImageIndex!];
+      if (!currentItem.primary_image) {
+        throw new Error('Item tidak memiliki primary image');
+      }
+      
+      const oldImageUrl = currentItem.primary_image.file_url;
       await apiRequest('PUT', '/api/carousels/edit', {
         oldImageUrl,
         newImageUrl: editImageUrl
       });
-      const newImages = [...images];
-      newImages[editImageIndex!] = editImageUrl;
-      setImages(newImages);
+      const newCarouselItems = [...carouselItems];
+      newCarouselItems[editImageIndex!] = {
+        ...currentItem,
+        primary_image: {
+          ...currentItem.primary_image,
+          file_url: editImageUrl
+        }
+      };
+      setCarouselItems(newCarouselItems);
       setMessage({
         text: "Gambar berhasil diperbarui",
         type: "success"
@@ -107,10 +151,14 @@ export default function CarouselAdmin() {
     }
   };
 
-  const removeImage = async (imageUrl: string) => {
+  const removeImage = async (carouselItem: CarouselItem) => {
     try {
-      await apiRequest('DELETE', '/api/carousels', { imageUrl });
-      setImages(images.filter((img) => img !== imageUrl));
+      if (!carouselItem.primary_image) {
+        throw new Error('Item tidak memiliki primary image');
+      }
+      
+      await apiRequest('DELETE', '/api/carousels', { imageUrl: carouselItem.primary_image.file_url });
+      setCarouselItems(carouselItems.filter((item) => item.id !== carouselItem.id));
       setMessage({
         text: "Gambar berhasil dihapus dari carousel",
         type: "success"
@@ -124,8 +172,16 @@ export default function CarouselAdmin() {
     }
   };
   
-  const handleEditClick = (imageUrl: string, index: number) => {
-    setEditImageUrl(imageUrl);
+  const handleEditClick = (carouselItem: CarouselItem, index: number) => {
+    if (!carouselItem.primary_image) {
+      setMessage({
+        text: "Item tidak memiliki primary image untuk diedit",
+        type: "error"
+      });
+      return;
+    }
+    
+    setEditImageUrl(carouselItem.primary_image.file_url);
     setEditImageIndex(index);
     setIsEditDialogOpen(true);
   };
@@ -174,47 +230,76 @@ export default function CarouselAdmin() {
         <div className="text-center py-10">Memuat gambar carousel...</div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {images.map((image, index) => (
-            <Card key={index} className="overflow-hidden">
-              <div className="relative aspect-video">
-                <Image
-                  src={typeof image === 'string' ? image : image.link || ''}
-                  alt={`Carousel image ${index + 1}`}
-                  fill
-                  className="object-cover"
-                />
-              </div>
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm truncate max-w-[200px]">
-                    {typeof image === 'string'
-                      ? image.split("/").pop()
-                      : image.title || image.link || 'Gambar'}
-                  </span>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleEditClick(image, index)}
-                    >
-                      <Pencil size={16} />
-                    </Button>
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => removeImage(typeof image === 'string' ? image : image.link)}
-                    >
-                      <Trash2 size={16} />
-                    </Button>
+          {carouselItems.map((carouselItem, index) => (
+            <Card key={carouselItem.id} className="overflow-hidden">
+                              <div className="relative aspect-video">
+                  <Image
+                    src={carouselItem.primary_image?.file_url || carouselItem.assets?.[0]?.file_url || '/img/default-trip.jpg'}
+                    alt={`Carousel image ${index + 1}`}
+                    fill
+                    className="object-cover"
+                  />
+                  <div className="absolute top-2 right-2 bg-black/50 text-white text-xs px-2 py-1 rounded">
+                    {carouselItem.assets?.length || 0} assets
+                  </div>
+                  <div className="absolute bottom-2 left-2 bg-black/50 text-white text-xs px-2 py-1 rounded">
+                    ID: {carouselItem.id}
                   </div>
                 </div>
+              <CardContent className="p-4">
+                                  <div className="space-y-3">
+                    <div>
+                      <h3 className="font-semibold text-sm mb-1 truncate">
+                        {carouselItem.title}
+                      </h3>
+                      <p className="text-xs text-muted-foreground line-clamp-2">
+                        {carouselItem.description}
+                      </p>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <span>Order: {carouselItem.order_num}</span>
+                        <span>|</span>
+                        <span>Status: {carouselItem.is_active === '1' ? 'Active' : 'Inactive'}</span>
+                        <span>|</span>
+                        <span className={carouselItem.primary_image ? 'text-green-600' : 'text-red-600'}>
+                          {carouselItem.primary_image ? 'Has Image' : 'No Image'}
+                        </span>
+                      </div>
+                      
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-muted-foreground">
+                          Assets: {carouselItem.assets?.length || 0} | Primary: {carouselItem.primary_image ? 'Yes' : 'No'}
+                        </span>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleEditClick(carouselItem, index)}
+                            disabled={!carouselItem.primary_image}
+                          >
+                            <Pencil size={16} />
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => removeImage(carouselItem)}
+                            disabled={!carouselItem.primary_image}
+                          >
+                            <Trash2 size={16} />
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
               </CardContent>
             </Card>
           ))}
         </div>
       )}
 
-      {images.length === 0 && !isLoading && (
+      {carouselItems.length === 0 && !isLoading && (
         <div className="text-center py-10 border rounded-lg">
           <p className="text-muted-foreground">Belum ada gambar carousel.</p>
           <p className="text-muted-foreground">
