@@ -212,7 +212,12 @@ export function FileUpload({
                   return (
                     <div key={index} className="p-4 border rounded-lg relative">
                       <button
-                        onClick={() => removeFile(index)}
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          removeFile(index)
+                        }}
                         className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full z-10"
                       >
                         <X className="h-4 w-4" />
@@ -263,7 +268,12 @@ export function FileUpload({
             {urls.map((url, index) => (
               <div key={index} className="space-y-2 p-4 border rounded-lg relative">
                 <button
-                  onClick={() => removeFile(index)}
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    removeFile(index)
+                  }}
                   className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full"
                 >
                   <X className="h-4 w-4" />
@@ -308,7 +318,12 @@ export function FileUpload({
                   />
                   {onDelete && (
                     <button
-                      onClick={() => onDelete(file.file_url)}
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        onDelete(file.file_url)
+                      }}
                       className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
                     >
                       <X className="h-4 w-4" />
