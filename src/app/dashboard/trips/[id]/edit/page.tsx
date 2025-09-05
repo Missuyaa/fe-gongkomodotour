@@ -1830,7 +1830,7 @@ export default function EditTripPage({ params }: { params: Promise<{ id: string 
                     onDelete={handleFileDelete}
                     existingFiles={existingFiles}
                     maxFiles={5}
-                    maxSize={2 * 1024 * 1024} // 2MB
+                    maxSize={10 * 1024 * 1024} // 2MB
                   />
                 </div>
 

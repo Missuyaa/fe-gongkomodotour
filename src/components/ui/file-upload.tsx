@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useState } from "react"
+import { useCallback, useState, useEffect } from "react"
 import { useDropzone } from "react-dropzone"
 import { Upload, X, Link } from "lucide-react"
 import Image from "next/image"
@@ -31,7 +31,7 @@ export function FileUpload({
   onDelete,
   existingFiles = [],
   maxFiles = 5,
-  maxSize = 2 * 1024 * 1024, // 2MB
+  maxSize = 10 * 1024 * 1024, // 10MB
   accept = {
     'image/*': ['.png', '.jpg', '.jpeg', '.gif']
   }
@@ -49,7 +49,19 @@ export function FileUpload({
     description: string
   }>>([])
 
+  // Debug state changes
+  useEffect(() => {
+    console.log('Files state changed:', files.length, files)
+  }, [files])
+
+  useEffect(() => {
+    console.log('URLs state changed:', urls.length, urls)
+  }, [urls])
+
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
+    console.log('Files accepted:', acceptedFiles.length, acceptedFiles)
+    console.log('Current files state:', files.length)
+    
     if (files.length + acceptedFiles.length > maxFiles) {
       toast.error(`Maksimal ${maxFiles} file`)
       return
@@ -62,33 +74,77 @@ export function FileUpload({
       description: ""
     }))
 
-    setFiles(prev => [...prev, ...newFiles])
-    await onUpload(
-      [...files, ...newFiles].map(f => f.file),
-      [...files, ...newFiles].map(f => f.title),
-      [...files, ...newFiles].map(f => f.description)
-    )
+    console.log('New files created:', newFiles)
+    
+    setFiles(prev => {
+      const updated = [...prev, ...newFiles]
+      console.log('Files state updated:', updated.length, updated)
+      return updated
+    })
+    
+    try {
+      // Use the updated files state
+      const allFiles = [...files, ...newFiles]
+      await onUpload(
+        allFiles.map(f => f.file),
+        allFiles.map(f => f.title),
+        allFiles.map(f => f.description)
+      )
+      console.log('Files uploaded successfully')
+    } catch (error) {
+      console.error('Error uploading files:', error)
+      toast.error('Gagal mengupload file')
+    }
   }, [files, maxFiles, onUpload])
+
+  const onDropRejected = useCallback((fileRejections: any[]) => {
+    console.log('Files rejected:', fileRejections)
+    
+    fileRejections.forEach(({ file, errors }) => {
+      errors.forEach((error: any) => {
+        if (error.code === 'file-too-large') {
+          toast.error(`File ${file.name} terlalu besar. Maksimal ${maxSize / (1024 * 1024)}MB`)
+        } else if (error.code === 'file-invalid-type') {
+          toast.error(`File ${file.name} tidak didukung. Gunakan format gambar yang valid`)
+        } else if (error.code === 'too-many-files') {
+          toast.error(`Maksimal ${maxFiles} file`)
+        } else {
+          toast.error(`File ${file.name} ditolak: ${error.message}`)
+        }
+      })
+    })
+  }, [maxFiles, maxSize])
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
+    onDropRejected,
     accept,
     maxSize
   })
 
   const removeFile = (index: number) => {
+    console.log('Removing file at index:', index)
     if (activeTab === "file") {
-      setFiles(prev => prev.filter((_, i) => i !== index))
+      setFiles(prev => {
+        const newFiles = prev.filter((_, i) => i !== index)
+        console.log('Files after removal:', newFiles)
+        return newFiles
+      })
     } else {
       setUrls(prev => prev.filter((_, i) => i !== index))
     }
   }
 
   const updateFileInfo = (index: number, field: 'title' | 'description' | 'url', value: string) => {
+    console.log('Updating file info:', { index, field, value })
     if (activeTab === "file") {
-      setFiles(prev => prev.map((file, i) => 
-        i === index ? { ...file, [field]: value } : file
-      ))
+      setFiles(prev => {
+        const updated = prev.map((file, i) => 
+          i === index ? { ...file, [field]: value } : file
+        )
+        console.log('Files after update:', updated)
+        return updated
+      })
     } else {
       setUrls(prev => prev.map((url, i) => 
         i === index ? { ...url, [field]: value } : url
@@ -147,38 +203,48 @@ export function FileUpload({
 
           {files.length > 0 && (
             <div className="mt-4">
+              <div className="text-sm text-gray-600 mb-2">
+                {files.length} file(s) uploaded
+              </div>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                {files.map((file, index) => (
-                  <div key={index} className="p-4 border rounded-lg relative">
-                    <button
-                      onClick={() => removeFile(index)}
-                      className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full z-10"
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
-                    <div className="space-y-2">
-                      <div className="h-32 w-full relative rounded-lg overflow-hidden">
-                        <Image
-                          src={file.preview}
-                          alt={file.title}
-                          fill
-                          className="object-cover"
+                {files.map((file, index) => {
+                  console.log('Rendering file:', { index, file: file.file.name, preview: file.preview })
+                  return (
+                    <div key={index} className="p-4 border rounded-lg relative">
+                      <button
+                        onClick={() => removeFile(index)}
+                        className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full z-10"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                      <div className="space-y-2">
+                        <div className="h-32 w-full relative rounded-lg overflow-hidden">
+                          <Image
+                            src={file.preview}
+                            alt={file.title}
+                            fill
+                            className="object-cover"
+                            onLoad={() => console.log('Image loaded successfully:', file.file.name)}
+                            onError={(e) => {
+                              console.error('Image failed to load:', file.file.name, file.preview, e)
+                            }}
+                          />
+                        </div>
+                        <Input
+                          placeholder="Judul"
+                          value={file.title}
+                          onChange={(e) => updateFileInfo(index, 'title', e.target.value)}
+                        />
+                        <Textarea
+                          placeholder="Deskripsi (opsional)"
+                          value={file.description}
+                          onChange={(e) => updateFileInfo(index, 'description', e.target.value)}
+                          className="h-20 min-h-0 resize-none"
                         />
                       </div>
-                      <Input
-                        placeholder="Judul"
-                        value={file.title}
-                        onChange={(e) => updateFileInfo(index, 'title', e.target.value)}
-                      />
-                      <Textarea
-                        placeholder="Deskripsi (opsional)"
-                        value={file.description}
-                        onChange={(e) => updateFileInfo(index, 'description', e.target.value)}
-                        className="h-20 min-h-0 resize-none"
-                      />
                     </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             </div>
           )}
