@@ -1072,9 +1072,9 @@ export default function Booking() {
                 className="space-y-2"
               >
                 <p className="text-gray-600">{selectedPackage.daysTrip}</p>
-                <p className="text-2xl font-bold text-gold">
+                {/* <p className="text-2xl font-bold text-gold">
                   IDR {calculateDisplayPricePerPax().toLocaleString('id-ID')}/pax
-                </p>
+                </p> */}
               </motion.div>
 
               <motion.div
