@@ -84,27 +84,63 @@ export default function LandingHero() {
 
   // Fetch carousel data from API when component mounts
   React.useEffect(() => {
-    const fetchCarouselImages = async () => {
+    const fetchCarouselImages = async (retryCount = 0) => {
+      const maxRetries = 3;
+      
       try {
-        const response = await fetch('/api/landing-page/carousels');
-        if (response.ok) {
-          const data = await response.json();
-          if (data && data.data && data.data.length > 0) {
-            // Filter hanya item yang aktif dan memiliki primary image
-            const activeItems = data.data.filter((item: CarouselItem) => 
-              item.is_active === '1' && item.primary_image
-            );
-            // Sort berdasarkan order_num
-            const sortedItems = activeItems.sort((a: CarouselItem, b: CarouselItem) => 
-              parseInt(a.order_num) - parseInt(b.order_num)
-            );
-            setCarouselItems(sortedItems);
-          }
+        setIsLoading(true);
+        const response = await fetch('/api/landing-page/carousels', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          // Tambahkan cache control untuk menghindari masalah caching
+          cache: 'no-cache'
+        });
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        console.log('Carousel API response:', data);
+        
+        if (data && data.data && Array.isArray(data.data) && data.data.length > 0) {
+          // Filter hanya item yang aktif dan memiliki primary image
+          const activeItems = data.data.filter((item: CarouselItem) => 
+            item.is_active === '1' && item.primary_image && item.primary_image.file_url
+          );
+          
+          // Sort berdasarkan order_num
+          const sortedItems = activeItems.sort((a: CarouselItem, b: CarouselItem) => 
+            parseInt(a.order_num) - parseInt(b.order_num)
+          );
+          
+          console.log('Processed carousel items:', sortedItems);
+          setCarouselItems(sortedItems);
+        } else {
+          console.warn('No carousel data available');
+          setCarouselItems([]);
         }
       } catch (error) {
-        console.error("Failed to fetch carousels images:", error);
+        console.error(`Failed to fetch carousels images (attempt ${retryCount + 1}):`, error);
+        
+        // Retry jika belum mencapai max retries
+        if (retryCount < maxRetries) {
+          console.log(`Retrying in ${(retryCount + 1) * 1000}ms...`);
+          setTimeout(() => {
+            fetchCarouselImages(retryCount + 1);
+          }, (retryCount + 1) * 1000);
+          return;
+        }
+        
+        // Set empty array on error
+        console.log('Max retries reached, no carousel data available');
+        setCarouselItems([]);
       } finally {
-        setIsLoading(false);
+        if (retryCount === 0 || retryCount >= maxRetries) {
+          setIsLoading(false);
+        }
       }
     };
 
@@ -139,8 +175,11 @@ export default function LandingHero() {
           <span>Memuat carousel...</span>
         </div>
       ) : carouselItems.length === 0 ? (
-        <div className="flex items-center justify-center h-full">
-          <span>Tidak ada gambar carousel tersedia.</span>
+        <div className="flex items-center justify-center h-full bg-gradient-to-br from-blue-900 to-blue-700">
+          <div className="text-center text-white">
+            <h1 className="text-4xl font-bold mb-4">GONG KOMODO TOUR</h1>
+            <p className="text-xl">Tidak ada gambar carousel tersedia</p>
+          </div>
         </div>
       ) : (
         <Swiper
