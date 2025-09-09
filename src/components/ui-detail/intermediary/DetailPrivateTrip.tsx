@@ -73,6 +73,7 @@ interface PackageData {
   boat_ids?: number[];
   operational_days?: string[];
   tentation?: "Yes" | "No";
+  note?: string; // Tambahkan field note
 }
 
 interface BoatResponse {
@@ -198,6 +199,7 @@ export default function DetailPrivateTrip() {
     daysTrip:
       selectedPackage.trip_durations?.[0]?.duration_label || "Custom Duration",
     description: selectedPackage.note || "Deskripsi belum tersedia",
+    note: selectedPackage.note, // Tambahkan field note ke transformedData
     itinerary:
       selectedPackage.trip_durations?.map((duration) => ({
         durationId: duration.id,

@@ -10,7 +10,6 @@ import {
   FormMessage,
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
 import {
   Select,
   SelectContent,
@@ -46,7 +45,7 @@ const tripSchema = z.object({
   is_highlight: z.enum(["Yes", "No"]),
   include: z.string().min(1, "Include harus diisi"),
   exclude: z.string().min(1, "Exclude harus diisi"),
-  note: z.string().optional(),
+  note: z.string().default(""),
   meeting_point: z.string().min(1, "Meeting point harus diisi"),
   start_time: z.string().min(1, "Waktu mulai harus diisi"),
   end_time: z.string().min(1, "Waktu selesai harus diisi"),
@@ -832,10 +831,10 @@ export default function CreateTripPage() {
                         <FormItem>
                           <FormLabel>Catatan</FormLabel>
                           <FormControl>
-                            <Textarea
+                            <TipTapEditor
+                              value={field.value || ""}
+                              onChange={field.onChange}
                               placeholder="Masukkan catatan tambahan (opsional)"
-                              className="min-h-[100px]"
-                              {...field}
                             />
                           </FormControl>
                           <FormMessage />

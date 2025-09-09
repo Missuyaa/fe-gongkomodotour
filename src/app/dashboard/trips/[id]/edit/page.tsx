@@ -29,7 +29,6 @@ import {
   FormMessage,
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
 import {
   Select,
   SelectContent,
@@ -1072,10 +1071,10 @@ export default function EditTripPage({ params }: { params: Promise<{ id: string 
                         <FormItem>
                           <FormLabel>Catatan</FormLabel>
                           <FormControl>
-                            <Textarea
+                            <TipTapEditor
+                              value={field.value || ""}
+                              onChange={field.onChange}
                               placeholder="Masukkan catatan tambahan (opsional)"
-                              className="min-h-[100px]"
-                              {...field}
                             />
                           </FormControl>
                           <FormMessage />

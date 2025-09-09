@@ -85,6 +85,7 @@ interface PackageData {
   boat_ids?: number[];
   operational_days?: string[];
   tentation?: "Yes" | "No";
+  note?: string; // Tambahkan field note
 }
 
 interface DetailPaketPrivateTripProps {
@@ -457,7 +458,28 @@ const DetailPaketPrivateTrip: React.FC<DetailPaketPrivateTripProps> = ({
                 Description
               </h1>
               <div className="w-[150px] h-[3px] bg-[#CFB53B] mb-6"></div>
-              <p className="text-gray-600">{data.description}</p>
+              
+              {data.note ? (
+                // Jika ada note, tampilkan sebagai HTML content
+                <div
+                  className="text-gray-600 text-sm [&_ol]:list-decimal [&_ul]:list-disc [&_ol]:pl-5 [&_ul]:pl-5 [&_ol]:space-y-2 [&_ul]:space-y-2 [&_p]:my-0 [&_li]:pl-2 [&_li]:relative [&_li]:leading-normal"
+                  dangerouslySetInnerHTML={{
+                    __html: data.note,
+                  }}
+                />
+              ) : Array.isArray(data.description) ? (
+                // Jika description adalah array
+                <ul className="list-disc pl-5 text-gray-600 text-sm space-y-1">
+                  {data.description.map((item, idx) => <li key={idx}>{item.replace(/^\*\s?/, "")}</li>)}
+                </ul>
+              ) : (
+                // Jika description adalah string
+                <ul className="list-disc pl-5 text-gray-600 text-sm space-y-1">
+                  {data.description.split(/\r?\n/).filter(line => line.trim().startsWith("*")).map((line, idx) => (
+                    <li key={idx}>{line.replace(/^\*\s?/, "")}</li>
+                  ))}
+                </ul>
+              )}
             </div>
           )}
           {activeTab === "itinerary" && (
