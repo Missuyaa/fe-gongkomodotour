@@ -119,7 +119,7 @@ export default function LandingHero() {
           console.log('Processed carousel items:', sortedItems);
           setCarouselItems(sortedItems);
         } else {
-          console.warn('No carousel data available');
+          console.warn('No carousel data available from backend');
           setCarouselItems([]);
         }
       } catch (error) {
@@ -134,7 +134,7 @@ export default function LandingHero() {
           return;
         }
         
-        // Set empty array on error
+        // Set empty array on error - tidak ada fallback data
         console.log('Max retries reached, no carousel data available');
         setCarouselItems([]);
       } finally {
@@ -178,7 +178,7 @@ export default function LandingHero() {
         <div className="flex items-center justify-center h-full bg-gradient-to-br from-blue-900 to-blue-700">
           <div className="text-center text-white">
             <h1 className="text-4xl font-bold mb-4">GONG KOMODO TOUR</h1>
-            <p className="text-xl">Tidak ada gambar carousel tersedia</p>
+            <p className="text-xl">Memuat carousel...</p>
           </div>
         </div>
       ) : (
