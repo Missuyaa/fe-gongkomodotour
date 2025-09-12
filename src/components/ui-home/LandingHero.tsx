@@ -116,7 +116,7 @@ export default function LandingHero() {
             parseInt(a.order_num) - parseInt(b.order_num)
           );
           
-          console.log('Processed carousel items:', sortedItems);
+          console.log(`Loaded ${sortedItems.length} carousel items`);
           setCarouselItems(sortedItems);
         } else {
           console.warn('No carousel data available from backend');

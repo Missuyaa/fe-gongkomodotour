@@ -43,10 +43,12 @@ export async function GET() {
     console.log('Fetching carousel data from backend...');
     
     // Menggunakan apiRequest untuk mengambil data dari backend yang sudah terhosting
+    console.log('Calling backend API for carousel data...');
     const response = await apiRequest<CarouselResponse>(
       'GET',
       '/api/landing-page/carousels'
     );
+    console.log('Backend API response received:', response);
     
     console.log('Carousel API response:', response);
     
@@ -93,122 +95,15 @@ export async function GET() {
   } catch (error) {
     console.error('Error fetching carousel data from backend:', error);
     
-    // Fallback data jika backend tidak tersedia
-    const fallbackData = {
-      success: true,
-      data: [
-        {
-          id: 1,
-          title: "Komodo Island Adventure",
-          description: "Jelajahi keindahan Pulau Komodo dengan pengalaman tak terlupakan",
-          order_num: "1",
-          is_active: "1",
-          assets: [
-            {
-              id: 1,
-              title: "Komodo Dragon",
-              description: "Hewan purba yang masih hidup",
-              file_url: "/img/landingpage/hero-slide1.png",
-              original_file_url: "/img/landingpage/hero-slide1.png",
-              is_external: false,
-              file_path: "/img/landingpage/hero-slide1.png",
-              created_at: "2024-01-01T00:00:00Z",
-              updated_at: "2024-01-01T00:00:00Z"
-            }
-          ],
-          primary_image: {
-            id: 1,
-            title: "Komodo Island",
-            description: "Pulau Komodo yang menakjubkan",
-            file_url: "/img/landingpage/hero-slide1.png",
-            original_file_url: "/img/landingpage/hero-slide1.png",
-            is_external: false,
-            file_path: "/img/landingpage/hero-slide1.png",
-            created_at: "2024-01-01T00:00:00Z",
-            updated_at: "2024-01-01T00:00:00Z"
-          },
-          created_at: "2024-01-01T00:00:00Z",
-          updated_at: "2024-01-01T00:00:00Z"
-        },
-        {
-          id: 2,
-          title: "Pink Beach Paradise",
-          description: "Nikmati keindahan pantai pink yang memukau",
-          order_num: "2",
-          is_active: "1",
-          assets: [
-            {
-              id: 2,
-              title: "Pink Beach",
-              description: "Pantai dengan pasir berwarna pink",
-              file_url: "/img/landingpage/hero-slide2.png",
-              original_file_url: "/img/landingpage/hero-slide2.png",
-              is_external: false,
-              file_path: "/img/landingpage/hero-slide2.png",
-              created_at: "2024-01-01T00:00:00Z",
-              updated_at: "2024-01-01T00:00:00Z"
-            }
-          ],
-          primary_image: {
-            id: 2,
-            title: "Pink Beach",
-            description: "Pantai pink yang menakjubkan",
-            file_url: "/img/landingpage/hero-slide2.png",
-            original_file_url: "/img/landingpage/hero-slide2.png",
-            is_external: false,
-            file_path: "/img/landingpage/hero-slide2.png",
-            created_at: "2024-01-01T00:00:00Z",
-            updated_at: "2024-01-01T00:00:00Z"
-          },
-          created_at: "2024-01-01T00:00:00Z",
-          updated_at: "2024-01-01T00:00:00Z"
-        },
-        {
-          id: 3,
-          title: "Padar Island View",
-          description: "Pemandangan spektakuler dari puncak Pulau Padar",
-          order_num: "3",
-          is_active: "1",
-          assets: [
-            {
-              id: 3,
-              title: "Padar Island",
-              description: "Pulau dengan pemandangan yang menakjubkan",
-              file_url: "/img/landingpage/hero-slide3.png",
-              original_file_url: "/img/landingpage/hero-slide3.png",
-              is_external: false,
-              file_path: "/img/landingpage/hero-slide3.png",
-              created_at: "2024-01-01T00:00:00Z",
-              updated_at: "2024-01-01T00:00:00Z"
-            }
-          ],
-          primary_image: {
-            id: 3,
-            title: "Padar Island",
-            description: "Pulau Padar yang menakjubkan",
-            file_url: "/img/landingpage/hero-slide3.png",
-            original_file_url: "/img/landingpage/hero-slide3.png",
-            is_external: false,
-            file_path: "/img/landingpage/hero-slide3.png",
-            created_at: "2024-01-01T00:00:00Z",
-            updated_at: "2024-01-01T00:00:00Z"
-          },
-          created_at: "2024-01-01T00:00:00Z",
-          updated_at: "2024-01-01T00:00:00Z"
-        }
-      ]
-    };
-
-    console.log('Using fallback carousel data due to backend error');
-    
-    return NextResponse.json(fallbackData, {
-      status: 200,
-      headers: {
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'Pragma': 'no-cache',
-        'Expires': '0'
-      }
-    });
+    // Return error response instead of fallback data
+    return NextResponse.json(
+      { 
+        success: false,
+        error: 'Gagal mengambil data carousel dari backend',
+        data: []
+      },
+      { status: 500 }
+    );
   }
 }
 
