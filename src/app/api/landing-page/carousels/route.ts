@@ -68,10 +68,24 @@ export async function GET() {
       item.is_active === '1' && item.primary_image && item.primary_image.file_url
     );
     
+    console.log('Active items before sorting:', activeItems.map(item => ({
+      id: item.id,
+      title: item.title,
+      order_num: item.order_num,
+      primary_image_url: item.primary_image?.file_url
+    })));
+    
     // Sort berdasarkan order_num
     const sortedItems = activeItems.sort((a, b) => 
       parseInt(a.order_num) - parseInt(b.order_num)
     );
+    
+    console.log('Sorted items after sorting:', sortedItems.map(item => ({
+      id: item.id,
+      title: item.title,
+      order_num: item.order_num,
+      primary_image_url: item.primary_image?.file_url
+    })));
     
     console.log(`Loaded ${sortedItems.length} active carousel items`);
 

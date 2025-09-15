@@ -49,12 +49,17 @@ interface CarouselItem {
 
 // Gaya kustom untuk pagination bullets
 const customStyles = `
+  .swiper-pagination {
+    bottom: 30px !important;
+    z-index: 20;
+  }
   .swiper-pagination-bullet {
     width: 18px;
     height: 18px;
     background: var(--gold);
     opacity: 0.7;
     transition: all 0.3s ease;
+    margin: 0 8px !important;
   }
   .swiper-pagination-bullet-active {
     width: 25px;
@@ -66,10 +71,28 @@ const customStyles = `
   .swiper-button-prev {
     color: var(--gold) !important;
     transition: all 0.3s ease;
+    z-index: 20;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    margin-top: -25px;
   }
   .swiper-button-next:hover,
   .swiper-button-prev:hover {
     color: var(--gold-dark-10) !important;
+    background: rgba(0, 0, 0, 0.5);
+  }
+  .swiper-button-next:after,
+  .swiper-button-prev:after {
+    font-size: 20px;
+    font-weight: bold;
+  }
+  .swiper-slide {
+    height: 92vh;
+  }
+  .swiper-slide > div {
+    height: 92vh;
   }
 `;
 
@@ -81,6 +104,29 @@ export default function LandingHero() {
   
   // State untuk loading
   const [isLoading, setIsLoading] = React.useState(true);
+
+  // Fungsi untuk menangani URL encoding seperti di TripHighlight
+  const getImageUrl = (url: string) => {
+    if (!url) return '/img/default-trip.jpg';
+    
+    try {
+      // Jika sudah absolute URL
+      if (/^https?:\/\//.test(url)) {
+        // Cek apakah URL mengandung karakter yang bermasalah
+        if (url.includes(' ') && !url.includes('%20')) {
+          return encodeURI(url);
+        }
+        return encodeURI(url);
+      }
+      // Relative path dari API
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.gongkomodotour.com';
+      const fullUrl = `${API_URL}${url}`;
+      return encodeURI(fullUrl);
+    } catch (error) {
+      return '/img/default-trip.jpg'; // Fallback ke default image
+    }
+  };
+
 
   // Fetch carousel data from API when component mounts
   React.useEffect(() => {
@@ -103,7 +149,6 @@ export default function LandingHero() {
         }
         
         const data = await response.json();
-        console.log('Carousel API response:', data);
         
         if (data && data.data && Array.isArray(data.data) && data.data.length > 0) {
           // Filter hanya item yang aktif dan memiliki primary image
@@ -116,26 +161,20 @@ export default function LandingHero() {
             parseInt(a.order_num) - parseInt(b.order_num)
           );
           
-          console.log('Processed carousel items:', sortedItems);
           setCarouselItems(sortedItems);
         } else {
-          console.warn('No carousel data available from backend');
           setCarouselItems([]);
         }
       } catch (error) {
-        console.error(`Failed to fetch carousels images (attempt ${retryCount + 1}):`, error);
-        
         // Retry jika belum mencapai max retries
         if (retryCount < maxRetries) {
-          console.log(`Retrying in ${(retryCount + 1) * 1000}ms...`);
           setTimeout(() => {
             fetchCarouselImages(retryCount + 1);
           }, (retryCount + 1) * 1000);
           return;
         }
         
-        // Set empty array on error - tidak ada fallback data
-        console.log('Max retries reached, no carousel data available');
+        // Set empty array on error
         setCarouselItems([]);
       } finally {
         if (retryCount === 0 || retryCount >= maxRetries) {
@@ -168,7 +207,7 @@ export default function LandingHero() {
   };
 
   return (
-    <section className="relative h-[80vh] w-screen">
+    <section className="relative h-[92vh] w-screen">
       <style>{customStyles}</style>
       {isLoading ? (
         <div className="flex items-center justify-center h-full">
@@ -191,77 +230,114 @@ export default function LandingHero() {
             delay: 5000,
             disableOnInteraction: false,
           }}
-          pagination={{ clickable: true }}
+          pagination={{ 
+            clickable: true,
+            dynamicBullets: true,
+            dynamicMainBullets: 3
+          }}
           navigation
           className="h-full w-full"
         >
-          {carouselItems.map((carouselItem) => (
+          {carouselItems.map((carouselItem) => {
+            // Debug: Cek apakah primary_image ada dan valid
+            const hasPrimaryImage = carouselItem.primary_image && carouselItem.primary_image.file_url;
+            const hasAssets = carouselItem.assets && carouselItem.assets.length > 0;
+            
+            let imageUrl = '/img/default-trip.jpg'; // fallback default
+            
+            if (hasPrimaryImage) {
+              imageUrl = getImageUrl(carouselItem.primary_image.file_url);
+            } else if (hasAssets) {
+              imageUrl = getImageUrl(carouselItem.assets[0].file_url);
+            } else {
+              imageUrl = '/img/default-trip.jpg';
+            }
+            
+            // Fallback jika URL tidak valid atau gagal load
+            if (!imageUrl || imageUrl === '/img/default-trip.jpg') {
+              imageUrl = '/img/default-trip.jpg';
+            }
+            
+            return (
             <SwiperSlide key={carouselItem.id}>
-              <div
-                className="h-full w-full bg-cover bg-center flex items-center justify-start px-50"
-                style={{ 
-                  backgroundImage: `url(${carouselItem.primary_image?.file_url || carouselItem.assets?.[0]?.file_url || '/img/default-trip.jpg'})` 
-                }}
-              >
-                <motion.div 
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ duration: 1 }}
-                  className="absolute inset-0 bg-black/20"
+              <div className="h-full w-full relative overflow-hidden">
+                <div
+                  className="h-full w-full bg-cover bg-no-repeat"
+                  style={{ 
+                    backgroundImage: `url(${imageUrl})`,
+                    backgroundPosition: 'center center',
+                    backgroundSize: 'cover',
+                    backgroundAttachment: 'scroll'
+                  }}
+                  onError={(e) => {
+                    // Fallback ke default image jika gagal load
+                    e.currentTarget.style.backgroundImage = 'url(/img/default-trip.jpg)';
+                  }}
                 />
-                <motion.div 
-                  variants={staggerContainer}
-                  initial="initial"
-                  animate="animate"
-                  className="relative z-10 px-4 flex flex-col items-start gap-2"
-                >
-                  {/* Baris pertama: GONG KOMODO */}
-                  <motion.h1
-                    variants={fadeInUp}
-                    className="text-white uppercase font-bold text-center"
-                    style={{
-                      fontSize: "clamp(3rem, 4vw, 2.5rem)",
-                      lineHeight: "1",
-                    }}
-                  >
-                    GONG KOMODO
-                  </motion.h1>
-                  {/* Baris kedua: TOUR dan tombol */}
+                <div className="absolute inset-0 flex items-center justify-start px-4 sm:px-8 md:px-12 lg:px-16 xl:px-20">
                   <motion.div 
-                    variants={fadeInUp}
-                    className="flex items-center gap-6"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 1 }}
+                    className="absolute inset-0 bg-black/20"
+                  />
+                  <motion.div 
+                    variants={staggerContainer}
+                    initial="initial"
+                    animate="animate"
+                    className="relative z-10 flex flex-col items-start gap-2 sm:gap-4"
                   >
+                    {/* Baris pertama: GONG KOMODO */}
                     <motion.h1
-                      className="text-white uppercase font-bold text-center"
+                      variants={fadeInUp}
+                      className="text-white uppercase font-bold"
                       style={{
-                        fontSize: "clamp(3rem, 4vw, 2.5rem)", // Reduced font size
-                        lineHeight: "1",
+                        fontSize: "clamp(2rem, 8vw, 4rem)",
+                        lineHeight: "0.9",
+                        textShadow: "2px 2px 4px rgba(0,0,0,0.5)",
                       }}
                     >
-                      TOUR
+                      GONG KOMODO
                     </motion.h1>
-                    <Link href="/paket/open-trip">
-                      <motion.div
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-
+                    {/* Baris kedua: TOUR dan tombol */}
+                    <motion.div 
+                      variants={fadeInUp}
+                      className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-6"
+                    >
+                      <motion.h1
+                        className="text-white uppercase font-bold"
+                        style={{
+                          fontSize: "clamp(2rem, 8vw, 4rem)",
+                          lineHeight: "0.9",
+                          textShadow: "2px 2px 4px rgba(0,0,0,0.5)",
+                        }}
                       >
-                        <Button
-                          className="bg-gold text-white hover:bg-gold-dark-10 rounded-full"
-                          style={{
-                            fontSize: "clamp(2rem, 2.75vw, 1.75rem)",
-                            padding: "clamp(2rem, 2.75vw, 1.5rem) clamp(2rem, 4.5vw, 2.75rem)",
-                          }}
+                        TOUR
+                      </motion.h1>
+                      <Link href="/paket/open-trip">
+                        <motion.div
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
                         >
-                          {t('heroButton')}
-                        </Button>
-                      </motion.div>
-                    </Link>
+                          <Button
+                            className="bg-gold text-white hover:bg-gold-dark-10 rounded-full shadow-lg"
+                            style={{
+                              fontSize: "clamp(0.875rem, 3vw, 1.25rem)",
+                              padding: "clamp(0.75rem, 2vw, 1rem) clamp(1.5rem, 4vw, 2rem)",
+                              fontWeight: "600",
+                            }}
+                          >
+                            {t('heroButton')}
+                          </Button>
+                        </motion.div>
+                      </Link>
+                    </motion.div>
                   </motion.div>
-                </motion.div>
+                </div>
               </div>
             </SwiperSlide>
-          ))}
+            );
+          })}
         </Swiper>
       )}
     </section>
