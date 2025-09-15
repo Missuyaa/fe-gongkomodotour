@@ -274,7 +274,7 @@ export default function LandingHero() {
                     e.currentTarget.style.backgroundImage = 'url(/img/default-trip.jpg)';
                   }}
                 />
-                <div className="absolute inset-0 flex items-center justify-start px-4 sm:px-8 md:px-12 lg:px-16 xl:px-20">
+                <div className="absolute inset-0 flex items-center justify-start pl-18 sm:pl-24 md:pl-28 lg:pl-24 xl:pl-60 pr-4 sm:pr-8 md:pr-12 lg:pr-16 xl:pr-20">
                   <motion.div 
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}

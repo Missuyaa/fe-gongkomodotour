@@ -1,0 +1,86 @@
+"use client";
+
+import Image from "next/image";
+import { motion } from "framer-motion";
+
+interface ImageStackMobileProps {
+  imageSrc: string;
+  alt: string;
+}
+
+export default function ImageStackMobile({ imageSrc, alt }: ImageStackMobileProps) {
+  return (
+    <div className="relative h-[250px] w-full max-w-[400px] mx-auto flex justify-center items-center">
+      {/* Gambar Kiri - Mobile Layout */}
+      <motion.div 
+        initial={{ opacity: 0, rotate: -15, x: -80 }}
+        whileInView={{ opacity: 1, rotate: -15, x: 0 }}
+        whileHover={{ rotate: 0, scale: 1.05, zIndex: 30 }}
+        transition={{ 
+          duration: 0.7,
+          type: "spring",
+          stiffness: 100
+        }}
+        viewport={{ once: true, margin: "-100px" }}
+        className="absolute left-10 top-1/2 -translate-y-1/2 z-10 scale-[0.4]"
+        style={{ transformOrigin: 'left center' }}
+      >
+        <Image
+          src={imageSrc}
+          alt={`${alt} Left`}
+          width={320}
+          height={400}
+          className="rounded-lg shadow-xl object-cover hover:shadow-2xl transition-all duration-300"
+        />
+      </motion.div>
+
+      {/* Gambar Tengah - Mobile Layout */}
+      <motion.div 
+        initial={{ opacity: 0, y: 100 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        whileHover={{ scale: 1.05, zIndex: 30 }}
+        transition={{ 
+          duration: 0.7,
+          delay: 0.2,
+          type: "spring",
+          stiffness: 100
+        }}
+        viewport={{ once: true, margin: "-100px" }}
+        className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-20 scale-[0.8]"
+      >
+        <Image
+          src={imageSrc}
+          alt={`${alt} Middle`}
+          width={420}
+          height={500}
+          className="rounded-lg shadow-xl object-cover hover:shadow-2xl transition-all duration-300"
+          priority
+        />
+      </motion.div>
+
+      {/* Gambar Kanan - Mobile Layout */}
+      <motion.div 
+        initial={{ opacity: 0, rotate: 15, x: 80 }}
+        whileInView={{ opacity: 1, rotate: 15, x: 0 }}
+        whileHover={{ rotate: 0, scale: 1.05, zIndex: 30 }}
+        transition={{ 
+          duration: 0.7,
+          delay: 0.4,
+          type: "spring",
+          stiffness: 100
+        }}
+        viewport={{ once: true, margin: "-100px" }}
+        className="absolute right-10 top-1/2 -translate-y-1/2 z-10 scale-[0.4]"
+        style={{ transformOrigin: 'right center' }}
+      >
+        <Image
+          src={imageSrc}
+          alt={`${alt} Right`}
+          width={320}
+          height={400}
+          className="rounded-lg shadow-xl object-cover hover:shadow-2xl transition-all duration-300"
+        />
+      </motion.div>
+    </div>
+  );
+}

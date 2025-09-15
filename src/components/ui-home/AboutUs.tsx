@@ -1,11 +1,11 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { Button } from "../ui/button";
 import { motion, useScroll, useTransform, useSpring } from "framer-motion";
 import { useRef } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
+import ResponsiveImageStack from "./ResponsiveImageStack";
 
 export default function AboutUs() {
   const sectionRef = useRef(null);
@@ -28,21 +28,21 @@ export default function AboutUs() {
       className="py-10 bg-gray-50 overflow-hidden"
     >
       <div className="container mx-auto px-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 md:gap-8 items-center">
           {/* Kolom Kiri: Konten Teks */}
           <motion.div 
             initial={{ opacity: 0, x: -50 }}
             whileInView={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.8, ease: "easeOut" }}
             viewport={{ once: true, margin: "-100px" }}
-            className="p-6"
+            className="p-4 sm:p-6"
           >
             <motion.h2 
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.2 }}
               viewport={{ once: true }}
-              className="text-3xl font-bold text-gray-800 mb-4"
+              className="text-2xl sm:text-3xl font-bold text-gray-800 mb-4"
             >
               {t('aboutTitle')}
             </motion.h2>
@@ -51,7 +51,7 @@ export default function AboutUs() {
               whileInView={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.4 }}
               viewport={{ once: true }}
-              className="text-black mb-6 leading-relaxed text-xl"
+              className="text-black mb-6 leading-relaxed text-base sm:text-lg md:text-xl"
             >
               {t('aboutDescription')}
             </motion.p>
@@ -69,78 +69,15 @@ export default function AboutUs() {
             </motion.div>
           </motion.div>
 
-          {/* Kolom Kanan: Gambar Stack */}
+          {/* Kolom Kanan: Gambar Stack Responsif */}
           <motion.div 
             style={{ scale: smoothScale }}
-            className="relative h-[500px] w-full max-w-[600px] mx-auto"
+            className="w-full"
           >
-            {/* Gambar Kiri */}
-            <motion.div 
-              initial={{ opacity: 0, rotate: -15, x: -100 }}
-              whileInView={{ opacity: 1, rotate: -15, x: 0 }}
-              whileHover={{ rotate: 0, scale: 1.05, zIndex: 30 }}
-              transition={{ 
-                duration: 0.7,
-                type: "spring",
-                stiffness: 100
-              }}
-              viewport={{ once: true, margin: "-100px" }}
-              className="absolute left-0 top-1/2 -translate-y-1/2 z-10"
-            >
-              <Image
-                src="/img/about_us.png"
-                alt="About Us Left"
-                width={320}
-                height={400}
-                className="rounded-lg shadow-xl object-cover hover:shadow-2xl transition-all duration-300"
-              />
-            </motion.div>
-
-            {/* Gambar Tengah */}
-            <motion.div 
-              initial={{ opacity: 0, y: 100 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              whileHover={{ scale: 1.05, zIndex: 30 }}
-              transition={{ 
-                duration: 0.7,
-                delay: 0.2,
-                type: "spring",
-                stiffness: 100
-              }}
-              viewport={{ once: true, margin: "-100px" }}
-              className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-20"
-            >
-              <Image
-                src="/img/about_us.png"
-                alt="About Us Middle"
-                width={320}
-                height={400}
-                className="rounded-lg shadow-xl object-cover hover:shadow-2xl transition-all duration-300"
-              />
-            </motion.div>
-
-            {/* Gambar Kanan */}
-            <motion.div 
-              initial={{ opacity: 0, rotate: 15, x: 100 }}
-              whileInView={{ opacity: 1, rotate: 15, x: 0 }}
-              whileHover={{ rotate: 0, scale: 1.05, zIndex: 30 }}
-              transition={{ 
-                duration: 0.7,
-                delay: 0.4,
-                type: "spring",
-                stiffness: 100
-              }}
-              viewport={{ once: true, margin: "-100px" }}
-              className="absolute right-0 top-1/2 -translate-y-1/2 z-10"
-            >
-              <Image
-                src="/img/about_us.png"
-                alt="About Us Right"
-                width={320}
-                height={400}
-                className="rounded-lg shadow-xl object-cover hover:shadow-2xl transition-all duration-300"
-              />
-            </motion.div>
+            <ResponsiveImageStack 
+              imageSrc="/img/about_us.png" 
+              alt="About Us" 
+            />
           </motion.div>
         </div>
       </div>
