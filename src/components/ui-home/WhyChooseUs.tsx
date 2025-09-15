@@ -74,65 +74,16 @@ export default function WhyChooseUs() {
         />
       </Head>
       <section className="py-0 bg-white m-0 w-full" aria-label="Reasons to choose Gong Komodo Tour">
-        <div className="flex flex-col md:flex-row">
-          <motion.div 
-            variants={container}
-            initial="hidden"
-            whileInView="show"
-            viewport={{ once: true }}
-            className="flex-1 max-w-[1100px] mx-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 gap-6 p-10 md:mr-20"
-          >
-            {reasons.map((reason, index) => (
-              <motion.article
-                key={index}
-                variants={item}
-                whileHover={{ 
-                  scale: 1.05,
-                  transition: { duration: 0.2 }
-                }}
-                className="bg-white p-6 shadow-md rounded-lg border border-gray-100 flex flex-col items-center hover:shadow-xl transition-all duration-300"
-              >
-                <motion.div 
-                  className="w-24 h-24 relative mb-4"
-                  whileHover={{ rotate: [0, -10, 10, -10, 0] }}
-                  transition={{ duration: 0.5 }}
-                >
-                  <Image
-                    src={reason.icon}
-                    alt={`${reason.title} animation`}
-                    fill
-                    className="object-contain"
-                    unoptimized
-                  />
-                </motion.div>
-                <motion.h3
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ duration: 0.5, delay: 0.2 }}
-                  className="text-lg font-semibold text-[#FFB000] mb-2 text-center"
-                >
-                  {reason.title}
-                </motion.h3>
-                <motion.p 
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ duration: 0.5, delay: 0.3 }}
-                  className="text-gray-600 text-sm text-center"
-                >
-                  {reason.description}
-                </motion.p>
-              </motion.article>
-            ))}
-          </motion.div>
-
+        <div className="flex flex-col lg:flex-row w-full">
+          {/* Gambar "Mengapa Memilih Kami" - Mobile: di atas, Desktop: di kanan */}
           <motion.div 
             initial={{ opacity: 0, x: 100 }}
             whileInView={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.8, ease: "easeOut" }}
             viewport={{ once: true }}
-            className="relative w-full md:w-1/3 m-0 p-0"
+            className="relative w-full lg:w-1/3 m-0 p-0 order-1 lg:order-2"
           >
-            <div className="relative w-full h-full min-h-[400px]">
+            <div className="relative w-full h-full min-h-[300px] lg:min-h-[400px]">
               <Image
                 src="/img/whychooseus.jpg"
                 alt="Professional team of Gong Komodo Tour ready to serve your journey"
@@ -153,12 +104,67 @@ export default function WhyChooseUs() {
                   whileInView={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.8, delay: 0.6 }}
                   viewport={{ once: true }}
-                  className="text-8xl font-bold text-white text-left tracking-wide max-w-sm ml-8 leading-tight"
+                  className="text-4xl md:text-6xl lg:text-8xl font-bold text-white text-left tracking-wide max-w-sm ml-4 md:ml-8 leading-tight"
                 >
                   {t('whyChooseTitle').toUpperCase()}?
                 </motion.h2>
               </motion.div>
             </div>
+          </motion.div>
+
+          {/* Fasilitas - Mobile: di bawah, Desktop: di kiri */}
+          <motion.div 
+            variants={container}
+            initial="hidden"
+            whileInView="show"
+            viewport={{ once: true }}
+            className="flex-1 w-full max-w-[1100px] mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4 md:gap-6 p-6 md:p-10 lg:mr-20 order-2 lg:order-1 bg-white"
+          >
+            {reasons && reasons.length > 0 ? reasons.map((reason, index) => (
+              <motion.article
+                key={index}
+                variants={item}
+                whileHover={{ 
+                  scale: 1.05,
+                  transition: { duration: 0.2 }
+                }}
+                className="bg-white p-4 md:p-6 shadow-md rounded-lg border border-gray-100 flex flex-col items-center hover:shadow-xl transition-all duration-300"
+              >
+                <motion.div 
+                  className="w-16 h-16 md:w-24 md:h-24 relative mb-3 md:mb-4"
+                  whileHover={{ rotate: [0, -10, 10, -10, 0] }}
+                  transition={{ duration: 0.5 }}
+                >
+                  <Image
+                    src={reason.icon}
+                    alt={`${reason.title} animation`}
+                    fill
+                    className="object-contain"
+                    unoptimized
+                  />
+                </motion.div>
+                <motion.h3
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.5, delay: 0.2 }}
+                  className="text-base md:text-lg font-semibold text-[#FFB000] mb-2 text-center"
+                >
+                  {reason.title}
+                </motion.h3>
+                <motion.p 
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.5, delay: 0.3 }}
+                  className="text-gray-600 text-xs md:text-sm text-center"
+                >
+                  {reason.description}
+                </motion.p>
+              </motion.article>
+            )) : (
+              <div className="col-span-full text-center py-8">
+                <p className="text-gray-500">Loading facilities...</p>
+              </div>
+            )}
           </motion.div>
         </div>
       </section>

@@ -6,14 +6,14 @@ export const paymentDummy = {
   paymentMethods: [
     {
       bank: "BCA",
-      accountName: "Gong Komodo Tour",
-      accountNumber: "1234567890",
+      accountName: "PT. GONG INDONESIA WISATA",
+      accountNumber: "768-0800-566",
       logo: "/img/payment/logo-bca.jpeg",
     },
     {
       bank: "Mandiri",
-      accountName: "Gong Komodo Tour",
-      accountNumber: "0987654321",
+      accountName: "PT. GONG INDONESIA WISATA",
+      accountNumber: "145-00-2680268-2",
       logo: "/img/payment/logo-mandiri.png",
     },
   ],
