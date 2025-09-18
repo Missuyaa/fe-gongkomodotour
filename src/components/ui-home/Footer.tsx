@@ -56,7 +56,7 @@ export default function Footer({ children }: FooterProps) {
               <h3 className="font-semibold text-sm uppercase tracking-wider">Company</h3>
               <ul className="space-y-2">
                 <li>
-                  <a href="/about" className="text-sm hover:text-white transition-colors duration-200 hover:underline">
+                  <a href="/about-us" className="text-sm hover:text-white transition-colors duration-200 hover:underline">
                     About
                   </a>
                 </li>
@@ -68,12 +68,12 @@ export default function Footer({ children }: FooterProps) {
               <h3 className="font-semibold text-sm uppercase tracking-wider">Service</h3>
               <ul className="space-y-2">
                 <li>
-                  <a href="/open-trip" className="text-sm hover:text-white transition-colors duration-200 hover:underline">
+                  <a href="/paket/open-trip" className="text-sm hover:text-white transition-colors duration-200 hover:underline">
                     Open Trip
                   </a>
                 </li>
                 <li>
-                  <a href="/private-trip" className="text-sm hover:text-white transition-colors duration-200 hover:underline">
+                  <a href="/paket/private-trip" className="text-sm hover:text-white transition-colors duration-200 hover:underline">
                     Private Trip
                   </a>
                 </li>
@@ -83,7 +83,7 @@ export default function Footer({ children }: FooterProps) {
                   </a>
                 </li>
                 <li>
-                  <a href="/faqs" className="text-sm hover:text-white transition-colors duration-200 hover:underline">
+                  <a href="/faq" className="text-sm hover:text-white transition-colors duration-200 hover:underline">
                     FAQs
                   </a>
                 </li>
