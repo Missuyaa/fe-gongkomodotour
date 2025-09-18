@@ -193,7 +193,20 @@ const exportToPDF = (data: Trip[]) => {
 }
 
 function HtmlContent({ html }: { html: string }) {
-  return <div dangerouslySetInnerHTML={{ __html: html }} className="prose max-w-none" />
+  return (
+    <div 
+      dangerouslySetInnerHTML={{ __html: html }} 
+      className="prose prose-sm max-w-none break-words"
+      style={{
+        wordWrap: 'break-word',
+        overflowWrap: 'break-word',
+        wordBreak: 'break-word',
+        hyphens: 'auto',
+        whiteSpace: 'normal',
+        maxWidth: '100%'
+      }}
+    />
+  )
 }
 
 export function DataTable({
@@ -247,40 +260,42 @@ export function DataTable({
     })
     
     return (
-      <div className="p-4 bg-muted/50 rounded-lg">
+      <div className="p-4 bg-muted/50 rounded-lg w-full overflow-hidden">
         {/* Informasi Trip */}
-        <div className="space-y-4 max-w-5xl mx-auto">
-          <div className="bg-white p-4 rounded-lg shadow-sm">
+        <div className="space-y-4 w-full">
+          <div className="bg-white p-4 rounded-lg shadow-sm w-full overflow-hidden">
             <h4 className="font-semibold text-lg mb-4 text-gray-800 border-b pb-2">Informasi Trip</h4>
-            <div className="grid gap-4 lg:grid-cols-2">
-              <div className="space-y-4">
+            <div className="grid gap-4 lg:grid-cols-2 w-full">
+              <div className="space-y-4 min-w-0">
                 <div>
                   <p className="text-gray-600 font-medium mb-2">Include:</p>
-                  <div className="bg-gray-50 p-3 rounded-md overflow-auto">
-                    <div className="prose prose-sm max-w-none">
+                  <div className="bg-gray-50 p-3 rounded-md overflow-auto max-w-full">
+                    <div className="prose prose-sm max-w-none break-words overflow-wrap-anywhere">
                       <HtmlContent html={trip.include} />
                     </div>
                   </div>
                 </div>
                 <div>
                   <p className="text-gray-600 font-medium mb-2">Exclude:</p>
-                  <div className="bg-gray-50 p-3 rounded-md overflow-auto">
-                    <div className="prose prose-sm max-w-none">
+                  <div className="bg-gray-50 p-3 rounded-md overflow-auto max-w-full">
+                    <div className="prose prose-sm max-w-none break-words overflow-wrap-anywhere">
                       <HtmlContent html={trip.exclude} />
                     </div>
                   </div>
                 </div>
                 <div>
                   <p className="text-gray-600 font-medium mb-2">Catatan:</p>
-                  <div className="bg-gray-50 p-3 rounded-md">
-                    <p className="text-gray-800 whitespace-pre-wrap break-words">{trip.note}</p>
+                  <div className="bg-gray-50 p-3 rounded-md max-w-full">
+                    <div className="prose prose-sm max-w-none break-words overflow-wrap-anywhere">
+                      <HtmlContent html={trip.note || ""} />
+                    </div>
                   </div>
                 </div>
               </div>
-              <div className="space-y-4">
+              <div className="space-y-4 min-w-0">
                 <div>
                   <p className="text-gray-600 font-medium mb-2">Meeting Point:</p>
-                  <div className="bg-gray-50 p-3 rounded-md">
+                  <div className="bg-gray-50 p-3 rounded-md max-w-full">
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
@@ -293,17 +308,17 @@ export function DataTable({
                     </TooltipProvider>
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <p className="text-gray-600 font-medium mb-2">Waktu Mulai:</p>
                     <div className="bg-gray-50 p-3 rounded-md">
-                      <p className="text-gray-800">{trip.start_time}</p>
+                      <p className="text-gray-800 break-words">{trip.start_time}</p>
                     </div>
                   </div>
                   <div>
                     <p className="text-gray-600 font-medium mb-2">Waktu Selesai:</p>
                     <div className="bg-gray-50 p-3 rounded-md">
-                      <p className="text-gray-800">{trip.end_time}</p>
+                      <p className="text-gray-800 break-words">{trip.end_time}</p>
                     </div>
                   </div>
                 </div>
@@ -312,24 +327,26 @@ export function DataTable({
           </div>
 
           {/* Itinerary */}
-          <div className="bg-white p-4 sm:p-6 rounded-lg shadow-sm">
+          <div className="bg-white p-4 sm:p-6 rounded-lg shadow-sm w-full overflow-hidden">
             <h4 className="font-semibold text-lg mb-4 text-gray-800 border-b pb-2">Itinerary</h4>
-            <div className="space-y-6">
+            <div className="space-y-6 w-full">
               {trip.trip_durations.map((duration) => (
-                <div key={duration.id} className="space-y-4">
-                  <div className="bg-gray-50 p-3 rounded-md">
-                    <h5 className="font-medium text-gray-800 mb-2">
+                <div key={duration.id} className="space-y-4 w-full">
+                  <div className="bg-gray-50 p-3 rounded-md w-full overflow-hidden">
+                    <h5 className="font-medium text-gray-800 mb-2 break-words">
                       {duration.duration_label} ({duration.duration_days} Hari {duration.duration_nights} Malam)
                     </h5>
-                    <div className="space-y-4">
+                    <div className="space-y-4 w-full">
                       {duration.itineraries.sort((a, b) => a.day_number - b.day_number).map((itinerary) => (
-                        <div key={itinerary.id} className="bg-white p-3 rounded-md border border-gray-100">
-                          <div className="flex items-start gap-3">
-                            <span className="bg-yellow-100 text-yellow-800 px-2 py-1 rounded-md text-sm font-medium">
+                        <div key={itinerary.id} className="bg-white p-3 rounded-md border border-gray-100 w-full overflow-hidden">
+                          <div className="flex items-start gap-3 w-full">
+                            <span className="bg-yellow-100 text-yellow-800 px-2 py-1 rounded-md text-sm font-medium flex-shrink-0">
                               Hari {itinerary.day_number}
                             </span>
-                            <div className="prose prose-sm max-w-none">
-                              <HtmlContent html={itinerary.activities} />
+                            <div className="prose prose-sm max-w-none min-w-0 flex-1 overflow-hidden">
+                              <div className="break-words overflow-wrap-anywhere max-w-full">
+                                <HtmlContent html={itinerary.activities} />
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -342,24 +359,24 @@ export function DataTable({
           </div>
 
           {/* Flight Schedules */}
-          <div className="bg-white p-6 rounded-lg shadow-sm">
+          <div className="bg-white p-6 rounded-lg shadow-sm w-full overflow-hidden">
             <h4 className="font-semibold text-lg mb-4 text-gray-800 border-b pb-2">Jadwal Penerbangan</h4>
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-4 md:grid-cols-2 w-full">
               {trip.flight_schedules.map((schedule: FlightSchedule, index: number) => (
-                <div key={index} className="bg-gray-50 p-4 rounded-md">
+                <div key={index} className="bg-gray-50 p-4 rounded-md w-full overflow-hidden">
                   <p className="font-medium text-gray-800 mb-3 text-base break-words">{schedule.route}</p>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
                     <div className="space-y-2">
                       <div>
                         <p className="text-gray-600 font-medium">ETD Time:</p>
                         <div className="bg-white p-2 rounded border border-gray-100">
-                          <p className="text-gray-800">{schedule.etd_time}</p>
+                          <p className="text-gray-800 break-words">{schedule.etd_time}</p>
                         </div>
                       </div>
                       <div>
                         <p className="text-gray-600 font-medium">ETD Text:</p>
                         <div className="bg-white p-2 rounded border border-gray-100">
-                          <p className="text-gray-800">{schedule.etd_text}</p>
+                          <p className="text-gray-800 break-words">{schedule.etd_text}</p>
                         </div>
                       </div>
                     </div>
@@ -367,13 +384,13 @@ export function DataTable({
                       <div>
                         <p className="text-gray-600 font-medium">ETA Time:</p>
                         <div className="bg-white p-2 rounded border border-gray-100">
-                          <p className="text-gray-800">{schedule.eta_time}</p>
+                          <p className="text-gray-800 break-words">{schedule.eta_time}</p>
                         </div>
                       </div>
                       <div>
                         <p className="text-gray-600 font-medium">ETA Text:</p>
                         <div className="bg-white p-2 rounded border border-gray-100">
-                          <p className="text-gray-800">{schedule.eta_text}</p>
+                          <p className="text-gray-800 break-words">{schedule.eta_text}</p>
                         </div>
                       </div>
                     </div>
@@ -384,16 +401,16 @@ export function DataTable({
           </div>
 
           {/* Trip Durations & Prices */}
-          <div className="bg-white p-6 rounded-lg shadow-sm">
+          <div className="bg-white p-6 rounded-lg shadow-sm w-full overflow-hidden">
             <h4 className="font-semibold text-lg mb-4 text-gray-800 border-b pb-2">Durasi & Harga</h4>
-            <div className="space-y-6">
+            <div className="space-y-6 w-full">
               {trip.trip_durations.map((duration) => (
-                <div key={duration.id} className="bg-gray-50 p-4 rounded-md">
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                <div key={duration.id} className="bg-gray-50 p-4 rounded-md w-full overflow-hidden">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4 w-full">
                     <div>
                       <p className="text-gray-600 font-medium mb-1">Label Durasi:</p>
                       <div className="bg-white p-2 rounded border border-gray-100">
-                        <p className="text-gray-800">{duration.duration_label}</p>
+                        <p className="text-gray-800 break-words">{duration.duration_label}</p>
                       </div>
                     </div>
                     <div>
@@ -418,12 +435,12 @@ export function DataTable({
                     </div>
                   </div>
                   {duration.trip_prices.length > 0 && (
-                    <div>
+                    <div className="w-full overflow-hidden">
                       <p className="font-medium text-gray-800 mb-3">Harga per Pax:</p>
-                      <div className="space-y-3">
+                      <div className="space-y-3 w-full">
                         {duration.trip_prices.map((price: TripPrice, priceIndex: number) => (
-                          <div key={priceIndex} className="bg-white p-3 rounded-md border border-gray-100">
-                            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                          <div key={priceIndex} className="bg-white p-3 rounded-md border border-gray-100 w-full overflow-hidden">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 w-full">
                               <div>
                                 <p className="text-gray-600 text-sm">Min Pax:</p>
                                 <p className="font-medium">{price.pax_min}</p>
@@ -434,7 +451,7 @@ export function DataTable({
                               </div>
                               <div>
                                 <p className="text-gray-600 text-sm">Harga per Pax:</p>
-                                <p className="font-medium">{price.price_per_pax}</p>
+                                <p className="font-medium break-words">{price.price_per_pax}</p>
                               </div>
                               <div>
                                 <p className="text-gray-600 text-sm">Region:</p>
@@ -464,38 +481,38 @@ export function DataTable({
           </div>
 
           {/* Additional Fees */}
-          <div className="bg-white p-6 rounded-lg shadow-sm">
+          <div className="bg-white p-6 rounded-lg shadow-sm w-full overflow-hidden">
             <h4 className="font-semibold text-lg mb-4 text-gray-800 border-b pb-2">Biaya Tambahan</h4>
-            <div className="space-y-4">
+            <div className="space-y-4 w-full">
               {trip.additional_fees.map((fee: AdditionalFee, index: number) => (
-                <div key={index} className="bg-gray-50 p-4 rounded-md">
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                <div key={index} className="bg-gray-50 p-4 rounded-md w-full overflow-hidden">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4 w-full">
                     <div>
                       <p className="text-gray-600 font-medium mb-1">Kategori:</p>
                       <div className="bg-white p-2 rounded border border-gray-100">
-                        <p className="text-gray-800">{fee.fee_category}</p>
+                        <p className="text-gray-800 break-words">{fee.fee_category}</p>
                       </div>
                     </div>
                     <div>
                       <p className="text-gray-600 font-medium mb-1">Harga:</p>
                       <div className="bg-white p-2 rounded border border-gray-100">
-                        <p className="text-gray-800">{fee.price}</p>
+                        <p className="text-gray-800 break-words">{fee.price}</p>
                       </div>
                     </div>
                     <div>
                       <p className="text-gray-600 font-medium mb-1">Wilayah:</p>
                       <div className="bg-white p-2 rounded border border-gray-100">
-                        <p className="text-gray-800">{fee.region}</p>
+                        <p className="text-gray-800 break-words">{fee.region}</p>
                       </div>
                     </div>
                     <div>
                       <p className="text-gray-600 font-medium mb-1">Satuan:</p>
                       <div className="bg-white p-2 rounded border border-gray-100">
-                        <p className="text-gray-800">{fee.unit}</p>
+                        <p className="text-gray-800 break-words">{fee.unit}</p>
                       </div>
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 w-full">
                     <div>
                       <p className="text-gray-600 font-medium mb-1">Min Pax:</p>
                       <div className="bg-white p-2 rounded border border-gray-100">
@@ -511,7 +528,7 @@ export function DataTable({
                     <div>
                       <p className="text-gray-600 font-medium mb-1">Tipe Hari:</p>
                       <div className="bg-white p-2 rounded border border-gray-100">
-                        <p className="text-gray-800">{fee.day_type}</p>
+                        <p className="text-gray-800 break-words">{fee.day_type}</p>
                       </div>
                     </div>
                     <div>
@@ -531,9 +548,9 @@ export function DataTable({
 
         {/* Gambar Trip - Dipindahkan ke bawah */}
         {trip.assets && trip.assets.length > 0 && (
-          <div className="bg-white p-6 rounded-lg shadow-sm mt-6">
+          <div className="bg-white p-6 rounded-lg shadow-sm mt-6 w-full overflow-hidden">
             <h4 className="font-semibold text-lg mb-4 text-gray-800 border-b pb-2">Gambar Trip</h4>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 w-full">
               {trip.assets.map((asset, index) => {
                 if (!asset || !asset.file_url) {
                   console.warn(`Invalid asset at index ${index}:`, asset)
@@ -551,10 +568,10 @@ export function DataTable({
                 return (
                   <div 
                     key={asset.id || `asset-${index}`} 
-                    className="space-y-2 cursor-pointer group"
+                    className="space-y-2 cursor-pointer group w-full"
                     onClick={() => setSelectedImage(asset)}
                   >
-                    <div className="relative aspect-[4/3] rounded-lg overflow-hidden border border-gray-200">
+                    <div className="relative aspect-[4/3] rounded-lg overflow-hidden border border-gray-200 w-full">
                       <Image
                         src={imageUrl}
                         alt={asset.title || `Gambar ${index + 1}`}
@@ -614,21 +631,86 @@ export function DataTable({
   }
 
   return (
-    <div className="container mx-auto max-w-7xl">
+    <div className="w-full max-w-full overflow-hidden">
+      <style jsx global>{`
+        .prose * {
+          word-wrap: break-word !important;
+          overflow-wrap: break-word !important;
+          word-break: break-word !important;
+          hyphens: auto !important;
+          white-space: normal !important;
+          max-width: 100% !important;
+        }
+        .prose p, .prose div, .prose span, .prose li, .prose td, .prose th, .prose ul, .prose ol {
+          word-wrap: break-word !important;
+          overflow-wrap: break-word !important;
+          word-break: break-word !important;
+          hyphens: auto !important;
+          white-space: normal !important;
+          max-width: 100% !important;
+        }
+        .prose table {
+          table-layout: fixed !important;
+          width: 100% !important;
+        }
+        .prose table td, .prose table th {
+          word-wrap: break-word !important;
+          overflow-wrap: break-word !important;
+          word-break: break-word !important;
+          hyphens: auto !important;
+          white-space: normal !important;
+          max-width: 100% !important;
+        }
+        .prose img {
+          max-width: 100% !important;
+          height: auto !important;
+        }
+        .prose pre, .prose code {
+          word-wrap: break-word !important;
+          overflow-wrap: break-word !important;
+          word-break: break-word !important;
+          white-space: pre-wrap !important;
+          max-width: 100% !important;
+        }
+        .prose strong, .prose b {
+          word-wrap: break-word !important;
+          overflow-wrap: break-word !important;
+          word-break: break-word !important;
+          hyphens: auto !important;
+          white-space: normal !important;
+          max-width: 100% !important;
+        }
+        .prose h1, .prose h2, .prose h3, .prose h4, .prose h5, .prose h6 {
+          word-wrap: break-word !important;
+          overflow-wrap: break-word !important;
+          word-break: break-word !important;
+          hyphens: auto !important;
+          white-space: normal !important;
+          max-width: 100% !important;
+        }
+        .prose a {
+          word-wrap: break-word !important;
+          overflow-wrap: break-word !important;
+          word-break: break-word !important;
+          hyphens: auto !important;
+          white-space: normal !important;
+          max-width: 100% !important;
+        }
+      `}</style>
       {/* Toolbar */}
-      <div className="flex items-center justify-between py-4">
-        <div className="flex items-center space-x-2">
+      <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between py-4 gap-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-2 w-full lg:w-auto">
           <Input
             placeholder="Filter berdasarkan nama..."
             value={(table.getColumn("name")?.getFilterValue() as string) || ""}
             onChange={(event) =>
               table.getColumn("name")?.setFilterValue(event.target.value)
             }
-            className="max-w-sm"
+            className="max-w-sm w-full sm:w-auto"
           />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="ml-auto">
+              <Button variant="outline" className="w-full sm:w-auto">
                 Kolom <ChevronDown className="ml-2 h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
@@ -655,7 +737,7 @@ export function DataTable({
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
-        <div className="flex space-x-2">
+        <div className="flex flex-wrap gap-2 w-full lg:w-auto">
           {table.getSelectedRowModel().rows.length > 0 && (
             <>
               <Button
@@ -666,12 +748,14 @@ export function DataTable({
                     table.getSelectedRowModel().rows.map((row) => (row.original as Trip).id)
                   )
                 }
+                className="text-xs sm:text-sm"
               >
                 Hapus Terpilih ({table.getSelectedRowModel().rows.length})
               </Button>
               <Button 
                 variant="outline"
                 onClick={() => exportToPDF(table.getSelectedRowModel().rows.map(row => row.original as Trip))}
+                className="text-xs sm:text-sm"
               >
                 <FileDown className="mr-2 h-4 w-4" />
                 Export Terpilih ({table.getSelectedRowModel().rows.length})
@@ -680,13 +764,13 @@ export function DataTable({
           )}
           <Button 
             onClick={() => router.push('/dashboard/trips/create')}
-            className="bg-yellow-500 hover:bg-yellow-600 text-white transition-colors duration-200"
+            className="bg-yellow-500 hover:bg-yellow-600 text-white transition-colors duration-200 text-xs sm:text-sm"
           >
             <Plus className="mr-2 h-4 w-4" />
             Tambah Trip
           </Button>
           <Button 
-            className="bg-red-500 hover:bg-red-600 text-white transition-colors duration-200"
+            className="bg-red-500 hover:bg-red-600 text-white transition-colors duration-200 text-xs sm:text-sm"
             variant="outline"
             onClick={() => exportToPDF(table.getFilteredRowModel().rows.map(row => row.original as Trip))}
           >
@@ -697,13 +781,26 @@ export function DataTable({
       </div>
 
       {/* Table */}
-      <div className="rounded-md border overflow-x-auto">
-        <Table>
+      <div className="rounded-md border overflow-x-auto w-full">
+        <Table className="w-full table-fixed" style={{ minWidth: '1200px' }}>
+          <colgroup>
+            <col style={{ width: '50px' }} /> {/* expander */}
+            <col style={{ width: '50px' }} /> {/* select */}
+            <col style={{ width: '60px' }} /> {/* no */}
+            <col style={{ width: '250px' }} /> {/* name */}
+            <col style={{ width: '120px' }} /> {/* type */}
+            <col style={{ width: '100px' }} /> {/* status */}
+            <col style={{ width: '100px' }} /> {/* highlight */}
+            <col style={{ width: '180px' }} /> {/* boats */}
+            <col style={{ width: '180px' }} /> {/* operational_days */}
+            <col style={{ width: '120px' }} /> {/* tentation */}
+            <col style={{ width: '60px' }} /> {/* actions */}
+          </colgroup>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map((header) => (
-                  <TableHead key={header.id} colSpan={header.colSpan}>
+                  <TableHead key={header.id} colSpan={header.colSpan} className="whitespace-nowrap text-center">
                     {header.isPlaceholder
                       ? null
                       : flexRender(
@@ -723,7 +820,7 @@ export function DataTable({
                     data-state={row.getIsSelected() && "selected"}
                   >
                     {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id}>
+                      <TableCell key={cell.id} className="break-words">
                         {flexRender(
                           cell.column.columnDef.cell,
                           cell.getContext()
@@ -733,7 +830,7 @@ export function DataTable({
                   </TableRow>
                   {row.getIsExpanded() && (
                     <TableRow key={`${row.id}-expanded`}>
-                      <TableCell colSpan={row.getVisibleCells().length}>
+                      <TableCell colSpan={row.getVisibleCells().length} className="p-0">
                         {renderSubComponent({ row })}
                       </TableCell>
                     </TableRow>
@@ -755,11 +852,11 @@ export function DataTable({
       </div>
 
       {/* Pagination */}
-      <div className="flex items-center justify-between px-2 py-4 bg-gray-50 rounded-b-md">
+      <div className="flex flex-col sm:flex-row items-center justify-between px-2 py-4 bg-gray-50 rounded-b-md gap-4">
         <div className="text-sm text-muted-foreground">
           {table.getFilteredSelectedRowModel().rows.length} of {table.getFilteredRowModel().rows.length} row(s) selected.
         </div>
-        <div className="flex items-center gap-x-6">
+        <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-x-6">
           <div className="flex items-center gap-x-2">
             <p className="text-sm font-medium">Rows per page</p>
             <Select

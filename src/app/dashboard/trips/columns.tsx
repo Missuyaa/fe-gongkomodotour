@@ -81,6 +81,14 @@ export const columns = ({ onDelete, onEdit }: ColumnsProps): ColumnDef<Trip>[] =
         <ArrowUpDown className="ml-2 h-4 w-4" />
       </Button>
     ),
+    cell: ({ row }) => {
+      const name = row.getValue("name") as string
+      return (
+        <div className="w-full break-words text-sm px-2">
+          {name}
+        </div>
+      )
+    },
   },
   {
     accessorKey: "type",
@@ -97,9 +105,11 @@ export const columns = ({ onDelete, onEdit }: ColumnsProps): ColumnDef<Trip>[] =
     cell: ({ row }) => {
       const type = row.getValue("type") as string
       return (
-        <Badge className={`${type === "Open Trip" ? "bg-yellow-500" : "bg-blue-500"} text-white`}>
-          {type}
-        </Badge>
+        <div className="w-full flex justify-center px-2">
+          <Badge className={`${type === "Open Trip" ? "bg-yellow-500" : "bg-blue-500"} text-white text-xs`}>
+            {type}
+          </Badge>
+        </div>
       )
     },
   },
@@ -118,9 +128,11 @@ export const columns = ({ onDelete, onEdit }: ColumnsProps): ColumnDef<Trip>[] =
     cell: ({ row }) => {
       const status = row.getValue("status") as string
       return (
-        <Badge className={`${status === "Aktif" ? "bg-emerald-500" : "bg-red-500"} text-white`}>
-          {status}
-        </Badge>
+        <div className="w-full flex justify-center px-2">
+          <Badge className={`${status === "Aktif" ? "bg-emerald-500" : "bg-red-500"} text-white text-xs`}>
+            {status}
+          </Badge>
+        </div>
       )
     },
   },
@@ -139,9 +151,11 @@ export const columns = ({ onDelete, onEdit }: ColumnsProps): ColumnDef<Trip>[] =
     cell: ({ row }) => {
       const isHighlight = row.getValue("is_highlight") as "Yes" | "No"
       return (
-        <Badge className={`${isHighlight === "Yes" ? "bg-yellow-500" : "bg-gray-500"} text-white`}>
-          {isHighlight}
-        </Badge>
+        <div className="w-full flex justify-center px-2">
+          <Badge className={`${isHighlight === "Yes" ? "bg-yellow-500" : "bg-gray-500"} text-white text-xs`}>
+            {isHighlight}
+          </Badge>
+        </div>
       )
     },
   },
@@ -157,31 +171,31 @@ export const columns = ({ onDelete, onEdit }: ColumnsProps): ColumnDef<Trip>[] =
 
       // 1) Jika API kirim relasi lengkap dalam trip.boat
       if (trip.boat && trip.boat.boat_name) {
-        return <div className="text-sm">{trip.boat.boat_name}</div>
+        return <div className="text-sm w-full break-words px-2">{trip.boat.boat_name}</div>
       }
 
       // 2) Jika API kirim daftar boats
       if (Array.isArray(trip.boats) && trip.boats.length > 0) {
         const names = trip.boats.map(b => b.boat_name || b.name || `ID ${b.id}`)
-        return <div className="text-sm">{names.join(", ")}</div>
+        return <div className="text-sm w-full break-words px-2">{names.join(", ")}</div>
       }
 
       // 3) Jika API kirim pivot trip_boats dengan nested boat
       if (Array.isArray(trip.trip_boats) && trip.trip_boats.length > 0) {
         const names = trip.trip_boats.map(tb => tb.boat?.boat_name || `ID ${tb.boat_id}`)
-        return <div className="text-sm">{names.join(", ")}</div>
+        return <div className="text-sm w-full break-words px-2">{names.join(", ")}</div>
       }
 
       // 4) Jika hanya ada boat_id/boat_ids tanpa nama
       const maybeBoatId = (trip as unknown as { boat_id?: number | string | null }).boat_id
       if (typeof maybeBoatId !== 'undefined' && maybeBoatId !== null) {
-        return <div className="text-sm">{`Boat ID: ${maybeBoatId}`}</div>
+        return <div className="text-sm w-full break-words px-2">{`Boat ID: ${maybeBoatId}`}</div>
       }
       if (Array.isArray(trip.boat_ids) && trip.boat_ids.length > 0) {
-        return <div className="text-sm">{`Boat IDs: ${trip.boat_ids.join(', ')}`}</div>
+        return <div className="text-sm w-full break-words px-2">{`Boat IDs: ${trip.boat_ids.join(', ')}`}</div>
       }
 
-      return <div className="text-sm">Tidak ada</div>
+      return <div className="text-sm px-2">Tidak ada</div>
     },
   },
   {
@@ -211,15 +225,15 @@ export const columns = ({ onDelete, onEdit }: ColumnsProps): ColumnDef<Trip>[] =
                           !weekdays.some(day => operationalDays.includes(day));
 
       return (
-        <div className="text-sm space-y-1">
-          <div>
+        <div className="text-sm space-y-1 w-full px-2">
+          <div className="break-words">
             {operationalDays && operationalDays.length > 0 
               ? operationalDays.map(day => dayLabels[day]).join(", ")
               : "Tidak ada"
             }
           </div>
           {operationalDays && operationalDays.length > 0 && (
-            <div className="flex gap-1 mt-1">
+            <div className="flex gap-1 mt-1 flex-wrap">
               {isAllDays ? (
                 <Badge className="bg-blue-500 text-white text-xs">Semua Hari</Badge>
               ) : isWeekdaysOnly ? (
@@ -241,9 +255,11 @@ export const columns = ({ onDelete, onEdit }: ColumnsProps): ColumnDef<Trip>[] =
     cell: ({ row }) => {
       const tentation = row.getValue("tentation") as "Yes" | "No"
       return (
-        <Badge className={`${tentation === "Yes" ? "bg-green-500" : "bg-gray-500"} text-white`}>
-          {tentation === "Yes" ? "Ya" : "Tidak"}
-        </Badge>
+        <div className="w-full flex justify-center px-2">
+          <Badge className={`${tentation === "Yes" ? "bg-green-500" : "bg-gray-500"} text-white text-xs`}>
+            {tentation === "Yes" ? "Ya" : "Tidak"}
+          </Badge>
+        </div>
       )
     },
   },
