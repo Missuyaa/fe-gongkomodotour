@@ -30,6 +30,7 @@ import { ApiResponse } from "@/types/role"
 import { TipTapEditor } from "@/components/ui/tiptap-editor"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Boat } from "@/types/boats"
+import { Hotel } from "@/types/hotels"
 
 interface BoatResponse {
   data: Boat[]
@@ -37,9 +38,16 @@ interface BoatResponse {
   status?: string
 }
 
+interface HotelResponse {
+  data: Hotel[]
+  message?: string
+  status?: string
+}
+
 const tripSchema = z.object({
   name: z.string().min(1, "Nama trip harus diisi"),
   boat_ids: z.array(z.number()).default([]),
+  hotel_ids: z.array(z.number()).default([]),
   type: z.enum(["Open Trip", "Private Trip"]),
   status: z.enum(["Aktif", "Non Aktif"]),
   is_highlight: z.enum(["Yes", "No"]),
@@ -124,10 +132,13 @@ export default function CreateTripPage() {
   const [fileDescriptions, setFileDescriptions] = useState<string[]>([])
   const [boats, setBoats] = useState<Boat[]>([])
   const [isLoadingBoats, setIsLoadingBoats] = useState(true)
+  const [hotels, setHotels] = useState<Hotel[]>([])
+  const [isLoadingHotels, setIsLoadingHotels] = useState(true)
 
   const defaultValues: TripFormType = {
     name: "",
     boat_ids: [],
+    hotel_ids: [],
     type: "Open Trip",
     status: "Aktif",
     is_highlight: "No",
@@ -170,6 +181,7 @@ export default function CreateTripPage() {
 
   // Kondisi tampilan dinamis
   const hasBoat = form.watch("has_boat")
+  const hasHotel = form.watch("has_hotel")
   const tentation = form.watch("tentation")
 
   // Jika tidak menggunakan boat, kosongkan pilihan boat
@@ -178,6 +190,13 @@ export default function CreateTripPage() {
       form.setValue("boat_ids", [])
     }
   }, [hasBoat, form])
+
+  // Jika tidak menggunakan hotel, kosongkan pilihan hotel
+  useEffect(() => {
+    if (!hasHotel) {
+      form.setValue("hotel_ids", [])
+    }
+  }, [hasHotel, form])
 
   // Jika jadwal fleksibel No, kosongkan hari operasional
   useEffect(() => {
@@ -219,6 +238,31 @@ export default function CreateTripPage() {
     fetchBoats()
   }, [])
 
+  // Fetch hotels data
+  useEffect(() => {
+    const fetchHotels = async () => {
+      try {
+        setIsLoadingHotels(true)
+        const response = await apiRequest<HotelResponse>('GET', '/api/hotels')
+        console.log('Hotels response:', response)
+        if (response && response.data && Array.isArray(response.data)) {
+          setHotels(response.data)
+        } else {
+          console.log('Invalid hotels response format:', response)
+          setHotels([])
+        }
+      } catch (error) {
+        console.error('Error fetching hotels:', error)
+        toast.error('Gagal mengambil data hotel')
+        setHotels([])
+      } finally {
+        setIsLoadingHotels(false)
+      }
+    }
+
+    fetchHotels()
+  }, [])
+
   const handleFileDelete = async (fileUrl: string) => {
     try {
       await apiRequest(
@@ -257,6 +301,8 @@ export default function CreateTripPage() {
         ...values,
         boat_ids: values.boat_ids || [], // Pastikan boat_ids selalu ada
         boat_id: values.boat_ids && values.boat_ids.length > 0 ? values.boat_ids[0] : null, // Tambahkan boat_id untuk kompatibilitas
+        hotel_ids: values.hotel_ids || [], // Pastikan hotel_ids selalu ada
+        hotel_id: values.hotel_ids && values.hotel_ids.length > 0 ? values.hotel_ids[0] : null, // Tambahkan hotel_id untuk kompatibilitas
         start_time: formatTime(values.start_time),
         end_time: formatTime(values.end_time),
         has_boat: Boolean(values.has_boat),
@@ -688,6 +734,82 @@ export default function CreateTripPage() {
                             className="text-blue-600 hover:text-blue-700"
                           >
                             Tambah Kapal
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Hotel Selection */}
+                {hasHotel && (
+                  <div>
+                    <h2 className="text-xl font-semibold text-gray-900 mb-6">Pilih Hotel</h2>
+                    {isLoadingHotels ? (
+                      <div className="flex items-center justify-center py-8">
+                        <Loader2 className="h-6 w-6 animate-spin" />
+                        <span className="ml-2">Memuat data hotel...</span>
+                      </div>
+                    ) : hotels.length > 0 ? (
+                      <div className="grid grid-cols-3 gap-4">
+                        {hotels.map((hotel) => {
+                          const currentHotelIds = form.watch("hotel_ids") || [];
+                          const isChecked = currentHotelIds.includes(hotel.id);
+                          
+                          return (
+                            <div key={hotel.id} className="flex flex-row items-start space-x-3 space-y-0">
+                              <Checkbox
+                                checked={isChecked}
+                                onCheckedChange={(checked) => {
+                                  console.log('Hotel checkbox changed:', hotel.id, checked);
+                                  console.log('Current hotels before change:', currentHotelIds);
+                                  
+                                  let newHotels;
+                                  if (checked) {
+                                    newHotels = [...currentHotelIds, hotel.id];
+                                    console.log('Adding hotel, new array:', newHotels);
+                                  } else {
+                                    newHotels = currentHotelIds.filter(id => id !== hotel.id);
+                                    console.log('Removing hotel, new array:', newHotels);
+                                  }
+                                  
+                                  form.setValue("hotel_ids", newHotels);
+                                  
+                                  // Force form update and log
+                                  setTimeout(() => {
+                                    const updatedHotelIds = form.getValues('hotel_ids');
+                                    console.log('Hotel IDs after update:', updatedHotelIds);
+                                    console.log('Form state after hotel update:', form.getValues());
+                                  }, 100);
+                                }}
+                              />
+                              <div className="space-y-1 leading-none">
+                                <label className="text-sm font-normal cursor-pointer">
+                                  {hotel.hotel_name}
+                                </label>
+                                <p className="text-xs text-gray-500">
+                                  {hotel.hotel_type} • {hotel.occupancy}
+                                </p>
+                                <p className="text-xs text-gray-600 font-medium">
+                                  Rp {hotel.price}
+                                </p>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-center py-8">
+                        <div className="text-center">
+                          <p className="text-gray-500 mb-2">Tidak ada data hotel tersedia</p>
+                          <p className="text-sm text-gray-400 mb-4">Silakan tambahkan hotel terlebih dahulu di menu Hotel Management</p>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => router.push("/dashboard/hotels")}
+                            className="text-blue-600 hover:text-blue-700"
+                          >
+                            Tambah Hotel
                           </Button>
                         </div>
                       </div>

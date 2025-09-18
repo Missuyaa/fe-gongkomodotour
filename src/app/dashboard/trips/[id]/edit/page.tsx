@@ -12,9 +12,16 @@ import { Trip, TripAsset } from "@/types/trips"
 import { ApiResponse } from "@/types/role"
 import { FileUpload } from "@/components/ui/file-upload"
 import { Boat } from "@/types/boats"
+import { Hotel } from "@/types/hotels"
 
 interface BoatResponse {
   data: Boat[]
+  message?: string
+  status?: string
+}
+
+interface HotelResponse {
+  data: Hotel[]
   message?: string
   status?: string
 }
@@ -62,6 +69,7 @@ interface TripDuration {
 interface TripFormType {
   name: string;
   boat_ids: number[];
+  hotel_ids: number[];
   type: "Open Trip" | "Private Trip";
   status: "Aktif" | "Non Aktif";
   is_highlight: "Yes" | "No";
@@ -105,6 +113,7 @@ const DAYS_OF_WEEK = [
 const tripSchema = z.object({
   name: z.string().min(1, "Nama trip harus diisi"),
   boat_ids: z.array(z.number()).default([]),
+  hotel_ids: z.array(z.number()).default([]),
   type: z.enum(["Open Trip", "Private Trip"]),
   status: z.enum(["Aktif", "Non Aktif"]),
   is_highlight: z.enum(["Yes", "No"]),
@@ -168,12 +177,15 @@ export default function EditTripPage({ params }: { params: Promise<{ id: string 
   const [fileDescriptions, setFileDescriptions] = useState<string[]>([])
   const [boats, setBoats] = useState<Boat[]>([])
   const [isLoadingBoats, setIsLoadingBoats] = useState(true)
+  const [hotels, setHotels] = useState<Hotel[]>([])
+  const [isLoadingHotels, setIsLoadingHotels] = useState(true)
 
   const form = useForm<TripFormType>({
     resolver: zodResolver(tripSchema),
     defaultValues: {
       name: "",
       boat_ids: [],
+      hotel_ids: [],
       type: "Open Trip",
       status: "Aktif",
       is_highlight: "No",
@@ -209,6 +221,7 @@ export default function EditTripPage({ params }: { params: Promise<{ id: string 
 
   // Kondisi tampilan dinamis
   const hasBoat = form.watch("has_boat")
+  const hasHotel = form.watch("has_hotel")
   const tentation = form.watch("tentation")
   const watchedBoatIds = form.watch("boat_ids") || []
   const showBoatSection = hasBoat || (Array.isArray(watchedBoatIds) && watchedBoatIds.length > 0)
@@ -220,6 +233,14 @@ export default function EditTripPage({ params }: { params: Promise<{ id: string 
       form.setValue("boat_ids", [])
     }
   }, [hasBoat, form])
+
+  // Jika tidak menggunakan hotel dan ada pilihan hotel, kosongkan (skenario user menonaktifkan)
+  useEffect(() => {
+    const current = form.getValues("hotel_ids") || []
+    if (!hasHotel && current.length > 0) {
+      form.setValue("hotel_ids", [])
+    }
+  }, [hasHotel, form])
 
   // Jika jadwal fleksibel (tentation = Yes), kosongkan hari operasional
   useEffect(() => {
@@ -256,6 +277,34 @@ export default function EditTripPage({ params }: { params: Promise<{ id: string 
     fetchBoats()
   }, [])
 
+  // Fetch hotels data
+  useEffect(() => {
+    const fetchHotels = async () => {
+      try {
+        setIsLoadingHotels(true)
+        const response = await apiRequest<HotelResponse>('GET', '/api/hotels')
+        console.log('Hotels response:', response)
+        if (response && response.data && Array.isArray(response.data)) {
+          setHotels(response.data)
+        } else if (response && Array.isArray(response)) {
+          // Handle case where response is directly an array
+          setHotels(response)
+        } else {
+          console.log('Invalid hotels response format:', response)
+          setHotels([])
+        }
+      } catch (error) {
+        console.error('Error fetching hotels:', error)
+        toast.error('Gagal mengambil data hotel')
+        setHotels([])
+      } finally {
+        setIsLoadingHotels(false)
+      }
+    }
+
+    fetchHotels()
+  }, [])
+
   useEffect(() => {
     const fetchTrip = async () => {
       try {
@@ -280,6 +329,8 @@ export default function EditTripPage({ params }: { params: Promise<{ id: string 
           // Normalisasi boat terkait dari berbagai kemungkinan bentuk response
           type TripBoatPivot = { boat_id: number | string }
           type BoatLite = { id: number | string }
+          type TripHotelPivot = { hotel_id: number | string }
+          type HotelLite = { id: number | string }
           type BoatIdsLike = {
             boat_ids?: Array<number | string> | null
             boat_id?: number | string | null
@@ -287,8 +338,16 @@ export default function EditTripPage({ params }: { params: Promise<{ id: string 
             boats?: BoatLite[] | null
             has_boat?: boolean | null
           }
-          const dataSource = response.data as unknown as BoatIdsLike
+          type HotelIdsLike = {
+            hotel_ids?: Array<number | string> | null
+            hotel_id?: number | string | null
+            trip_hotels?: TripHotelPivot[] | null
+            hotels?: HotelLite[] | null
+            has_hotel?: boolean | null
+          }
+          const dataSource = response.data as unknown as BoatIdsLike & HotelIdsLike
           let rawBoatIds: number[] = []
+          let rawHotelIds: number[] = []
 
           if (Array.isArray(dataSource.trip_boats) && dataSource.trip_boats.length > 0) {
             rawBoatIds = dataSource.trip_boats.map((tb) => Number(tb.boat_id)).filter((n) => !Number.isNaN(n))
@@ -301,13 +360,27 @@ export default function EditTripPage({ params }: { params: Promise<{ id: string 
             rawBoatIds = Number.isNaN(single) ? [] : [single]
           }
 
+          // Normalisasi hotel terkait dari berbagai kemungkinan bentuk response
+          if (Array.isArray(dataSource.trip_hotels) && dataSource.trip_hotels.length > 0) {
+            rawHotelIds = dataSource.trip_hotels.map((th) => Number(th.hotel_id)).filter((n) => !Number.isNaN(n))
+          } else if (Array.isArray(dataSource.hotels) && dataSource.hotels.length > 0) {
+            rawHotelIds = dataSource.hotels.map((h) => Number(h.id)).filter((n) => !Number.isNaN(n))
+          } else if (Array.isArray(dataSource.hotel_ids) && dataSource.hotel_ids.length > 0) {
+            rawHotelIds = dataSource.hotel_ids.map((h) => Number(h)).filter((n) => !Number.isNaN(n))
+          } else if (dataSource.hotel_id != null) {
+            const single = Number(dataSource.hotel_id)
+            rawHotelIds = Number.isNaN(single) ? [] : [single]
+          }
+
           const data = {
             ...response.data,
             // Normalisasi boat_ids: dukung field boat_ids[] atau boat_id tunggal
             boat_ids: rawBoatIds,
+            // Normalisasi hotel_ids: dukung field hotel_ids[] atau hotel_id tunggal
+            hotel_ids: rawHotelIds,
             destination_count: Number(response.data.destination_count) || 0,
             has_boat: Boolean(dataSource.has_boat) || rawBoatIds.length > 0,
-            has_hotel: Boolean(response.data.has_hotel),
+            has_hotel: Boolean(dataSource.has_hotel) || rawHotelIds.length > 0,
             operational_days: response.data.operational_days || [],
             tentation: response.data.tentation || "No",
             trip_durations: response.data.trip_durations.map(duration => ({
@@ -461,6 +534,8 @@ export default function EditTripPage({ params }: { params: Promise<{ id: string 
         tentation: values.tentation === "Yes" ? "Yes" : "No",
         boat_ids: values.boat_ids || [], // Ensure boat_ids is included
         boat_id: values.boat_ids && values.boat_ids.length > 0 ? values.boat_ids[0] : null, // Tambahkan boat_id untuk kompatibilitas
+        hotel_ids: values.hotel_ids || [], // Ensure hotel_ids is included
+        hotel_id: values.hotel_ids && values.hotel_ids.length > 0 ? values.hotel_ids[0] : null, // Tambahkan hotel_id untuk kompatibilitas
         operational_days: values.operational_days || [],
         additional_fees: values.additional_fees?.map(fee => ({
           ...fee,
@@ -1016,6 +1091,82 @@ export default function EditTripPage({ params }: { params: Promise<{ id: string 
                             className="text-blue-600 hover:text-blue-700"
                           >
                             Tambah Kapal
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Hotel Selection */}
+                {hasHotel && (
+                  <div>
+                    <h2 className="text-xl font-semibold text-gray-900 mb-6">Pilih Hotel</h2>
+                    {isLoadingHotels ? (
+                      <div className="flex items-center justify-center py-8">
+                        <Loader2 className="h-6 w-6 animate-spin" />
+                        <span className="ml-2">Memuat data hotel...</span>
+                      </div>
+                    ) : hotels.length > 0 ? (
+                      <div className="grid grid-cols-3 gap-4">
+                        {hotels.map((hotel) => {
+                          const currentHotelIds = form.watch("hotel_ids") || [];
+                          const isChecked = currentHotelIds.includes(hotel.id);
+                          
+                          return (
+                            <div key={hotel.id} className="flex flex-row items-start space-x-3 space-y-0">
+                              <Checkbox
+                                checked={isChecked}
+                                onCheckedChange={(checked) => {
+                                  console.log('Hotel checkbox changed:', hotel.id, checked);
+                                  console.log('Current hotels before change:', currentHotelIds);
+                                  
+                                  let newHotels;
+                                  if (checked) {
+                                    newHotels = [...currentHotelIds, hotel.id];
+                                    console.log('Adding hotel, new array:', newHotels);
+                                  } else {
+                                    newHotels = currentHotelIds.filter(id => id !== hotel.id);
+                                    console.log('Removing hotel, new array:', newHotels);
+                                  }
+                                  
+                                  form.setValue("hotel_ids", newHotels);
+                                  
+                                  // Force form update and log
+                                  setTimeout(() => {
+                                    const updatedHotelIds = form.getValues('hotel_ids');
+                                    console.log('Hotel IDs after update:', updatedHotelIds);
+                                    console.log('Form state after hotel update:', form.getValues());
+                                  }, 100);
+                                }}
+                              />
+                              <div className="space-y-1 leading-none">
+                                <label className="text-sm font-normal cursor-pointer">
+                                  {hotel.hotel_name}
+                                </label>
+                                <p className="text-xs text-gray-500">
+                                  {hotel.hotel_type} • {hotel.occupancy}
+                                </p>
+                                <p className="text-xs text-gray-600 font-medium">
+                                  Rp {hotel.price}
+                                </p>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-center py-8">
+                        <div className="text-center">
+                          <p className="text-gray-500 mb-2">Tidak ada data hotel tersedia</p>
+                          <p className="text-sm text-gray-400 mb-4">Silakan tambahkan hotel terlebih dahulu di menu Hotel Management</p>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => router.push("/dashboard/hotels")}
+                            className="text-blue-600 hover:text-blue-700"
+                          >
+                            Tambah Hotel
                           </Button>
                         </div>
                       </div>
