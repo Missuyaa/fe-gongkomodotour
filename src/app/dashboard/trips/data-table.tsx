@@ -784,17 +784,17 @@ export function DataTable({
       <div className="rounded-md border overflow-x-auto w-full">
         <Table className="w-full table-fixed" style={{ minWidth: '1200px' }}>
           <colgroup>
-            <col style={{ width: '50px' }} /> {/* expander */}
-            <col style={{ width: '50px' }} /> {/* select */}
-            <col style={{ width: '60px' }} /> {/* no */}
-            <col style={{ width: '250px' }} /> {/* name */}
-            <col style={{ width: '120px' }} /> {/* type */}
-            <col style={{ width: '100px' }} /> {/* status */}
-            <col style={{ width: '100px' }} /> {/* highlight */}
-            <col style={{ width: '180px' }} /> {/* boats */}
+            <col style={{ width: '40px' }} /> {/* expander */}
+            <col style={{ width: '40px' }} /> {/* select */}
+            <col style={{ width: '50px' }} /> {/* no */}
+            <col style={{ width: '200px' }} /> {/* name - dikurangi untuk fit */}
+            <col style={{ width: '100px' }} /> {/* type */}
+            <col style={{ width: '80px' }} /> {/* status */}
+            <col style={{ width: '80px' }} /> {/* highlight */}
+            <col style={{ width: '150px' }} /> {/* boats */}
             <col style={{ width: '180px' }} /> {/* operational_days */}
-            <col style={{ width: '120px' }} /> {/* tentation */}
-            <col style={{ width: '60px' }} /> {/* actions */}
+            <col style={{ width: '100px' }} /> {/* tentation */}
+            <col style={{ width: '60px' }} /> {/* actions - tetap terlihat */}
           </colgroup>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (

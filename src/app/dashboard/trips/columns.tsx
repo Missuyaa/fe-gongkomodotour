@@ -84,7 +84,17 @@ export const columns = ({ onDelete, onEdit }: ColumnsProps): ColumnDef<Trip>[] =
     cell: ({ row }) => {
       const name = row.getValue("name") as string
       return (
-        <div className="w-full break-words text-sm px-2">
+        <div 
+          className="w-full break-words text-xs px-1 leading-tight"
+          style={{
+            wordWrap: 'break-word',
+            overflowWrap: 'break-word',
+            wordBreak: 'break-word',
+            whiteSpace: 'normal',
+            maxWidth: '100%',
+            lineHeight: '1.2'
+          }}
+        >
           {name}
         </div>
       )
@@ -105,8 +115,8 @@ export const columns = ({ onDelete, onEdit }: ColumnsProps): ColumnDef<Trip>[] =
     cell: ({ row }) => {
       const type = row.getValue("type") as string
       return (
-        <div className="w-full flex justify-center px-2">
-          <Badge className={`${type === "Open Trip" ? "bg-yellow-500" : "bg-blue-500"} text-white text-xs`}>
+        <div className="w-full flex justify-center px-1">
+          <Badge className={`${type === "Open Trip" ? "bg-yellow-500" : "bg-blue-500"} text-white text-xs px-2 py-1`}>
             {type}
           </Badge>
         </div>
@@ -128,8 +138,8 @@ export const columns = ({ onDelete, onEdit }: ColumnsProps): ColumnDef<Trip>[] =
     cell: ({ row }) => {
       const status = row.getValue("status") as string
       return (
-        <div className="w-full flex justify-center px-2">
-          <Badge className={`${status === "Aktif" ? "bg-emerald-500" : "bg-red-500"} text-white text-xs`}>
+        <div className="w-full flex justify-center px-1">
+          <Badge className={`${status === "Aktif" ? "bg-emerald-500" : "bg-red-500"} text-white text-xs px-2 py-1`}>
             {status}
           </Badge>
         </div>
@@ -151,8 +161,8 @@ export const columns = ({ onDelete, onEdit }: ColumnsProps): ColumnDef<Trip>[] =
     cell: ({ row }) => {
       const isHighlight = row.getValue("is_highlight") as "Yes" | "No"
       return (
-        <div className="w-full flex justify-center px-2">
-          <Badge className={`${isHighlight === "Yes" ? "bg-yellow-500" : "bg-gray-500"} text-white text-xs`}>
+        <div className="w-full flex justify-center px-1">
+          <Badge className={`${isHighlight === "Yes" ? "bg-yellow-500" : "bg-gray-500"} text-white text-xs px-2 py-1`}>
             {isHighlight}
           </Badge>
         </div>
@@ -171,31 +181,101 @@ export const columns = ({ onDelete, onEdit }: ColumnsProps): ColumnDef<Trip>[] =
 
       // 1) Jika API kirim relasi lengkap dalam trip.boat
       if (trip.boat && trip.boat.boat_name) {
-        return <div className="text-sm w-full break-words px-2">{trip.boat.boat_name}</div>
+        return (
+          <div 
+            className="text-xs w-full break-words px-1 leading-tight"
+            style={{
+              wordWrap: 'break-word',
+              overflowWrap: 'break-word',
+              wordBreak: 'break-word',
+              whiteSpace: 'normal',
+              maxWidth: '100%',
+              lineHeight: '1.2'
+            }}
+          >
+            {trip.boat.boat_name}
+          </div>
+        )
       }
 
       // 2) Jika API kirim daftar boats
       if (Array.isArray(trip.boats) && trip.boats.length > 0) {
         const names = trip.boats.map(b => b.boat_name || b.name || `ID ${b.id}`)
-        return <div className="text-sm w-full break-words px-2">{names.join(", ")}</div>
+        return (
+          <div 
+            className="text-xs w-full break-words px-1 leading-tight"
+            style={{
+              wordWrap: 'break-word',
+              overflowWrap: 'break-word',
+              wordBreak: 'break-word',
+              whiteSpace: 'normal',
+              maxWidth: '100%',
+              lineHeight: '1.2'
+            }}
+          >
+            {names.join(", ")}
+          </div>
+        )
       }
 
       // 3) Jika API kirim pivot trip_boats dengan nested boat
       if (Array.isArray(trip.trip_boats) && trip.trip_boats.length > 0) {
         const names = trip.trip_boats.map(tb => tb.boat?.boat_name || `ID ${tb.boat_id}`)
-        return <div className="text-sm w-full break-words px-2">{names.join(", ")}</div>
+        return (
+          <div 
+            className="text-xs w-full break-words px-1 leading-tight"
+            style={{
+              wordWrap: 'break-word',
+              overflowWrap: 'break-word',
+              wordBreak: 'break-word',
+              whiteSpace: 'normal',
+              maxWidth: '100%',
+              lineHeight: '1.2'
+            }}
+          >
+            {names.join(", ")}
+          </div>
+        )
       }
 
       // 4) Jika hanya ada boat_id/boat_ids tanpa nama
       const maybeBoatId = (trip as unknown as { boat_id?: number | string | null }).boat_id
       if (typeof maybeBoatId !== 'undefined' && maybeBoatId !== null) {
-        return <div className="text-sm w-full break-words px-2">{`Boat ID: ${maybeBoatId}`}</div>
+        return (
+          <div 
+            className="text-xs w-full break-words px-1 leading-tight"
+            style={{
+              wordWrap: 'break-word',
+              overflowWrap: 'break-word',
+              wordBreak: 'break-word',
+              whiteSpace: 'normal',
+              maxWidth: '100%',
+              lineHeight: '1.2'
+            }}
+          >
+            {`Boat ID: ${maybeBoatId}`}
+          </div>
+        )
       }
       if (Array.isArray(trip.boat_ids) && trip.boat_ids.length > 0) {
-        return <div className="text-sm w-full break-words px-2">{`Boat IDs: ${trip.boat_ids.join(', ')}`}</div>
+        return (
+          <div 
+            className="text-xs w-full break-words px-1 leading-tight"
+            style={{
+              wordWrap: 'break-word',
+              overflowWrap: 'break-word',
+              wordBreak: 'break-word',
+              whiteSpace: 'normal',
+              maxWidth: '100%',
+              lineHeight: '1.2'
+            }}
+          >
+            {`Boat IDs: ${trip.boat_ids.join(', ')}`}
+          </div>
+        )
       }
 
-      return <div className="text-sm px-2">Tidak ada</div>
+      return <div className="text-xs px-1">Tidak ada</div>
     },
   },
   {
@@ -225,8 +305,18 @@ export const columns = ({ onDelete, onEdit }: ColumnsProps): ColumnDef<Trip>[] =
                           !weekdays.some(day => operationalDays.includes(day));
 
       return (
-        <div className="text-sm space-y-1 w-full px-2">
-          <div className="break-words">
+        <div className="text-xs space-y-1 w-full px-1">
+          <div 
+            className="break-words leading-tight"
+            style={{
+              wordWrap: 'break-word',
+              overflowWrap: 'break-word',
+              wordBreak: 'break-word',
+              whiteSpace: 'normal',
+              maxWidth: '100%',
+              lineHeight: '1.2'
+            }}
+          >
             {operationalDays && operationalDays.length > 0 
               ? operationalDays.map(day => dayLabels[day]).join(", ")
               : "Tidak ada"
@@ -235,13 +325,13 @@ export const columns = ({ onDelete, onEdit }: ColumnsProps): ColumnDef<Trip>[] =
           {operationalDays && operationalDays.length > 0 && (
             <div className="flex gap-1 mt-1 flex-wrap">
               {isAllDays ? (
-                <Badge className="bg-blue-500 text-white text-xs">Semua Hari</Badge>
+                <Badge className="bg-blue-500 text-white text-xs px-1 py-0.5">Semua Hari</Badge>
               ) : isWeekdaysOnly ? (
-                <Badge className="bg-green-500 text-white text-xs">Weekday</Badge>
+                <Badge className="bg-green-500 text-white text-xs px-1 py-0.5">Weekday</Badge>
               ) : isWeekendOnly ? (
-                <Badge className="bg-amber-500 text-white text-xs">Weekend</Badge>
+                <Badge className="bg-amber-500 text-white text-xs px-1 py-0.5">Weekend</Badge>
               ) : (
-                <Badge className="bg-purple-500 text-white text-xs">Custom</Badge>
+                <Badge className="bg-purple-500 text-white text-xs px-1 py-0.5">Custom</Badge>
               )}
             </div>
           )}
@@ -255,8 +345,8 @@ export const columns = ({ onDelete, onEdit }: ColumnsProps): ColumnDef<Trip>[] =
     cell: ({ row }) => {
       const tentation = row.getValue("tentation") as "Yes" | "No"
       return (
-        <div className="w-full flex justify-center px-2">
-          <Badge className={`${tentation === "Yes" ? "bg-green-500" : "bg-gray-500"} text-white text-xs`}>
+        <div className="w-full flex justify-center px-1">
+          <Badge className={`${tentation === "Yes" ? "bg-green-500" : "bg-gray-500"} text-white text-xs px-2 py-1`}>
             {tentation === "Yes" ? "Ya" : "Tidak"}
           </Badge>
         </div>
