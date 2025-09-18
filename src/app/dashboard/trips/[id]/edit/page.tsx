@@ -348,7 +348,21 @@ export default function EditTripPage({ params }: { params: Promise<{ id: string 
           console.log('Converted boat_ids:', data.boat_ids)
           console.log('Assets from API:', response.data.assets)
           form.reset(validatedData)
-          setExistingFiles(response.data.assets || [])
+          
+          // Set existing files dengan validasi
+          const assets = response.data.assets || []
+          console.log('Setting existing files:', {
+            count: assets.length,
+            assets: assets.map(a => ({ id: a.id, title: a.title, file_url: a.file_url })),
+            rawAssets: assets
+          })
+          setExistingFiles(assets)
+          
+          // Reset file upload states
+          setFiles([])
+          setFileTitles([])
+          setFileDescriptions([])
+          setFilesToDelete([])
         } catch (validationError) {
           console.error("Validation error:", validationError)
           throw new Error("Data trip tidak valid")
@@ -367,17 +381,57 @@ export default function EditTripPage({ params }: { params: Promise<{ id: string 
 
   const handleFileDelete = async (fileUrl: string) => {
     try {
+      console.log('handleFileDelete called with fileUrl:', fileUrl)
+      console.log('Current existingFiles:', existingFiles.map(f => ({ id: f.id, title: f.title, file_url: f.file_url })))
+      
       // Cari asset berdasarkan file_url
       const asset = existingFiles.find(file => file.file_url === fileUrl)
       if (!asset) {
+        console.error('Asset not found for fileUrl:', fileUrl)
         throw new Error("Asset tidak ditemukan")
       }
 
+      console.log('Found asset to delete:', { 
+        fileUrl, 
+        assetId: asset.id, 
+        assetTitle: asset.title,
+        currentExistingFiles: existingFiles.length,
+        allExistingFiles: existingFiles.map(f => ({ id: f.id, title: f.title, file_url: f.file_url }))
+      })
+
+      // Cek apakah file sudah ada di daftar yang akan dihapus
+      const isAlreadyMarkedForDeletion = filesToDelete.includes(asset.id)
+      if (isAlreadyMarkedForDeletion) {
+        console.log('File already marked for deletion, skipping')
+        return
+      }
+
       // Tambahkan ke daftar file yang akan dihapus
-      setFilesToDelete(prev => [...prev, asset.id])
-      // Hapus dari tampilan
-      setExistingFiles(prev => prev.filter(file => file.file_url !== fileUrl))
-      toast.success("File akan dihapus setelah menyimpan perubahan")
+      setFilesToDelete(prev => {
+        const newList = [...prev, asset.id]
+        console.log('Files to delete updated:', newList)
+        return newList
+      })
+      
+      // Hapus dari tampilan existing files menggunakan ID yang lebih unik
+      setExistingFiles(prev => {
+        console.log('Filtering existing files, removing asset with ID:', asset.id)
+        const filtered = prev.filter(file => {
+          const shouldKeep = file.id !== asset.id
+          console.log(`File ${file.id} (${file.title}): ${shouldKeep ? 'KEEP' : 'REMOVE'}`)
+          return shouldKeep
+        })
+        console.log('Existing files after deletion:', {
+          before: prev.length,
+          after: filtered.length,
+          removed: prev.length - filtered.length,
+          removedFile: { id: asset.id, title: asset.title },
+          remainingFiles: filtered.map(f => ({ id: f.id, title: f.title }))
+        })
+        return filtered
+      })
+      
+      toast.success(`File "${asset.title || 'Untitled'}" akan dihapus setelah menyimpan perubahan`)
     } catch (error) {
       console.error("Error deleting file:", error)
       toast.error("Gagal menghapus file")
@@ -392,6 +446,9 @@ export default function EditTripPage({ params }: { params: Promise<{ id: string 
       console.log('Boat IDs in form values:', values.boat_ids)
       console.log('Boat IDs type:', typeof values.boat_ids)
       console.log('Boat IDs length:', values.boat_ids?.length)
+      console.log('Files to delete:', filesToDelete)
+      console.log('New files to upload:', files.length)
+      console.log('Existing files count:', existingFiles.length)
       console.log('All form values in submit:', JSON.stringify(values, null, 2))
       
       // Transform data before sending to API
@@ -443,24 +500,46 @@ export default function EditTripPage({ params }: { params: Promise<{ id: string 
 
       // 2. Delete files if any
       if (filesToDelete.length > 0) {
-        await Promise.all(
-          filesToDelete.map(fileId =>
-            apiRequest(
-              'DELETE',
-              `/api/assets/${fileId}`
-            )
+        console.log('Deleting files:', filesToDelete)
+        console.log('Files to delete details:', filesToDelete.map(id => {
+          const originalAsset = existingFiles.find(f => f.id === id)
+          return { id, title: originalAsset?.title, file_url: originalAsset?.file_url }
+        }))
+        
+        try {
+          await Promise.all(
+            filesToDelete.map(fileId => {
+              console.log('Deleting file with ID:', fileId)
+              return apiRequest(
+                'DELETE',
+                `/api/assets/${fileId}`
+              )
+            })
           )
-        )
+          console.log('Files deleted successfully')
+        } catch (deleteError) {
+          console.error('Error deleting files:', deleteError)
+          toast.error('Gagal menghapus beberapa file')
+          // Jangan throw error, lanjutkan proses
+        }
+      } else {
+        console.log('No files to delete')
       }
 
       // 3. Upload new files if any
       if (files.length > 0) {
+        console.log('Uploading new files:', files.length, 'files')
         const formData = new FormData()
         formData.append('model_type', 'trip')
         formData.append('model_id', id)
         formData.append('is_external', '0')
         
         files.forEach((file, index) => {
+          console.log('Adding file to form data:', {
+            file: file.name,
+            title: fileTitles[index],
+            description: fileDescriptions[index]
+          })
           formData.append('files[]', file)
           formData.append('file_titles[]', fileTitles[index])
           formData.append('file_descriptions[]', fileDescriptions[index] || '')
@@ -476,6 +555,7 @@ export default function EditTripPage({ params }: { params: Promise<{ id: string 
             },
           }
         )
+        console.log('New files uploaded successfully')
       }
 
       toast.success("Trip berhasil diupdate")
@@ -595,6 +675,14 @@ export default function EditTripPage({ params }: { params: Promise<{ id: string 
   // Debug: Monitor all form values
   const allFormValues = form.watch()
   console.log('All form values in edit:', allFormValues)
+
+  // Debug existing files state changes
+  useEffect(() => {
+    console.log('Existing files state changed:', {
+      count: existingFiles.length,
+      files: existingFiles.map(f => ({ id: f.id, title: f.title, file_url: f.file_url }))
+    })
+  }, [existingFiles])
 
   if (isLoading) {
     return (
@@ -1822,6 +1910,11 @@ export default function EditTripPage({ params }: { params: Promise<{ id: string 
                   <h2 className="text-xl font-semibold text-gray-900 mb-6">Gambar Trip</h2>
                   <FileUpload
                     onUpload={async (files, titles, descriptions) => {
+                      console.log('FileUpload onUpload called:', {
+                        filesCount: files.length,
+                        titlesCount: titles.length,
+                        descriptionsCount: descriptions.length
+                      })
                       setFiles(files)
                       setFileTitles(titles)
                       setFileDescriptions(descriptions)
@@ -1829,7 +1922,7 @@ export default function EditTripPage({ params }: { params: Promise<{ id: string 
                     onDelete={handleFileDelete}
                     existingFiles={existingFiles}
                     maxFiles={5}
-                    maxSize={10 * 1024 * 1024} // 2MB
+                    maxSize={10 * 1024 * 1024} // 10MB
                   />
                 </div>
 

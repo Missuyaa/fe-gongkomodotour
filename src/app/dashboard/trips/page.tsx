@@ -42,6 +42,23 @@ export default function TripPage() {
       console.log('Raw API Response:', response)
       console.log('Response data:', response.data)
       
+      // Log detail assets untuk debugging
+      if (response.data && response.data.length > 0) {
+        response.data.forEach((trip, index) => {
+          console.log(`Trip ${index} (${trip.name}):`, {
+            id: trip.id,
+            name: trip.name,
+            assetsCount: trip.assets?.length || 0,
+            assets: trip.assets?.map(a => ({
+              id: a.id,
+              title: a.title,
+              file_url: a.file_url,
+              description: a.description
+            })) || []
+          })
+        })
+      }
+      
       setData(response.data || [])
       setError(null)
     } catch (err: unknown) {

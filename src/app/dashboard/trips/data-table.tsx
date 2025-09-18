@@ -66,10 +66,31 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
 // Fungsi untuk mendapatkan URL gambar
 const getImageUrl = (fileUrl: string) => {
-  if (fileUrl.startsWith('http')) {
+  console.log('getImageUrl called with:', { fileUrl, type: typeof fileUrl })
+  
+  if (!fileUrl || fileUrl.trim() === '') {
+    console.warn('Empty or invalid file URL provided:', fileUrl)
+    return 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjNmNGY2Ii8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzk5YTNhZiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPkltYWdlIE5vdCBGb3VuZDwvdGV4dD48L3N2Zz4='
+  }
+  
+  // Jika sudah URL lengkap, return langsung
+  if (fileUrl.startsWith('http://') || fileUrl.startsWith('https://')) {
+    console.log('Full URL detected:', fileUrl)
     return fileUrl
   }
-  return `${API_URL}${fileUrl}`
+  
+  // Pastikan fileUrl dimulai dengan slash
+  const cleanUrl = fileUrl.startsWith('/') ? fileUrl : `/${fileUrl}`
+  const fullUrl = `${API_URL}${cleanUrl}`
+  
+  console.log('Image URL constructed:', { 
+    original: fileUrl, 
+    cleanUrl: cleanUrl,
+    apiUrl: API_URL,
+    constructed: fullUrl 
+  })
+  
+  return fullUrl
 }
 
 const exportToPDF = (data: Trip[]) => {
@@ -217,6 +238,13 @@ export function DataTable({
 
   const renderSubComponent = ({ row }: { row: Row<Trip> }) => {
     const trip = row.original as Trip
+    
+    console.log('renderSubComponent called for trip:', {
+      id: trip.id,
+      name: trip.name,
+      assetsCount: trip.assets?.length || 0,
+      assets: trip.assets?.map(a => ({ id: a.id, title: a.title, file_url: a.file_url })) || []
+    })
     
     return (
       <div className="p-4 bg-muted/50 rounded-lg">
@@ -507,10 +535,22 @@ export function DataTable({
             <h4 className="font-semibold text-lg mb-4 text-gray-800 border-b pb-2">Gambar Trip</h4>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
               {trip.assets.map((asset, index) => {
+                if (!asset || !asset.file_url) {
+                  console.warn(`Invalid asset at index ${index}:`, asset)
+                  return null
+                }
+                
                 const imageUrl = getImageUrl(asset.file_url)
+                console.log(`Rendering asset ${index}:`, {
+                  id: asset.id,
+                  title: asset.title,
+                  file_url: asset.file_url,
+                  imageUrl: imageUrl
+                })
+                
                 return (
                   <div 
-                    key={index} 
+                    key={asset.id || `asset-${index}`} 
                     className="space-y-2 cursor-pointer group"
                     onClick={() => setSelectedImage(asset)}
                   >
@@ -522,9 +562,21 @@ export function DataTable({
                         sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, (max-width: 1024px) 25vw, 20vw"
                         className="object-cover transition-transform duration-200 group-hover:scale-105"
                         onError={(e) => {
-                          console.error(`Error loading image ${index}:`, e)
+                          console.error(`Error loading image for asset ${asset.id || index}:`, {
+                            assetId: asset.id,
+                            assetTitle: asset.title,
+                            fileUrl: asset.file_url,
+                            imageUrl: imageUrl,
+                            error: e,
+                            tripId: trip.id,
+                            tripName: trip.name
+                          })
                           const target = e.target as HTMLImageElement
-                          target.src = '/placeholder-image.png'
+                          // Gunakan data URL untuk placeholder yang valid
+                          target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjNmNGY2Ii8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzk5YTNhZiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPkltYWdlIE5vdCBGb3VuZDwvdGV4dD48L3N2Zz4='
+                        }}
+                        onLoad={() => {
+                          console.log(`Image loaded successfully for asset ${asset.id || index}: ${asset.title || `Gambar ${index + 1}`}`)
                         }}
                         priority={index < 5}
                       />
@@ -542,7 +594,7 @@ export function DataTable({
                     )}
                   </div>
                 )
-              })}
+              }).filter(Boolean)}
             </div>
           </div>
         )}

@@ -15,6 +15,7 @@ interface FileUploadProps {
   onUpload: (files: File[], titles: string[], descriptions: string[]) => Promise<void>
   onDelete?: (fileUrl: string) => Promise<void>
   existingFiles?: Array<{
+    id?: number
     file_url: string
     title: string
     description: string | null
@@ -79,22 +80,21 @@ export function FileUpload({
     setFiles(prev => {
       const updated = [...prev, ...newFiles]
       console.log('Files state updated:', updated.length, updated)
+      
+      // Call onUpload with updated files after state is set
+      setTimeout(() => {
+        onUpload(
+          updated.map(f => f.file),
+          updated.map(f => f.title),
+          updated.map(f => f.description)
+        ).catch(error => {
+          console.error('Error uploading files:', error)
+          toast.error('Gagal mengupload file')
+        })
+      }, 0)
+      
       return updated
     })
-    
-    try {
-      // Use the updated files state
-      const allFiles = [...files, ...newFiles]
-      await onUpload(
-        allFiles.map(f => f.file),
-        allFiles.map(f => f.title),
-        allFiles.map(f => f.description)
-      )
-      console.log('Files uploaded successfully')
-    } catch (error) {
-      console.error('Error uploading files:', error)
-      toast.error('Gagal mengupload file')
-    }
   }, [files, maxFiles, onUpload])
 
   const onDropRejected = useCallback((fileRejections: any[]) => {
@@ -162,6 +162,11 @@ export function FileUpload({
 
   // Fungsi untuk mengubah URL relatif menjadi URL absolut
   const getImageUrl = (url: string) => {
+    if (!url) {
+      console.warn('Empty URL provided to getImageUrl')
+      return 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjNmNGY2Ii8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzk5YTNhZiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPkltYWdlIE5vdCBGb3VuZDwvdGV4dD48L3N2Zz4='
+    }
+    
     console.log('Original URL:', url)
     
     if (url.startsWith('http')) {
@@ -169,9 +174,9 @@ export function FileUpload({
       return url
     }
     
-    // Hapus leading slash jika ada
-    const cleanUrl = url.startsWith('/') ? url.slice(1) : url
-    const fullUrl = `${API_URL}/${cleanUrl}`
+    // Pastikan URL dimulai dengan slash
+    const cleanUrl = url.startsWith('/') ? url : `/${url}`
+    const fullUrl = `${API_URL}${cleanUrl}`
     console.log('Constructed URL:', fullUrl)
     return fullUrl
   }
@@ -300,44 +305,74 @@ export function FileUpload({
       </Tabs>
 
       {/* Existing Files */}
-      {existingFiles.length > 0 && (
+      {existingFiles && existingFiles.length > 0 && (
         <div className="space-y-4">
-          <h3 className="text-sm font-medium">File yang sudah ada</h3>
+          <h3 className="text-sm font-medium">File yang sudah ada ({existingFiles.length})</h3>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-            {existingFiles.map((file, index) => (
-              <div key={index} className="relative group">
-                <div className="aspect-square relative rounded-lg overflow-hidden">
-                  <Image
-                    src={getImageUrl(file.file_url)}
-                    alt={file.title}
-                    fill
-                    className="object-cover"
-                    onError={() => {
-                      console.error('Failed to load image:', file.file_url)
-                    }}
-                  />
-                  {onDelete && (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.preventDefault()
-                        e.stopPropagation()
-                        onDelete(file.file_url)
+            {existingFiles.map((file, index) => {
+              if (!file || !file.file_url) {
+                console.warn(`Invalid existing file at index ${index}:`, file)
+                return null
+              }
+              
+              console.log(`Rendering existing file ${index}:`, {
+                id: file.id,
+                title: file.title,
+                file_url: file.file_url,
+                key: `existing-${file.id ?? file.file_url}-${index}`
+              })
+              
+              return (
+                <div key={`existing-${file.id ?? file.file_url}-${index}`} className="relative group">
+                  <div className="aspect-square relative rounded-lg overflow-hidden">
+                    <Image
+                      src={getImageUrl(file.file_url)}
+                      alt={file.title || `Existing file ${index + 1}`}
+                      fill
+                      className="object-cover"
+                      onError={(e) => {
+                        console.error('Failed to load existing image:', {
+                          file,
+                          constructedUrl: getImageUrl(file.file_url),
+                          error: e
+                        })
+                        const target = e.target as HTMLImageElement
+                        // Gunakan data URL untuk placeholder yang valid
+                        target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjNmNGY2Ii8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzk5YTNhZiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPkltYWdlIE5vdCBGb3VuZDwvdGV4dD48L3N2Zz4='
                       }}
-                      className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
-                  )}
+                      onLoad={() => {
+                        console.log('Existing image loaded successfully:', file.title)
+                      }}
+                    />
+                    {onDelete && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          console.log('Deleting existing file:', {
+                            fileUrl: file.file_url,
+                            fileTitle: file.title,
+                            fileId: file.id ?? 'no-id'
+                          })
+                          onDelete(file.file_url)
+                        }}
+                        className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
+                        title={`Hapus ${file.title || 'file'}`}
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+                  <div className="mt-2">
+                    <p className="text-sm font-medium">{file.title || 'Untitled'}</p>
+                    {file.description && (
+                      <p className="text-xs text-gray-500">{file.description}</p>
+                    )}
+                  </div>
                 </div>
-                <div className="mt-2">
-                  <p className="text-sm font-medium">{file.title}</p>
-                  {file.description && (
-                    <p className="text-xs text-gray-500">{file.description}</p>
-                  )}
-                </div>
-              </div>
-            ))}
+              )
+            }).filter(Boolean)}
           </div>
         </div>
       )}
