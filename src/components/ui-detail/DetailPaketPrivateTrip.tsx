@@ -314,6 +314,7 @@ const DetailPaketPrivateTrip: React.FC<DetailPaketPrivateTripProps> = ({
                   initialFocus
                   className="rounded-md border"
                   showOutsideDays={false}
+                  captionLayout="dropdown"
                 />
               </PopoverContent>
             </Popover>
