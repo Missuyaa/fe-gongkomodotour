@@ -13,6 +13,7 @@ export interface BlogAsset {
   blog_id: number
   file_url: string
   title?: string
+  description?: string
   created_at: string
   updated_at: string
 }
@@ -23,7 +24,7 @@ export interface Blog {
   title: string
   content: string
   status: string
-  category: 'tips' | 'travel'
+  category: 'tips' | 'travel' | 'trips'
   created_at: string
   updated_at: string
   author: Author

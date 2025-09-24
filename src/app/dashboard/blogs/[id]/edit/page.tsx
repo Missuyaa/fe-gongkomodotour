@@ -41,7 +41,9 @@ const blogSchema = z.object({
   title: z.string().min(1, "Judul harus diisi"),
   content: z.string().min(1, "Konten harus diisi"),
   status: z.enum(["published", "draft"]),
-  category: z.enum(["trips", "travel", "tips"])
+  category: z.enum(["trips", "travel", "tips"], {
+    errorMap: () => ({ message: "Kategori harus dipilih" })
+  })
 })
 
 interface EditBlogPageProps {
@@ -57,6 +59,7 @@ export default function EditBlogPage({ params }: EditBlogPageProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [files, setFiles] = useState<File[]>([])
   const [fileTitles, setFileTitles] = useState<string[]>([])
+  const [fileDescriptions, setFileDescriptions] = useState<string[]>([])
   const [existingAssets, setExistingAssets] = useState<BlogAsset[]>([])
   const [userData, setUserData] = useState<UserData | null>(null)
 
@@ -130,14 +133,31 @@ export default function EditBlogPage({ params }: EditBlogPageProps) {
 
   const handleFileDelete = async (fileUrl: string) => {
     try {
+      console.log('handleFileDelete called with fileUrl:', fileUrl)
+      console.log('Current existingAssets:', existingAssets.map(f => ({ id: f.id, title: f.title, file_url: f.file_url })))
+      
+      // Cari asset berdasarkan file_url
+      const asset = existingAssets.find(file => file.file_url === fileUrl)
+      if (!asset) {
+        console.error('Asset not found for fileUrl:', fileUrl)
+        throw new Error("Asset tidak ditemukan")
+      }
+
+      console.log('Found asset to delete:', { 
+        fileUrl, 
+        assetId: asset.id, 
+        assetTitle: asset.title 
+      })
+
+      // Gunakan asset ID, bukan file URL
       await apiRequest(
         'DELETE',
-        `/api/assets/${encodeURIComponent(fileUrl)}`
+        `/api/assets/${asset.id}`
       )
       toast.success("File berhasil dihapus")
       
       // Update existing assets
-      setExistingAssets(prev => prev.filter(asset => asset.file_url !== fileUrl))
+      setExistingAssets(prev => prev.filter(file => file.id !== asset.id))
     } catch (error) {
       console.error("Error deleting file:", error)
       toast.error("Gagal menghapus file")
@@ -186,6 +206,7 @@ export default function EditBlogPage({ params }: EditBlogPageProps) {
         files.forEach((file: File, index: number) => {
           formData.append('files[]', file)
           formData.append('file_titles[]', fileTitles[index])
+          formData.append('file_descriptions[]', fileDescriptions[index] || '')
         })
 
         await apiRequest(
@@ -296,6 +317,7 @@ export default function EditBlogPage({ params }: EditBlogPageProps) {
                             <SelectContent>
                               <SelectItem value="trips">Trips</SelectItem>
                               <SelectItem value="travel">Travel</SelectItem>
+                              <SelectItem value="tips">Tips</SelectItem>
                             </SelectContent>
                           </Select>
                           <FormMessage />
@@ -336,15 +358,16 @@ export default function EditBlogPage({ params }: EditBlogPageProps) {
                     existingFiles={existingAssets.map(asset => ({
                       file_url: asset.file_url,
                       title: asset.title || '',
-                      description: null
+                      description: asset.description || ''
                     }))}
-                    onUpload={async (files, titles) => {
+                    onUpload={async (files, titles, descriptions) => {
                       setFiles(files)
                       setFileTitles(titles)
+                      setFileDescriptions(descriptions)
                     }}
                     onDelete={handleFileDelete}
                     maxFiles={5}
-                    maxSize={10 * 1024 * 1024} // 2MB
+                    maxSize={10 * 1024 * 1024} // 10MB
                   />
                 </div>
 

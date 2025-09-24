@@ -741,7 +741,7 @@ export default function CreateTripPage() {
                   </div>
                 )}
 
-                {/* Hotel Selection */}
+                {/* Hotel Selection
                 {hasHotel && (
                   <div>
                     <h2 className="text-xl font-semibold text-gray-900 mb-6">Pilih Hotel</h2>
@@ -815,7 +815,7 @@ export default function CreateTripPage() {
                       </div>
                     )}
                   </div>
-                )}
+                )} */}
 
                 {/* Operational Days */}
                 {tentation === "Yes" && (

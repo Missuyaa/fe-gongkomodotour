@@ -39,7 +39,9 @@ const blogSchema = z.object({
   title: z.string().min(1, "Judul harus diisi"),
   content: z.string().min(1, "Konten harus diisi"),
   status: z.enum(["published", "draft"]),
-  category: z.enum(["trips", "travel", "tips"])
+  category: z.enum(["trips", "travel", "tips"], {
+    errorMap: () => ({ message: "Kategori harus dipilih" })
+  })
 })
 
 export default function CreateBlogPage() {
@@ -47,6 +49,7 @@ export default function CreateBlogPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [files, setFiles] = useState<File[]>([])
   const [fileTitles, setFileTitles] = useState<string[]>([])
+  const [fileDescriptions, setFileDescriptions] = useState<string[]>([])
   const [userData, setUserData] = useState<UserData | null>(null)
 
   useEffect(() => {
@@ -92,11 +95,10 @@ export default function CreateBlogPage() {
 
   const handleFileDelete = async (fileUrl: string) => {
     try {
-      await apiRequest(
-        'DELETE',
-        `/api/assets/${encodeURIComponent(fileUrl)}`
-      )
-      toast.success("File berhasil dihapus")
+      console.log('handleFileDelete called with fileUrl:', fileUrl)
+      // Untuk create page, kita tidak perlu menghapus dari existing assets
+      // karena file belum di-upload ke server
+      toast.success("File berhasil dihapus dari preview")
     } catch (error) {
       console.error("Error deleting file:", error)
       toast.error("Gagal menghapus file")
@@ -153,6 +155,7 @@ export default function CreateBlogPage() {
         files.forEach((file: File, index: number) => {
           formData.append('files[]', file)
           formData.append('file_titles[]', fileTitles[index])
+          formData.append('file_descriptions[]', fileDescriptions[index] || '')
         })
 
         await apiRequest(
@@ -293,13 +296,14 @@ export default function CreateBlogPage() {
                 <div>
                   <h2 className="text-xl font-semibold text-gray-900 mb-6">Gambar Blog</h2>
                   <FileUpload
-                    onUpload={async (files, titles) => {
+                    onUpload={async (files, titles, descriptions) => {
                       setFiles(files)
                       setFileTitles(titles)
+                      setFileDescriptions(descriptions)
                     }}
                     onDelete={handleFileDelete}
                     maxFiles={5}
-                    maxSize={10 * 1024 * 1024} // 2MB
+                    maxSize={10 * 1024 * 1024} // 10MB
                   />
                 </div>
 

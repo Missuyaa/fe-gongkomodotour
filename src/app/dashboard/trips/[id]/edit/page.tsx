@@ -1098,7 +1098,7 @@ export default function EditTripPage({ params }: { params: Promise<{ id: string 
                   </div>
                 )}
 
-                {/* Hotel Selection */}
+                {/* Hotel Selection
                 {hasHotel && (
                   <div>
                     <h2 className="text-xl font-semibold text-gray-900 mb-6">Pilih Hotel</h2>
@@ -1172,7 +1172,7 @@ export default function EditTripPage({ params }: { params: Promise<{ id: string 
                       </div>
                     )}
                   </div>
-                )}
+                )} */}
 
                 {/* Operational Days */}
                 {tentation !== "Yes" && (
