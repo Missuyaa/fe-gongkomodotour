@@ -305,8 +305,7 @@ const DetailPaketPrivateTrip: React.FC<DetailPaketPrivateTripProps> = ({
                   {selectedDate ? format(selectedDate, "PPP") : "Select Date"}
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-auto p-0">
-                {" "}
+              <PopoverContent className="w-auto p-0" align="start">
                 <Calendar
                   mode="single"
                   selected={selectedDate}
@@ -314,6 +313,7 @@ const DetailPaketPrivateTrip: React.FC<DetailPaketPrivateTripProps> = ({
                   disabled={disabledByOperationalDays}
                   initialFocus
                   className="rounded-md border"
+                  showOutsideDays={false}
                 />
               </PopoverContent>
             </Popover>
