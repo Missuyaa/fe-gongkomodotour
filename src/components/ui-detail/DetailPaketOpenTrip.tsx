@@ -460,7 +460,7 @@ const DetailPaketOpenTrip: React.FC<DetailPaketOpenTripProps> = ({ data }) => {
                       {selectedDate ? format(selectedDate, "PPP") : "Select Date"}
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0">
+                  <PopoverContent className="w-auto p-0" align="start">
                     {" "}
                     <Calendar
                       mode="single"
@@ -468,6 +468,9 @@ const DetailPaketOpenTrip: React.FC<DetailPaketOpenTripProps> = ({ data }) => {
                       onSelect={setSelectedDate}
                       disabled={disabledByOperationalDays}
                       initialFocus
+                      className="rounded-md border"
+                      showOutsideDays={false}
+                      captionLayout="dropdown"
                     />
                   </PopoverContent>
                 </Popover>

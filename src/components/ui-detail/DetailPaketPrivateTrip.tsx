@@ -15,6 +15,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { FlightSchedule } from "@/types/trips";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const dayNameToIndex: Record<string, number> = {
   Sunday: 0,
@@ -103,6 +104,22 @@ const DetailPaketPrivateTrip: React.FC<DetailPaketPrivateTripProps> = ({
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const router = useRouter();
+  const [selectedDurationId, setSelectedDurationId] = useState<number>(
+    data.trip_durations?.[0]?.id || 0
+  );
+
+  // Safe image handling like OpenTrip
+  const [imageErrors, setImageErrors] = useState<Set<string>>(new Set());
+  const handleImageError = (imageSrc: string) => {
+    if (!imageSrc) return;
+    setImageErrors((prev) => new Set(prev).add(imageSrc));
+  };
+  const getSafeImageSrc = (imageSrc: string | undefined | null, fallback: string = "/img/default-trip.jpg") => {
+    if (!imageSrc || imageErrors.has(imageSrc)) {
+      return fallback;
+    }
+    return imageSrc;
+  };
 
   // Disabled date berdasarkan hari operasional paket
   const allowedDaysSet = new Set(
@@ -139,11 +156,12 @@ const DetailPaketPrivateTrip: React.FC<DetailPaketPrivateTripProps> = ({
                 onClick={() => setSelectedImage(mainImage)}
               >
                 <Image
-                  src={mainImage}
+                  src={getSafeImageSrc(mainImage)}
                   alt={data.title || "Default Image"}
                   fill
                   className="rounded-sm object-cover"
                   unoptimized={true}
+                  onError={() => handleImageError(mainImage)}
                 />
               </div>
             </DialogTrigger>
@@ -174,11 +192,12 @@ const DetailPaketPrivateTrip: React.FC<DetailPaketPrivateTripProps> = ({
                     onClick={() => setSelectedImage(image)}
                   >
                     <Image
-                      src={image}
+                      src={getSafeImageSrc(image || "/img/default-trip.jpg")}
                       alt={`${data.title} ${index + 1}`}
                       fill
                       className="rounded-sm object-cover"
                       unoptimized={true}
+                      onError={() => handleImageError(image)}
                     />
                   </div>
                 </DialogTrigger>
@@ -201,11 +220,12 @@ const DetailPaketPrivateTrip: React.FC<DetailPaketPrivateTripProps> = ({
               <DialogTrigger asChild>
                 <div className="relative h-[196px] md:h-[221px] w-full flex items-center justify-center rounded-sm cursor-pointer">
                   <Image
-                    src={data.images[4]}
+                    src={getSafeImageSrc(data.images[4] || "/img/default-trip.jpg")}
                     alt="More Info Background"
                     fill
                     className="rounded-sm object-cover"
                     unoptimized={true}
+                    onError={() => data.images[4] && handleImageError(data.images[4])}
                   />
                   <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
                     <p className="text-white font-semibold">More Info</p>
@@ -220,11 +240,12 @@ const DetailPaketPrivateTrip: React.FC<DetailPaketPrivateTripProps> = ({
                       className="relative h-[150px] w-[150px] md:h-[200px] md:w-[200px]"
                     >
                       <Image
-                        src={image}
+                        src={getSafeImageSrc(image || "/img/default-trip.jpg")}
                         alt={`${data.title} ${index + 4}`}
                         fill
                         className="rounded-sm object-cover"
                         unoptimized={true}
+                        onError={() => handleImageError(image)}
                       />
                     </div>
                   ))}
@@ -249,60 +270,68 @@ const DetailPaketPrivateTrip: React.FC<DetailPaketPrivateTripProps> = ({
         </p>
       </div>
 
-      {/* Section 3: Destinasi */}
-      <div className="bg-[#f5f5f5] p-6 rounded-lg shadow-md mb-8">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-80 max-w-9xl">
-            <div className="flex items-start">
-              <Image
-                src="/img/Meeting.png"
-                alt="Meeting Point Icon"
-                width={50}
-                height={50}
-                className="mr-2"
-              />
+      {/* Section 3: Destination Info */}
+      <div className="bg-gold/5 p-6 rounded-lg shadow-md mb-8">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 w-full">
+            {/* Meeting Point */}
+            <div className="flex items-center space-x-4">
+              <div className="p-2">
+                <Image
+                  src="/img/Meeting.png"
+                  alt="Meeting Point Icon"
+                  width={40}
+                  height={40}
+                  className="min-w-[40px]"
+                />
+              </div>
               <div className="flex flex-col">
-                <span className="text-gray-600 font-semibold">
-                  Meeting Point
-                </span>
+                <span className="text-gold font-semibold">Meeting Point</span>
                 <span className="text-gray-600">{data.meetingPoint}</span>
               </div>
             </div>
-            <div className="flex items-start">
-              <Image
-                src="/img/icon-destination.png"
-                alt="Destinations Icon"
-                width={50}
-                height={50}
-                className="mr-2"
-              />
+
+            {/* Destinations */}
+            <div className="flex items-center space-x-4">
+              <div className="p-2">
+                <Image
+                  src="/img/icon-destination.png"
+                  alt="Destinations Icon"
+                  width={40}
+                  height={40}
+                  className="min-w-[40px]"
+                />
+              </div>
               <div className="flex flex-col">
-                <span className="text-gray-600 font-semibold">Destinasi</span>
-                <span className="text-gray-600">
-                  {data.destinations} Destinasi
-                </span>
+                <span className="text-gold font-semibold">Destinations</span>
+                <span className="text-gray-600">{data.destinations} Destinations</span>
               </div>
             </div>
-            <div className="flex items-start">
-              <Image
-                src="/img/icon/durasi.png"
-                alt="Days Trip Icon"
-                width={50}
-                height={50}
-                className="mr-2"
-              />
+
+            {/* Duration */}
+            <div className="flex items-center space-x-4">
+              <div className="p-2">
+                <Image
+                  src="/img/icon/durasi.png"
+                  alt="Duration Icon"
+                  width={40}
+                  height={40}
+                  className="min-w-[40px]"
+                />
+              </div>
               <div className="flex flex-col">
-                <span className="text-gray-600 font-semibold">Durasi Trip</span>
+                <span className="text-gold font-semibold">Trip Duration</span>
                 <span className="text-gray-600">{data.daysTrip}</span>
               </div>
             </div>
           </div>
-          <div className="flex items-center space-x-4">
+
+          <div className="flex items-center space-x-4 mt-6 md:mt-0 w-full md:w-auto justify-center">
             <Popover>
               <PopoverTrigger asChild>
                 <Button
                   variant="outline"
-                  className="border-gray-300 text-gray-800 px-4 py-2 rounded-lg"
+                  className="border-gold hover:border-gold/80 text-gold px-6 py-2 rounded-lg"
                 >
                   {selectedDate ? format(selectedDate, "PPP") : "Select Date"}
                 </Button>
@@ -323,7 +352,7 @@ const DetailPaketPrivateTrip: React.FC<DetailPaketPrivateTripProps> = ({
             {selectedDate && (
               <Button
                 onClick={() => handleBookNow(data.id)}
-                className="bg-[#CFB53B] text-white px-6 py-2 rounded-lg font-semibold text-sm hover:bg-[#7F6D1F] hover:scale-95 transition-all duration-300"
+                className="bg-gold text-white px-8 py-2 rounded-lg font-semibold text-sm hover:bg-gold-dark-20 hover:scale-95 transition-all duration-300"
               >
                 Book Now
               </Button>
@@ -333,100 +362,75 @@ const DetailPaketPrivateTrip: React.FC<DetailPaketPrivateTripProps> = ({
       </div>
 
       {/* Section 3.5: Additional Information */}
-      {(data.operational_days || data.tentation) && (
+      {(data.operational_days && data.operational_days.length > 0) || (data.boat_ids && data.boat_ids.length > 0) ? (
         <div className="bg-white p-6 rounded-lg shadow-md mb-8">
           <h3 className="text-xl font-semibold text-gray-800 mb-4">Informasi Tambahan</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {data.operational_days && data.operational_days.length > 0 && (
-              <div className="flex items-start">
-                <Image
-                  src="/img/icon-destination.png"
-                  alt="Operational Days Icon"
-                  width={50}
-                  height={50}
-                  className="mr-2"
-                />
-                <div className="flex flex-col">
-                  <span className="text-gray-600 font-semibold">Hari Operasional</span>
-                  <span className="text-gray-600">
-                    {data.operational_days.map(day => {
-                      const dayLabels: { [key: string]: string } = {
-                        "Monday": "Senin",
-                        "Tuesday": "Selasa", 
-                        "Wednesday": "Rabu",
-                        "Thursday": "Kamis",
-                        "Friday": "Jumat",
-                        "Saturday": "Sabtu",
-                        "Sunday": "Minggu"
-                      };
-                      return dayLabels[day] || day;
-                    }).join(", ")}
-                  </span>
+              <div className="flex items-center space-x-4">
+                <div className="p-2">
+                  <Image
+                    src="/img/icon-destination.png"
+                    alt="Operational Days Icon"
+                    width={40}
+                    height={40}
+                    className="min-w-[40px]"
+                  />
                 </div>
-              </div>
-            )}
-
-            {data.tentation && (
-              <div className="flex items-start">
-                <Image
-                  src="/img/icon-destination.png"
-                  alt="Tentation Icon"
-                  width={50}
-                  height={50}
-                  className="mr-2"
-                />
                 <div className="flex flex-col">
-                  <span className="text-gray-600 font-semibold">Jadwal Fleksibel</span>
+                  <span className="text-gold font-semibold">Hari Operasional</span>
                   <span className="text-gray-600">
-                    {data.tentation === "Yes" ? "Tersedia" : "Tidak Tersedia"}
+                    {data.operational_days
+                      .map((day) => {
+                        const dayLabels: { [key: string]: string } = {
+                          Monday: "Senin",
+                          Tuesday: "Selasa",
+                          Wednesday: "Rabu",
+                          Thursday: "Kamis",
+                          Friday: "Jumat",
+                          Saturday: "Sabtu",
+                          Sunday: "Minggu",
+                        };
+                        return dayLabels[day] || day;
+                      })
+                      .join(", ")}
                   </span>
                 </div>
               </div>
             )}
 
             {data.boat_ids && data.boat_ids.length > 0 && (
-              <div className="flex items-start">
-                <Image
-                  src="/img/icon-destination.png"
-                  alt="Boats Icon"
-                  width={50}
-                  height={50}
-                  className="mr-2"
-                />
+              <div className="flex items-center space-x-4">
+                <div className="p-2">
+                  <Image
+                    src="/img/icon-destination.png"
+                    alt="Boats Icon"
+                    width={40}
+                    height={40}
+                    className="min-w-[40px]"
+                  />
+                </div>
                 <div className="flex flex-col">
-                  <span className="text-gray-600 font-semibold">Kapal</span>
-                  <span className="text-gray-600">
-                    {data.boat_ids.length} kapal tersedia
-                  </span>
+                  <span className="text-gold font-semibold">Kapal</span>
+                  <span className="text-gray-600">{data.boat_ids.length} kapal tersedia</span>
                 </div>
               </div>
             )}
           </div>
         </div>
-      )}
+      ) : null}
 
-      {/* Section 4: Tab Navigasi dan Konten */}
+      {/* Section 4: Tabs Navigation */}
       <div className="bg-white p-6 rounded-lg shadow-md">
         <div className="flex space-x-4 mb-6">
-          <Button
-            variant={activeTab === "description" ? "default" : "outline"}
-            onClick={() => setActiveTab("description")}
-            className={`${
-              activeTab === "description"
-                ? "bg-[#CFB53B] text-white"
-                : "bg-gray-200 text-gray-800"
-            } px-7 py-6 rounded-lg font-semibold text-sm hover:bg-[#7F6D1F] hover:text-white transition-all duration-300`}
-          >
-            Description
-          </Button>
           <Button
             variant={activeTab === "itinerary" ? "default" : "outline"}
             onClick={() => setActiveTab("itinerary")}
             className={`${
               activeTab === "itinerary"
-                ? "bg-[#CFB53B] text-white"
-                : "bg-gray-200 text-gray-800"
-            } px-7 py-6 rounded-lg font-semibold text-sm hover:bg-[#7F6D1F] hover:text-white transition-all duration-300`}
+                ? "bg-gold text-white hover:bg-gold-dark-20"
+                : "bg-gold/5 text-gold hover:bg-gold hover:text-white"
+            } px-7 py-6 rounded-lg font-semibold text-sm transition-all duration-300`}
           >
             Itinerary
           </Button>
@@ -435,84 +439,75 @@ const DetailPaketPrivateTrip: React.FC<DetailPaketPrivateTripProps> = ({
             onClick={() => setActiveTab("information")}
             className={`${
               activeTab === "information"
-                ? "bg-[#CFB53B] text-white"
-                : "bg-gray-200 text-gray-800"
-            } px-7 py-6 rounded-lg font-semibold text-sm hover:bg-[#7F6D1F] hover:text-white transition-all duration-300`}
+                ? "bg-gold text-white hover:bg-gold-dark-20"
+                : "bg-gold/5 text-gold hover:bg-gold hover:text-white"
+            } px-7 py-6 rounded-lg font-semibold text-sm transition-all duration-300`}
           >
             Information
           </Button>
-          <Button
-            variant={activeTab === "boat" ? "default" : "outline"}
-            onClick={() => setActiveTab("boat")}
-            className={`${
-              activeTab === "boat"
-                ? "bg-[#CFB53B] text-white"
-                : "bg-gray-200 text-gray-800"
-            } px-7 py-6 rounded-lg font-semibold text-sm hover:bg-[#7F6D1F] hover:text-white transition-all duration-300`}
-          >
-            Boat
-          </Button>
+          {data.has_boat && (
+            <Button
+              variant={activeTab === "boat" ? "default" : "outline"}
+              onClick={() => setActiveTab("boat")}
+              className={`${
+                activeTab === "boat"
+                  ? "bg-gold text-white hover:bg-gold-dark-20"
+                  : "bg-gold/5 text-gold hover:bg-gold hover:text-white"
+              } px-7 py-6 rounded-lg font-semibold text-sm transition-all duration-300`}
+            >
+              Boat
+            </Button>
+          )}
         </div>
 
         <div>
-          {activeTab === "description" && (
-            <div>
-              <h1 className="text-3xl font-bold text-gray-800 mb-2">
-                Description
-              </h1>
-              <div className="w-[150px] h-[3px] bg-[#CFB53B] mb-6"></div>
-              
-              {data.note ? (
-                // Jika ada note, tampilkan sebagai HTML content
-                <div
-                  className="text-gray-600 text-sm [&_ol]:list-decimal [&_ul]:list-disc [&_ol]:pl-5 [&_ul]:pl-5 [&_ol]:space-y-2 [&_ul]:space-y-2 [&_p]:my-0 [&_li]:pl-2 [&_li]:relative [&_li]:leading-normal"
-                  dangerouslySetInnerHTML={{
-                    __html: data.note,
-                  }}
-                />
-              ) : Array.isArray(data.description) ? (
-                // Jika description adalah array
-                <ul className="list-disc pl-5 text-gray-600 text-sm space-y-1">
-                  {data.description.map((item, idx) => <li key={idx}>{item.replace(/^\*\s?/, "")}</li>)}
-                </ul>
-              ) : (
-                // Jika description adalah string
-                <ul className="list-disc pl-5 text-gray-600 text-sm space-y-1">
-                  {data.description.split(/\r?\n/).filter(line => line.trim().startsWith("*")).map((line, idx) => (
-                    <li key={idx}>{line.replace(/^\*\s?/, "")}</li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          )}
           {activeTab === "itinerary" && (
-            <div>
-              <h1 className="text-3xl font-bold text-gray-800 mb-2">
-                Itinerary
-              </h1>
-              <div className="w-[120px] h-[3px] bg-[#CFB53B] mb-6"></div>{" "}
-              <div>
-                {data.trip_durations.map((duration) => (
-                  <div key={duration.id} className="mb-8">
-                    <h3 className="text-xl font-semibold mb-4">
-                      {duration.duration_label}
-                    </h3>
-                    <ul className="list-disc list-inside text-gray-600 space-y-4">
-                      {duration.itineraries.map((day, index) => (
-                        <li key={index} className="ml-4">
-                          <span className="font-semibold">{`Day ${
-                            index + 1
-                          }`}</span>
-                          <div
-                            className="mt-2"
-                            dangerouslySetInnerHTML={{ __html: day.activities }}
-                          />
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ))}
+            <div className="space-y-6">
+              <div className="flex flex-col items-start">
+                <h1 className="text-3xl font-bold text-gray-800">Itinerary</h1>
+                <div className="w-[120px] h-[3px] bg-gold mt-1 mb-6"></div>
               </div>
+
+              <Tabs
+                defaultValue={selectedDurationId.toString()}
+                className="w-full"
+                onValueChange={(value) => setSelectedDurationId(parseInt(value))}
+              >
+                <TabsList className="mb-6 bg-transparent flex flex-wrap gap-2 h-auto p-0">
+                  {data.trip_durations.map((duration) => (
+                    <TabsTrigger
+                      key={duration.id}
+                      value={duration.id.toString()}
+                      className="px-4 py-2 rounded-lg data-[state=active]:bg-gold data-[state=active]:text-white data-[state=active]:shadow-none bg-gray-100 text-gray-600 hover:bg-gray-200"
+                    >
+                      {duration.duration_label}
+                    </TabsTrigger>
+                  ))}
+                </TabsList>
+
+                {data.trip_durations.map((duration) => (
+                  <TabsContent
+                    key={duration.id}
+                    value={duration.id.toString()}
+                    className="space-y-6 mt-2"
+                  >
+                    {duration.itineraries.map((day, index) => (
+                      <div
+                        key={index}
+                        className="bg-white rounded-lg p-6 shadow-sm border border-gray-100"
+                      >
+                        <h3 className="text-lg font-semibold mb-4 text-gold">
+                          {day.day}
+                        </h3>
+                        <div
+                          className="text-gray-600 text-sm [&_ol]:list-decimal [&_ul]:list-disc [&_ol]:pl-5 [&_ul]:pl-5 [&_ol]:space-y-2 [&_ul]:space-y-2 [&_p]:my-0 [&_li]:pl-2 [&_li]:relative [&_li]:leading-normal"
+                          dangerouslySetInnerHTML={{ __html: day.activities }}
+                        />
+                      </div>
+                    ))}
+                  </TabsContent>
+                ))}
+              </Tabs>
             </div>
           )}
           {activeTab === "information" && (
@@ -529,43 +524,26 @@ const DetailPaketPrivateTrip: React.FC<DetailPaketPrivateTripProps> = ({
                     <h2 className="text-xl font-bold text-gray-800 mb-4">
                       Include
                     </h2>
-                    <ul className="list-disc list-inside space-y-2">
-                      {data.include?.map((item, index) => (
-                        <li key={index} className="text-gray-600 text-sm">
-                          {item}
-                        </li>
-                      ))}
-                    </ul>
+                    <div
+                      className="text-gray-600 text-sm [&_ol]:list-decimal [&_ul]:list-disc [&_ol]:pl-5 [&_ul]:pl-5 [&_ol]:space-y-2 [&_ul]:space-y-2 [&_p]:my-0 [&_li]:pl-2 [&_li]:relative [&_li]:leading-normal"
+                      dangerouslySetInnerHTML={{
+                        __html: (data.include || []).join("") || "",
+                      }}
+                    />
                   </div>
 
-                  {/* Session Section */}
+                  {/* Flight Information */}
                   <div className="bg-[#f5f5f5] p-6 rounded-lg shadow-sm min-h-[250px] flex flex-col">
-                    <h2 className="text-xl font-bold text-gray-800 mb-4">
-                      Season
+                    <h2 className="text-xl font-bold text-gray-800 mb-6">
+                      Flight Information
                     </h2>
-                    <div className="space-y-4">
-                      <div>
-                        <h4 className="font-semibold text-gray-700">
-                          High Season Period:
-                        </h4>
-                        <p className="text-gray-600 text-sm">
-                          {data.session?.highSeason.period}
-                        </p>
-                        <p className="text-[#CFB53B] font-bold mt-1 text-sm">
-                          IDR {formatPrice(data.session?.highSeason.price || '')}
-                        </p>
-                      </div>
-                      <div>
-                        <h4 className="font-semibold text-gray-700">
-                          Peak Season Period:
-                        </h4>
-                        <p className="text-gray-600 text-sm">
-                          {data.session?.peakSeason.period}
-                        </p>
-                        <p className="text-[#CFB53B] font-bold mt-1 text-sm">
-                          IDR {formatPrice(data.session?.peakSeason.price || '')}
-                        </p>
-                      </div>
+                    <div className="space-y-2">
+                      <p className="text-gray-600 text-sm">
+                        IDR {formatPrice(data.flightInfo?.guideFee1 || '')}
+                      </p>
+                      <p className="text-gray-600 text-sm">
+                        IDR {formatPrice(data.flightInfo?.guideFee2 || '')}
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -577,28 +555,42 @@ const DetailPaketPrivateTrip: React.FC<DetailPaketPrivateTripProps> = ({
                     <h2 className="text-xl font-bold text-gray-800 mb-4">
                       Exclude
                     </h2>
-                    <ul className="list-disc list-inside space-y-2">
-                      {data.exclude?.map((item, index) => (
-                        <li key={index} className="text-gray-600 text-sm">
-                          {item}
-                        </li>
-                      ))}
-                    </ul>
+                    <div
+                      className="text-gray-600 text-sm [&_ol]:list-decimal [&_ul]:list-disc [&_ol]:pl-5 [&_ul]:pl-5 [&_ol]:space-y-2 [&_ul]:space-y-2 [&_p]:my-0 [&_li]:pl-2 [&_li]:relative [&_li]:leading-normal"
+                      dangerouslySetInnerHTML={{
+                        __html: (data.exclude || []).join("") || "",
+                      }}
+                    />
                   </div>
 
-                  {/* Flight Information */}
-                  <div className="bg-[#f5f5f5] p-6 rounded-lg shadow-sm min-h-[250px] flex flex-col">
+                  {/* Description Section */}
+                  <div className="bg-[#f5f5f5] p-6 rounded-lg shadow-sm min-h-[100px] flex flex-col">
                     <h2 className="text-xl font-bold text-gray-800 mb-4">
-                      Flight Information
+                      Description
                     </h2>
-                                          <div className="space-y-2">
-                        <p className="text-gray-600 text-sm">
-                          IDR {formatPrice(data.flightInfo?.guideFee1 || '')}
-                        </p>
-                        <p className="text-gray-600 text-sm">
-                          IDR {formatPrice(data.flightInfo?.guideFee2 || '')}
-                        </p>
-                      </div>
+                    {data.note ? (
+                      <div
+                        className="text-gray-600 text-sm [&_ol]:list-decimal [&_ul]:list-disc [&_ol]:pl-5 [&_ul]:pl-5 [&_ol]:space-y-2 [&_ul]:space-y-2 [&_p]:my-0 [&_li]:pl-2 [&_li]:relative [&_li]:leading-normal"
+                        dangerouslySetInnerHTML={{
+                          __html: data.note,
+                        }}
+                      />
+                    ) : Array.isArray(data.description) ? (
+                      <ul className="list-disc pl-5 text-gray-600 text-sm space-y-1">
+                        {data.description.map((item, idx) => (
+                          <li key={idx}>{item.replace(/^\*\s?/, "")}</li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <ul className="list-disc pl-5 text-gray-600 text-sm space-y-1">
+                        {data.description
+                          .split(/\r?\n/)
+                          .filter((line) => line.trim().startsWith("*"))
+                          .map((line, idx) => (
+                            <li key={idx}>{line.replace(/^\*\s?/, "")}</li>
+                          ))}
+                      </ul>
+                    )}
                   </div>
                 </div>
               </div>
@@ -616,11 +608,12 @@ const DetailPaketPrivateTrip: React.FC<DetailPaketPrivateTripProps> = ({
                       {/* Gambar Boat */}
                       <div className="relative h-[330px] w-full">
                         <Image
-                          src={boat.image}
+                          src={getSafeImageSrc(boat.image)}
                           alt={boat.title}
                           fill
                           className="rounded-lg transition-transform duration-300 group-hover:scale-110 object-cover"
                           unoptimized={true}
+                          onError={() => handleImageError(boat.image)}
                         />
                       </div>
                       {/* Overlay dengan Judul */}
