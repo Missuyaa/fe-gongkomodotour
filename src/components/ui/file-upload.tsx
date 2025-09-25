@@ -234,6 +234,7 @@ export function FileUpload({
                             alt={file.title}
                             fill
                             className="object-cover"
+                            unoptimized={true}
                             onLoad={() => console.log('Image loaded successfully:', file.file.name)}
                             onError={(e) => {
                               console.error('Image failed to load:', file.file.name, file.preview, e)
@@ -330,6 +331,7 @@ export function FileUpload({
                       alt={file.title || `Existing file ${index + 1}`}
                       fill
                       className="object-cover"
+                      unoptimized={true}
                       onError={(e) => {
                         console.error('Failed to load existing image:', {
                           file,

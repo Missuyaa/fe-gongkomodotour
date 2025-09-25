@@ -112,9 +112,33 @@ const exportToPDF = (data: Blog[]) => {
 }
 
 const getImageUrl = (fileUrl: string) => {
-  const API_URL = process.env.NEXT_PUBLIC_API_URL
-  const cleanFileUrl = fileUrl.startsWith('/storage/') ? fileUrl.substring(8) : fileUrl
-  return `${API_URL}/storage/${cleanFileUrl}`
+  console.log('getImageUrl called with:', { fileUrl, type: typeof fileUrl })
+  
+  if (!fileUrl || fileUrl.trim() === '') {
+    console.warn('Empty or invalid file URL provided:', fileUrl)
+    return 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjNmNGY2Ii8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzk5YTNhZiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPkltYWdlIE5vdCBGb3VuZDwvdGV4dD48L3N2Zz4='
+  }
+  
+  // Jika sudah URL lengkap, return langsung
+  if (fileUrl.startsWith('http://') || fileUrl.startsWith('https://')) {
+    console.log('Full URL detected:', fileUrl)
+    return fileUrl
+  }
+  
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.gongkomodotour.com'
+  
+  // Pastikan fileUrl dimulai dengan slash
+  const cleanUrl = fileUrl.startsWith('/') ? fileUrl : `/${fileUrl}`
+  const fullUrl = `${API_URL}${cleanUrl}`
+  
+  console.log('Image URL constructed:', { 
+    original: fileUrl, 
+    cleanUrl: cleanUrl,
+    apiUrl: API_URL,
+    constructed: fullUrl 
+  })
+  
+  return fullUrl
 }
 
 export function DataTable({
@@ -278,10 +302,11 @@ export function DataTable({
                           fill
                           sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, (max-width: 1024px) 25vw, 20vw"
                           className="object-cover transition-transform duration-200 group-hover:scale-105"
+                          unoptimized={true}
                           onError={(e) => {
                             console.error(`Error loading image ${index}:`, e)
                             const target = e.target as HTMLImageElement
-                            target.src = '/placeholder-image.png'
+                            target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjNmNGY2Ii8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzk5YTNhZiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPkltYWdlIE5vdCBGb3VuZDwvdGV4dD48L3N2Zz4='
                           }}
                           priority={index < 5}
                         />

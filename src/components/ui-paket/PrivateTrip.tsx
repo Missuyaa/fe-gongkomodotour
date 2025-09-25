@@ -223,6 +223,7 @@ export default function PrivateTrip() {
                         alt={trip.name}
                         fill
                         className="object-cover transition-transform duration-300 group-hover:scale-110"
+                        unoptimized={true}
                         priority={index < 3}
                         quality={100}
                         sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"

@@ -141,9 +141,9 @@ const DetailPaketPrivateTrip: React.FC<DetailPaketPrivateTripProps> = ({
                 <Image
                   src={mainImage}
                   alt={data.title || "Default Image"}
-                  layout="fill"
-                  objectFit="cover"
-                  className="rounded-sm"
+                  fill
+                  className="rounded-sm object-cover"
+                  unoptimized={true}
                 />
               </div>
             </DialogTrigger>
@@ -155,6 +155,7 @@ const DetailPaketPrivateTrip: React.FC<DetailPaketPrivateTripProps> = ({
                   width={800}
                   height={600}
                   className="rounded-lg"
+                  unoptimized={true}
                 />
               )}
             </DialogContent>
@@ -175,9 +176,9 @@ const DetailPaketPrivateTrip: React.FC<DetailPaketPrivateTripProps> = ({
                     <Image
                       src={image}
                       alt={`${data.title} ${index + 1}`}
-                      layout="fill"
-                      objectFit="cover"
-                      className="rounded-sm"
+                      fill
+                      className="rounded-sm object-cover"
+                      unoptimized={true}
                     />
                   </div>
                 </DialogTrigger>
@@ -189,6 +190,7 @@ const DetailPaketPrivateTrip: React.FC<DetailPaketPrivateTripProps> = ({
                       width={800}
                       height={600}
                       className="rounded-lg"
+                      unoptimized={true}
                     />
                   )}
                 </DialogContent>
@@ -201,9 +203,9 @@ const DetailPaketPrivateTrip: React.FC<DetailPaketPrivateTripProps> = ({
                   <Image
                     src={data.images[4]}
                     alt="More Info Background"
-                    layout="fill"
-                    objectFit="cover"
-                    className="rounded-sm"
+                    fill
+                    className="rounded-sm object-cover"
+                    unoptimized={true}
                   />
                   <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
                     <p className="text-white font-semibold">More Info</p>
@@ -220,9 +222,9 @@ const DetailPaketPrivateTrip: React.FC<DetailPaketPrivateTripProps> = ({
                       <Image
                         src={image}
                         alt={`${data.title} ${index + 4}`}
-                        layout="fill"
-                        objectFit="cover"
-                        className="rounded-sm"
+                        fill
+                        className="rounded-sm object-cover"
+                        unoptimized={true}
                       />
                     </div>
                   ))}
@@ -616,9 +618,9 @@ const DetailPaketPrivateTrip: React.FC<DetailPaketPrivateTripProps> = ({
                         <Image
                           src={boat.image}
                           alt={boat.title}
-                          layout="fill"
-                          objectFit="cover"
-                          className="rounded-lg transition-transform duration-300 group-hover:scale-110"
+                          fill
+                          className="rounded-lg transition-transform duration-300 group-hover:scale-110 object-cover"
+                          unoptimized={true}
                         />
                       </div>
                       {/* Overlay dengan Judul */}

@@ -578,6 +578,7 @@ export function DataTable({
                         fill
                         sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, (max-width: 1024px) 25vw, 20vw"
                         className="object-cover transition-transform duration-200 group-hover:scale-105"
+                        unoptimized={true}
                         onError={(e) => {
                           console.error(`Error loading image for asset ${asset.id || index}:`, {
                             assetId: asset.id,
