@@ -1413,7 +1413,7 @@ export default function Booking() {
 
                   <div className="space-y-2">
                     <Label>Tanggal Keberangkatan</Label>
-                    <Popover>
+                  <Popover>
                       <PopoverTrigger asChild>
                         <Button
                           variant="outline"
@@ -1424,13 +1424,16 @@ export default function Booking() {
                           {selectedDate ? format(selectedDate, "PPP") : "Pilih Tanggal"}
                         </Button>
                       </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" onOpenAutoFocus={e => e.preventDefault()}>
+                    <PopoverContent className="w-auto p-0" align="start" onOpenAutoFocus={e => e.preventDefault()}>
                         <Calendar
                           mode="single"
                           selected={selectedDate}
                           onSelect={setSelectedDate}
-                          disabled={!selectedDuration ? true : disabledByOperationalDays}
-                          initialFocus
+                        disabled={!selectedDuration ? true : disabledByOperationalDays}
+                        initialFocus
+                        className="rounded-md border"
+                        showOutsideDays={false}
+                        captionLayout="dropdown"
                         />
                       </PopoverContent>
                     </Popover>
