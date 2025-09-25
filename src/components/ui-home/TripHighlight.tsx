@@ -129,16 +129,27 @@ export default function TripHighlight() {
           '/api/landing-page/trips?status=1&is_highlight=Yes'
         );
         console.log('Trip Highlight Response:', response);
-        console.log('Trip Highlight Data:', response.data);
+        console.log('Trip Highlight Data (raw):', response.data);
         
         // Log basic info for debugging
         if (response.data && response.data.length > 0) {
-          console.log(`Loaded ${response.data.length} highlighted trips`);
+          console.log(`Loaded ${response.data.length} trips from API before filtering`);
         } else {
           console.warn('No trip data received from API');
         }
         
-        setHighlights(response.data || []);
+        // Safeguard: filter hanya trip yang benar-benar highlight dan aktif
+        const normalized = (response.data || []).filter((trip) => {
+          const isHighlight = ["Yes", "1", "true", "True"].includes(String(trip.is_highlight))
+          const isActive = ["Aktif", "1", "Active", "active", "true", "True"].includes(String(trip.status))
+          return isHighlight && isActive
+        })
+
+        if (response.data && normalized.length !== response.data.length) {
+          console.warn(`Filtered out ${response.data.length - normalized.length} non-highlight/inactive trips from API result`)
+        }
+
+        setHighlights(normalized);
       } catch (error) {
         console.error('Error fetching highlighted trips:', error);
         
