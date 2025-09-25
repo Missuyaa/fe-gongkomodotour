@@ -32,9 +32,7 @@ const hotelSchema = z.object({
   hotel_type: z.enum(["Bintang 1", "Bintang 2", "Bintang 3", "Bintang 4", "Bintang 5"], {
     required_error: "Tipe hotel harus dipilih"
   }),
-  occupancy: z.enum(["Single Occupancy", "Double Occupancy"], {
-    required_error: "Tipe kamar harus dipilih"
-  }),
+  occupancy: z.string().min(1, "Tipe kamar harus diisi"),
   price: z.string().min(1, "Harga harus diisi").refine((val) => !isNaN(Number(val)), {
     message: "Harga harus berupa angka"
   }),
@@ -189,17 +187,12 @@ export default function CreateHotelPage() {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Tipe Kamar</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Pilih tipe kamar" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="Single Occupancy">Single Occupancy</SelectItem>
-                              <SelectItem value="Double Occupancy">Double Occupancy</SelectItem>
-                            </SelectContent>
-                          </Select>
+                          <FormControl>
+                            <Input 
+                              placeholder="Contoh: Single, Double, Twin, Suite, dll"
+                              {...field}
+                            />
+                          </FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
