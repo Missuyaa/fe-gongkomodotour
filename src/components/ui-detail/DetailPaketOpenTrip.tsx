@@ -602,17 +602,41 @@ const DetailPaketOpenTrip: React.FC<DetailPaketOpenTripProps> = ({ data }) => {
           >
             Itinerary
           </Button>
-          <Button
-            variant={activeTab === "information" ? "default" : "outline"}
-            onClick={() => setActiveTab("information")}
-            className={`${
-              activeTab === "information"
-                ? "bg-gold text-white hover:bg-gold-dark-20"
-                : "bg-gold/5 text-gold hover:bg-gold hover:text-white"
-            } px-7 py-6 rounded-lg font-semibold text-sm transition-all duration-300`}
-          >
-            Information
-          </Button>
+          {(() => {
+            const includeContent = data.include?.join("") || "";
+            const hasInclude = includeContent.trim() !== "" && 
+              includeContent.replace(/<[^>]*>/g, '').trim() !== "";
+            
+            const excludeContent = data.exclude?.join("") || "";
+            const hasExclude = excludeContent.trim() !== "" && 
+              excludeContent.replace(/<[^>]*>/g, '').trim() !== "";
+            
+            const hasFlight = (data.flightSchedules && data.flightSchedules.length > 0) || 
+              (data.flightInfo && (data.flightInfo.guideFee1 || data.flightInfo.guideFee2));
+            
+            const hasNote = data.note && data.note.trim() !== "" && 
+              data.note.replace(/<[^>]*>/g, '').trim() !== "";
+            
+            const hasDescription = data.description && 
+              (Array.isArray(data.description) ? 
+                data.description.some(item => item && item.trim() !== "") : 
+                data.description.trim() !== "" && data.description.split(/\r?\n/).some(line => line.trim().startsWith("*"))
+              );
+            
+            return hasInclude || hasExclude || hasFlight || hasNote || hasDescription;
+          })() && (
+            <Button
+              variant={activeTab === "information" ? "default" : "outline"}
+              onClick={() => setActiveTab("information")}
+              className={`${
+                activeTab === "information"
+                  ? "bg-gold text-white hover:bg-gold-dark-20"
+                  : "bg-gold/5 text-gold hover:bg-gold hover:text-white"
+              } px-7 py-6 rounded-lg font-semibold text-sm transition-all duration-300`}
+            >
+              Information
+            </Button>
+          )}
           {data.has_boat && (
             <Button
               variant={activeTab === "boat" ? "default" : "outline"}
@@ -703,115 +727,143 @@ const DetailPaketOpenTrip: React.FC<DetailPaketOpenTripProps> = ({ data }) => {
                 {/* Kolom Kiri */}
                 <div className="space-y-6">
                   {/* Include Section */}
-                  <div className="bg-[#f5f5f5] p-6 rounded-lg shadow-sm min-h-[250px] flex flex-col">
-                    <h2 className="text-xl font-bold text-gray-800 mb-4">
-                      Include
-                    </h2>
-                    <div
-                      className="text-gray-600 text-sm [&_ol]:list-decimal [&_ul]:list-disc [&_ol]:pl-5 [&_ul]:pl-5 [&_ol]:space-y-2 [&_ul]:space-y-2 [&_p]:my-0 [&_li]:pl-2 [&_li]:relative [&_li]:leading-normal"
-                      dangerouslySetInnerHTML={{
-                        __html: data.include?.join("") || "",
-                      }}
-                    />
-                  </div>
+                  {(() => {
+                    const includeContent = data.include?.join("") || "";
+                    const hasValidContent = includeContent.trim() !== "" && 
+                      includeContent.replace(/<[^>]*>/g, '').trim() !== "";
+                    return hasValidContent;
+                  })() && (
+                    <div className="bg-[#f5f5f5] p-6 rounded-lg shadow-sm min-h-[250px] flex flex-col">
+                      <h2 className="text-xl font-bold text-gray-800 mb-4">
+                        Include
+                      </h2>
+                      <div
+                        className="text-gray-600 text-sm [&_ol]:list-decimal [&_ul]:list-disc [&_ol]:pl-5 [&_ul]:pl-5 [&_ol]:space-y-2 [&_ul]:space-y-2 [&_p]:my-0 [&_li]:pl-2 [&_li]:relative [&_li]:leading-normal"
+                        dangerouslySetInnerHTML={{
+                          __html: data.include?.join("") || "",
+                        }}
+                      />
+                    </div>
+                  )}
 
                   {/* Flight Information */}
-                  <div className="bg-[#f5f5f5] p-6 rounded-lg shadow-sm min-h-[250px] flex flex-col">
-                    <h2 className="text-xl font-bold text-gray-800 mb-6">
-                      Flight Information
-                    </h2>
-                    <div className="space-y-6">
-                      {data.flightSchedules &&
-                      data.flightSchedules.length > 0 ? (
-                        <>
-                          <div className="bg-gold/10 border-l-4 border-gold p-4 mb-4">
-                            <p className="text-gold-dark text-sm font-medium">
-                              <strong>Note:</strong> Flight schedules below are estimated departure and arrival times to Labuan Bajo. Actual flight times may vary depending on airline schedules and weather conditions.
-                            </p>
-                          </div>
-                          {data.flightSchedules.map((schedule, index) => (
-                            <div key={index}>
-                              <h3 className="text-gold text-xl font-semibold mb-4">
-                                {schedule.route}
-                              </h3>
-                              <div className="grid grid-cols-2 gap-8">
-                                <div>
-                                  <p className="text-gold font-medium mb-2">
-                                    Estimated Departure from Labuan Bajo
-                                  </p>
-                                  <p className="text-gray-500">
-                                    {schedule.etd_text === "-"
-                                      ? `${schedule.etd_time.slice(0, -3)} WITA`
-                                      : schedule.etd_text}
-                                  </p>
-                                </div>
-                                <div>
-                                  <p className="text-gold font-medium mb-2">
-                                    Estimated Arrival to Labuan Bajo
-                                  </p>
-                                  <p className="text-gray-500">
-                                    {schedule.eta_text === "-"
-                                      ? `${schedule.eta_time.slice(0, -3)} WITA`
-                                      : schedule.eta_text}
-                                  </p>
+                  {((data.flightSchedules && data.flightSchedules.length > 0) || 
+                    (data.flightInfo && (data.flightInfo.guideFee1 || data.flightInfo.guideFee2))) && (
+                    <div className="bg-[#f5f5f5] p-6 rounded-lg shadow-sm min-h-[250px] flex flex-col">
+                      <h2 className="text-xl font-bold text-gray-800 mb-6">
+                        Flight Information
+                      </h2>
+                      <div className="space-y-6">
+                        {data.flightSchedules &&
+                        data.flightSchedules.length > 0 ? (
+                          <>
+                            <div className="bg-gold/10 border-l-4 border-gold p-4 mb-4">
+                              <p className="text-gold-dark text-sm font-medium">
+                                <strong>Note:</strong> Flight schedules below are estimated departure and arrival times to Labuan Bajo. Actual flight times may vary depending on airline schedules and weather conditions.
+                              </p>
+                            </div>
+                            {data.flightSchedules.map((schedule, index) => (
+                              <div key={index}>
+                                <h3 className="text-gold text-xl font-semibold mb-4">
+                                  {schedule.route}
+                                </h3>
+                                <div className="grid grid-cols-2 gap-8">
+                                  <div>
+                                    <p className="text-gold font-medium mb-2">
+                                      Estimated Departure from Labuan Bajo
+                                    </p>
+                                    <p className="text-gray-500">
+                                      {schedule.etd_text === "-"
+                                        ? `${schedule.etd_time.slice(0, -3)} WITA`
+                                        : schedule.etd_text}
+                                    </p>
+                                  </div>
+                                  <div>
+                                    <p className="text-gold font-medium mb-2">
+                                      Estimated Arrival to Labuan Bajo
+                                    </p>
+                                    <p className="text-gray-500">
+                                      {schedule.eta_text === "-"
+                                        ? `${schedule.eta_time.slice(0, -3)} WITA`
+                                        : schedule.eta_text}
+                                    </p>
+                                  </div>
                                 </div>
                               </div>
-                            </div>
-                          ))}
-                        </>
-                      ) : (
-                        <div className="text-gray-600">
-                          <p>{data.flightInfo?.guideFee1}</p>
-                          <p className="mt-2">{data.flightInfo?.guideFee2}</p>
-                        </div>
-                      )}
+                            ))}
+                          </>
+                        ) : (
+                          <div className="text-gray-600">
+                            <p>{data.flightInfo?.guideFee1}</p>
+                            <p className="mt-2">{data.flightInfo?.guideFee2}</p>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
 
                 {/* Kolom Kanan */}
                 <div className="space-y-6">
                   {/* Exclude Section */}
-                  <div className="bg-[#f5f5f5] p-6 rounded-lg shadow-sm min-h-[250px] flex flex-col">
-                    <h2 className="text-xl font-bold text-gray-800 mb-4">
-                      Exclude
-                    </h2>
-                    <div
-                      className="text-gray-600 text-sm [&_ol]:list-decimal [&_ul]:list-disc [&_ol]:pl-5 [&_ul]:pl-5 [&_ol]:space-y-2 [&_ul]:space-y-2 [&_p]:my-0 [&_li]:pl-2 [&_li]:relative [&_li]:leading-normal"
-                      dangerouslySetInnerHTML={{
-                        __html: data.exclude?.join("") || "",
-                      }}
-                    />
-                  </div>
-
-                  {/* Description Section (pindahan) */}
-                  <div className="bg-[#f5f5f5] p-6 rounded-lg shadow-sm min-h-[100px] flex flex-col">
-                    <h2 className="text-xl font-bold text-gray-800 mb-4">
-                      Description
-                    </h2>
-                    
-                    {data.note ? (
-                      // Jika ada note, tampilkan sebagai HTML content
+                  {(() => {
+                    const excludeContent = data.exclude?.join("") || "";
+                    const hasValidContent = excludeContent.trim() !== "" && 
+                      excludeContent.replace(/<[^>]*>/g, '').trim() !== "";
+                    return hasValidContent;
+                  })() && (
+                    <div className="bg-[#f5f5f5] p-6 rounded-lg shadow-sm min-h-[250px] flex flex-col">
+                      <h2 className="text-xl font-bold text-gray-800 mb-4">
+                        Exclude
+                      </h2>
                       <div
                         className="text-gray-600 text-sm [&_ol]:list-decimal [&_ul]:list-disc [&_ol]:pl-5 [&_ul]:pl-5 [&_ol]:space-y-2 [&_ul]:space-y-2 [&_p]:my-0 [&_li]:pl-2 [&_li]:relative [&_li]:leading-normal"
                         dangerouslySetInnerHTML={{
-                          __html: data.note,
+                          __html: data.exclude?.join("") || "",
                         }}
                       />
-                    ) : Array.isArray(data.description) ? (
-                      // Jika description adalah array
-                      <ul className="list-disc pl-5 text-gray-600 text-sm space-y-1">
-                        {data.description.map((item, idx) => <li key={idx}>{item.replace(/^\*\s?/, "")}</li>)}
-                      </ul>
-                    ) : (
-                      // Jika description adalah string
-                      <ul className="list-disc pl-5 text-gray-600 text-sm space-y-1">
-                        {data.description.split(/\r?\n/).filter(line => line.trim().startsWith("*")).map((line, idx) => (
-                          <li key={idx}>{line.replace(/^\*\s?/, "")}</li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
+                    </div>
+                  )}
+
+                  {/* Description Section (pindahan) */}
+                  {(() => {
+                    const hasNote = data.note && data.note.trim() !== "" && 
+                      data.note.replace(/<[^>]*>/g, '').trim() !== "";
+                    const hasDescription = data.description && 
+                      (Array.isArray(data.description) ? 
+                        data.description.some(item => item && item.trim() !== "") : 
+                        data.description.trim() !== "" && data.description.split(/\r?\n/).some(line => line.trim().startsWith("*"))
+                      );
+                    return hasNote || hasDescription;
+                  })() && (
+                    <div className="bg-[#f5f5f5] p-6 rounded-lg shadow-sm min-h-[100px] flex flex-col">
+                      <h2 className="text-xl font-bold text-gray-800 mb-4">
+                        Description
+                      </h2>
+                      
+                      {data.note ? (
+                        // Jika ada note, tampilkan sebagai HTML content
+                        <div
+                          className="text-gray-600 text-sm [&_ol]:list-decimal [&_ul]:list-disc [&_ol]:pl-5 [&_ul]:pl-5 [&_ol]:space-y-2 [&_ul]:space-y-2 [&_p]:my-0 [&_li]:pl-2 [&_li]:relative [&_li]:leading-normal"
+                          dangerouslySetInnerHTML={{
+                            __html: data.note,
+                          }}
+                        />
+                      ) : Array.isArray(data.description) ? (
+                        // Jika description adalah array
+                        <ul className="list-disc pl-5 text-gray-600 text-sm space-y-1">
+                          {data.description.map((item, idx) => <li key={idx}>{item.replace(/^\*\s?/, "")}</li>)}
+                        </ul>
+                      ) : (
+                        // Jika description adalah string
+                        <ul className="list-disc pl-5 text-gray-600 text-sm space-y-1">
+                          {data.description.split(/\r?\n/).filter(line => line.trim().startsWith("*")).map((line, idx) => (
+                            <li key={idx}>{line.replace(/^\*\s?/, "")}</li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             </motion.div>

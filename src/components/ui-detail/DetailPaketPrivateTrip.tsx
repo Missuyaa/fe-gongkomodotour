@@ -100,7 +100,7 @@ const DetailPaketPrivateTrip: React.FC<DetailPaketPrivateTripProps> = ({
   const mainImage =
     searchParams.get("mainImage") || data.mainImage || "/img/default-image.png"; // Ambil mainImage dari query string
 
-  const [activeTab, setActiveTab] = useState("description");
+  const [activeTab, setActiveTab] = useState("itinerary");
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const router = useRouter();
@@ -277,9 +277,9 @@ const DetailPaketPrivateTrip: React.FC<DetailPaketPrivateTripProps> = ({
             {/* Meeting Point */}
             <div className="flex items-center space-x-4">
               <div className="p-2">
-                <Image
-                  src="/img/Meeting.png"
-                  alt="Meeting Point Icon"
+              <Image
+                src="/img/Meeting.png"
+                alt="Meeting Point Icon"
                   width={40}
                   height={40}
                   className="min-w-[40px]"
@@ -294,9 +294,9 @@ const DetailPaketPrivateTrip: React.FC<DetailPaketPrivateTripProps> = ({
             {/* Destinations */}
             <div className="flex items-center space-x-4">
               <div className="p-2">
-                <Image
-                  src="/img/icon-destination.png"
-                  alt="Destinations Icon"
+              <Image
+                src="/img/icon-destination.png"
+                alt="Destinations Icon"
                   width={40}
                   height={40}
                   className="min-w-[40px]"
@@ -311,8 +311,8 @@ const DetailPaketPrivateTrip: React.FC<DetailPaketPrivateTripProps> = ({
             {/* Duration */}
             <div className="flex items-center space-x-4">
               <div className="p-2">
-                <Image
-                  src="/img/icon/durasi.png"
+              <Image
+                src="/img/icon/durasi.png"
                   alt="Duration Icon"
                   width={40}
                   height={40}
@@ -369,9 +369,9 @@ const DetailPaketPrivateTrip: React.FC<DetailPaketPrivateTripProps> = ({
             {data.operational_days && data.operational_days.length > 0 && (
               <div className="flex items-center space-x-4">
                 <div className="p-2">
-                  <Image
-                    src="/img/icon-destination.png"
-                    alt="Operational Days Icon"
+                <Image
+                  src="/img/icon-destination.png"
+                  alt="Operational Days Icon"
                     width={40}
                     height={40}
                     className="min-w-[40px]"
@@ -402,9 +402,9 @@ const DetailPaketPrivateTrip: React.FC<DetailPaketPrivateTripProps> = ({
             {data.boat_ids && data.boat_ids.length > 0 && (
               <div className="flex items-center space-x-4">
                 <div className="p-2">
-                  <Image
-                    src="/img/icon-destination.png"
-                    alt="Boats Icon"
+                <Image
+                  src="/img/icon-destination.png"
+                  alt="Boats Icon"
                     width={40}
                     height={40}
                     className="min-w-[40px]"
@@ -434,29 +434,52 @@ const DetailPaketPrivateTrip: React.FC<DetailPaketPrivateTripProps> = ({
           >
             Itinerary
           </Button>
+          {(() => {
+            const includeContent = (data.include || []).join("") || "";
+            const hasInclude = includeContent.trim() !== "" && 
+              includeContent.replace(/<[^>]*>/g, '').trim() !== "";
+            
+            const excludeContent = (data.exclude || []).join("") || "";
+            const hasExclude = excludeContent.trim() !== "" && 
+              excludeContent.replace(/<[^>]*>/g, '').trim() !== "";
+            
+            const hasFlight = data.flightInfo && (data.flightInfo.guideFee1 !== '0' || data.flightInfo.guideFee2 !== '0');
+            
+            const hasNote = data.note && data.note.trim() !== "" && 
+              data.note.replace(/<[^>]*>/g, '').trim() !== "";
+            
+            const hasDescription = data.description && 
+              (Array.isArray(data.description) ? 
+                data.description.some(item => item && item.trim() !== "") : 
+                data.description.trim() !== "" && data.description.split(/\r?\n/).some(line => line.trim().startsWith("*"))
+              );
+            
+            return hasInclude || hasExclude || hasFlight || hasNote || hasDescription;
+          })() && (
           <Button
             variant={activeTab === "information" ? "default" : "outline"}
             onClick={() => setActiveTab("information")}
             className={`${
               activeTab === "information"
-                ? "bg-gold text-white hover:bg-gold-dark-20"
-                : "bg-gold/5 text-gold hover:bg-gold hover:text-white"
-            } px-7 py-6 rounded-lg font-semibold text-sm transition-all duration-300`}
-          >
-            Information
-          </Button>
-          {data.has_boat && (
-            <Button
-              variant={activeTab === "boat" ? "default" : "outline"}
-              onClick={() => setActiveTab("boat")}
-              className={`${
-                activeTab === "boat"
                   ? "bg-gold text-white hover:bg-gold-dark-20"
                   : "bg-gold/5 text-gold hover:bg-gold hover:text-white"
               } px-7 py-6 rounded-lg font-semibold text-sm transition-all duration-300`}
-            >
-              Boat
-            </Button>
+          >
+            Information
+          </Button>
+          )}
+          {data.has_boat && (
+          <Button
+            variant={activeTab === "boat" ? "default" : "outline"}
+            onClick={() => setActiveTab("boat")}
+            className={`${
+              activeTab === "boat"
+                  ? "bg-gold text-white hover:bg-gold-dark-20"
+                  : "bg-gold/5 text-gold hover:bg-gold hover:text-white"
+              } px-7 py-6 rounded-lg font-semibold text-sm transition-all duration-300`}
+          >
+            Boat
+          </Button>
           )}
         </div>
 
@@ -474,7 +497,7 @@ const DetailPaketPrivateTrip: React.FC<DetailPaketPrivateTripProps> = ({
                 onValueChange={(value) => setSelectedDurationId(parseInt(value))}
               >
                 <TabsList className="mb-6 bg-transparent flex flex-wrap gap-2 h-auto p-0">
-                  {data.trip_durations.map((duration) => (
+                {data.trip_durations.map((duration) => (
                     <TabsTrigger
                       key={duration.id}
                       value={duration.id.toString()}
@@ -498,13 +521,13 @@ const DetailPaketPrivateTrip: React.FC<DetailPaketPrivateTripProps> = ({
                       >
                         <h3 className="text-lg font-semibold mb-4 text-gold">
                           {day.day}
-                        </h3>
+                    </h3>
                         <div
                           className="text-gray-600 text-sm [&_ol]:list-decimal [&_ul]:list-disc [&_ol]:pl-5 [&_ul]:pl-5 [&_ol]:space-y-2 [&_ul]:space-y-2 [&_p]:my-0 [&_li]:pl-2 [&_li]:relative [&_li]:leading-normal"
-                          dangerouslySetInnerHTML={{ __html: day.activities }}
-                        />
+                            dangerouslySetInnerHTML={{ __html: day.activities }}
+                          />
                       </div>
-                    ))}
+                      ))}
                   </TabsContent>
                 ))}
               </Tabs>
@@ -520,78 +543,105 @@ const DetailPaketPrivateTrip: React.FC<DetailPaketPrivateTripProps> = ({
                 {/* Kolom Kiri */}
                 <div className="space-y-6">
                   {/* Include Section */}
+                  {(() => {
+                    const includeContent = (data.include || []).join("") || "";
+                    const hasValidContent = includeContent.trim() !== "" && 
+                      includeContent.replace(/<[^>]*>/g, '').trim() !== "";
+                    return hasValidContent;
+                  })() && (
                   <div className="bg-[#f5f5f5] p-6 rounded-lg shadow-sm min-h-[250px] flex flex-col">
                     <h2 className="text-xl font-bold text-gray-800 mb-4">
                       Include
                     </h2>
-                    <div
-                      className="text-gray-600 text-sm [&_ol]:list-decimal [&_ul]:list-disc [&_ol]:pl-5 [&_ul]:pl-5 [&_ol]:space-y-2 [&_ul]:space-y-2 [&_p]:my-0 [&_li]:pl-2 [&_li]:relative [&_li]:leading-normal"
-                      dangerouslySetInnerHTML={{
-                        __html: (data.include || []).join("") || "",
-                      }}
-                    />
-                  </div>
+                      <div
+                        className="text-gray-600 text-sm [&_ol]:list-decimal [&_ul]:list-disc [&_ol]:pl-5 [&_ul]:pl-5 [&_ol]:space-y-2 [&_ul]:space-y-2 [&_p]:my-0 [&_li]:pl-2 [&_li]:relative [&_li]:leading-normal"
+                        dangerouslySetInnerHTML={{
+                          __html: (data.include || []).join("") || "",
+                        }}
+                      />
+                    </div>
+                  )}
 
                   {/* Flight Information */}
+                  {data.flightInfo && (data.flightInfo.guideFee1 !== '0' || data.flightInfo.guideFee2 !== '0') && (
                   <div className="bg-[#f5f5f5] p-6 rounded-lg shadow-sm min-h-[250px] flex flex-col">
-                    <h2 className="text-xl font-bold text-gray-800 mb-6">
+                      <h2 className="text-xl font-bold text-gray-800 mb-6">
                       Flight Information
                     </h2>
-                    <div className="space-y-2">
-                      <p className="text-gray-600 text-sm">
-                        IDR {formatPrice(data.flightInfo?.guideFee1 || '')}
-                      </p>
-                      <p className="text-gray-600 text-sm">
-                        IDR {formatPrice(data.flightInfo?.guideFee2 || '')}
-                      </p>
-                    </div>
+                                          <div className="space-y-2">
+                        <p className="text-gray-600 text-sm">
+                          IDR {formatPrice(data.flightInfo?.guideFee1 || '')}
+                        </p>
+                        <p className="text-gray-600 text-sm">
+                          IDR {formatPrice(data.flightInfo?.guideFee2 || '')}
+                        </p>
+                      </div>
                   </div>
+                  )}
                 </div>
 
                 {/* Kolom Kanan */}
                 <div className="space-y-6">
                   {/* Exclude Section */}
-                  <div className="bg-[#f5f5f5] p-6 rounded-lg shadow-sm min-h-[250px] flex flex-col">
-                    <h2 className="text-xl font-bold text-gray-800 mb-4">
-                      Exclude
-                    </h2>
-                    <div
-                      className="text-gray-600 text-sm [&_ol]:list-decimal [&_ul]:list-disc [&_ol]:pl-5 [&_ul]:pl-5 [&_ol]:space-y-2 [&_ul]:space-y-2 [&_p]:my-0 [&_li]:pl-2 [&_li]:relative [&_li]:leading-normal"
-                      dangerouslySetInnerHTML={{
-                        __html: (data.exclude || []).join("") || "",
-                      }}
-                    />
-                  </div>
-
-                  {/* Description Section */}
-                  <div className="bg-[#f5f5f5] p-6 rounded-lg shadow-sm min-h-[100px] flex flex-col">
-                    <h2 className="text-xl font-bold text-gray-800 mb-4">
-                      Description
-                    </h2>
-                    {data.note ? (
+                  {(() => {
+                    const excludeContent = (data.exclude || []).join("") || "";
+                    const hasValidContent = excludeContent.trim() !== "" && 
+                      excludeContent.replace(/<[^>]*>/g, '').trim() !== "";
+                    return hasValidContent;
+                  })() && (
+                    <div className="bg-[#f5f5f5] p-6 rounded-lg shadow-sm min-h-[250px] flex flex-col">
+                      <h2 className="text-xl font-bold text-gray-800 mb-4">
+                        Exclude
+                      </h2>
                       <div
                         className="text-gray-600 text-sm [&_ol]:list-decimal [&_ul]:list-disc [&_ol]:pl-5 [&_ul]:pl-5 [&_ol]:space-y-2 [&_ul]:space-y-2 [&_p]:my-0 [&_li]:pl-2 [&_li]:relative [&_li]:leading-normal"
                         dangerouslySetInnerHTML={{
-                          __html: data.note,
+                          __html: (data.exclude || []).join("") || "",
                         }}
                       />
-                    ) : Array.isArray(data.description) ? (
-                      <ul className="list-disc pl-5 text-gray-600 text-sm space-y-1">
-                        {data.description.map((item, idx) => (
-                          <li key={idx}>{item.replace(/^\*\s?/, "")}</li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <ul className="list-disc pl-5 text-gray-600 text-sm space-y-1">
-                        {data.description
-                          .split(/\r?\n/)
-                          .filter((line) => line.trim().startsWith("*"))
-                          .map((line, idx) => (
-                            <li key={idx}>{line.replace(/^\*\s?/, "")}</li>
+                    </div>
+                  )}
+
+                  {/* Description Section */}
+                  {(() => {
+                    const hasNote = data.note && data.note.trim() !== "" && 
+                      data.note.replace(/<[^>]*>/g, '').trim() !== "";
+                    const hasDescription = data.description && 
+                      (Array.isArray(data.description) ? 
+                        data.description.some(item => item && item.trim() !== "") : 
+                        data.description.trim() !== "" && data.description.split(/\r?\n/).some(line => line.trim().startsWith("*"))
+                      );
+                    return hasNote || hasDescription;
+                  })() && (
+                    <div className="bg-[#f5f5f5] p-6 rounded-lg shadow-sm min-h-[100px] flex flex-col">
+                      <h2 className="text-xl font-bold text-gray-800 mb-4">
+                        Description
+                      </h2>
+                      {data.note ? (
+                        <div
+                          className="text-gray-600 text-sm [&_ol]:list-decimal [&_ul]:list-disc [&_ol]:pl-5 [&_ul]:pl-5 [&_ol]:space-y-2 [&_ul]:space-y-2 [&_p]:my-0 [&_li]:pl-2 [&_li]:relative [&_li]:leading-normal"
+                          dangerouslySetInnerHTML={{
+                            __html: data.note,
+                          }}
+                        />
+                      ) : Array.isArray(data.description) ? (
+                        <ul className="list-disc pl-5 text-gray-600 text-sm space-y-1">
+                          {data.description.map((item, idx) => (
+                            <li key={idx}>{item.replace(/^\*\s?/, "")}</li>
                           ))}
-                      </ul>
-                    )}
-                  </div>
+                        </ul>
+                      ) : (
+                        <ul className="list-disc pl-5 text-gray-600 text-sm space-y-1">
+                          {data.description
+                            .split(/\r?\n/)
+                            .filter((line) => line.trim().startsWith("*"))
+                            .map((line, idx) => (
+                              <li key={idx}>{line.replace(/^\*\s?/, "")}</li>
+                            ))}
+                        </ul>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
