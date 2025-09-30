@@ -503,21 +503,9 @@ export default function EditBoatPage({ params }: EditBoatPageProps) {
                             render={({ field }) => (
                               <FormItem>
                                 <FormLabel>Tipe Bed</FormLabel>
-                                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                  <FormControl>
-                                    <SelectTrigger>
-                                      <SelectValue placeholder="Pilih tipe bed" />
-                                    </SelectTrigger>
-                                  </FormControl>
-                                  <SelectContent>
-                                    <SelectItem value="King">King Bed</SelectItem>
-                                    <SelectItem value="Queen">Queen Bed</SelectItem>
-                                    <SelectItem value="Double">Double Bed</SelectItem>
-                                    <SelectItem value="Single">Single Bed</SelectItem>
-                                    <SelectItem value="Single Bunk Bed">Single Bunk Bed</SelectItem>
-                                    <SelectItem value="Double Bunk Bed">Double Bunk Bed</SelectItem>
-                                  </SelectContent>
-                                </Select>
+                                <FormControl>
+                                  <Input placeholder="Masukkan tipe bed" {...field} />
+                                </FormControl>
                                 <FormMessage />
                               </FormItem>
                             )}
