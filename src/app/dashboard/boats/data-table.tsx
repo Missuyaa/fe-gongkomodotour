@@ -377,11 +377,19 @@ export function DataTable({
                       </div>
                     </div>
                     <div>
+                      <p className="text-gray-600 font-medium mb-1">Bathroom:</p>
+                      <div className="bg-white p-2 rounded border border-gray-100">
+                        <p className="text-gray-800">{cabin.bathroom || "Tidak ada informasi"}</p>
+                      </div>
+                    </div>
+                    <div>
                       <p className="text-gray-600 font-medium mb-1">Kapasitas:</p>
                       <div className="bg-white p-2 rounded border border-gray-100">
                         <p className="text-gray-800">{cabin.min_pax} - {cabin.max_pax} orang</p>
                       </div>
                     </div>
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-4">
                     <div>
                       <p className="text-gray-600 font-medium mb-1">Status:</p>
                       <div className="bg-white p-2 rounded border border-gray-100">
@@ -390,8 +398,6 @@ export function DataTable({
                         </Badge>
                       </div>
                     </div>
-                  </div>
-                  <div className="grid grid-cols-2 md:grid-cols-2 gap-4 mt-4">
                     <div>
                       <p className="text-gray-600 font-medium mb-1">Harga Dasar:</p>
                       <div className="bg-white p-2 rounded border border-gray-100">

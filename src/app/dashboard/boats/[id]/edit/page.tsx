@@ -42,6 +42,7 @@ const boatSchema = z.object({
     id: z.number().optional(), // 🔑 ID cabin (opsional untuk create, required untuk edit)
     cabin_name: z.string().min(1, "Nama kabin harus diisi"),
     bed_type: z.string().min(1, "Tipe bed harus diisi"),
+    bathroom: z.string().optional(),
     min_pax: z.coerce.number().min(1, "Minimal pax harus diisi"),
     max_pax: z.coerce.number().min(1, "Maksimal pax harus diisi"),
     base_price: z.coerce.number().min(0, "Harga dasar harus diisi"),
@@ -81,6 +82,7 @@ export default function EditBoatPage({ params }: EditBoatPageProps) {
       cabins: [{
         cabin_name: "",
         bed_type: "",
+        bathroom: "",
         min_pax: 1,
         max_pax: 1,
         base_price: 0,
@@ -116,6 +118,7 @@ export default function EditBoatPage({ params }: EditBoatPageProps) {
             id: cabin.id, // 🔑 INI YANG KURANG!
             cabin_name: cabin.cabin_name,
             bed_type: cabin.bed_type,
+            bathroom: cabin.bathroom || "",
             min_pax: cabin.min_pax,
             max_pax: cabin.max_pax,
             base_price: Number(cabin.base_price),
@@ -204,6 +207,7 @@ export default function EditBoatPage({ params }: EditBoatPageProps) {
           id: cabin.id, // 🔑 INI YANG KURANG!
           cabin_name: cabin.cabin_name,
           bed_type: cabin.bed_type,
+          bathroom: cabin.bathroom,
           min_pax: cabin.min_pax,
           max_pax: cabin.max_pax,
           base_price: cabin.base_price,
@@ -447,6 +451,7 @@ export default function EditBoatPage({ params }: EditBoatPageProps) {
                           {
                             cabin_name: "",
                             bed_type: "",
+                            bathroom: "",
                             min_pax: 1,
                             max_pax: 1,
                             base_price: 0,
@@ -512,6 +517,19 @@ export default function EditBoatPage({ params }: EditBoatPageProps) {
                           />
                           <FormField
                             control={form.control}
+                            name={`cabins.${index}.bathroom`}
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Bathroom</FormLabel>
+                                <FormControl>
+                                  <Input placeholder="Masukkan informasi bathroom" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={form.control}
                             name={`cabins.${index}.min_pax`}
                             render={({ field }) => (
                               <FormItem>
@@ -528,6 +546,9 @@ export default function EditBoatPage({ params }: EditBoatPageProps) {
                               </FormItem>
                             )}
                           />
+                        </div>
+
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                           <FormField
                             control={form.control}
                             name={`cabins.${index}.max_pax`}

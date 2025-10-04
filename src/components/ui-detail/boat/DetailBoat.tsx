@@ -425,7 +425,7 @@ export default function DetailBoat({ boat }: DetailBoatProps) {
                                   </div>
                                   <div className="flex items-center space-x-2">
                                     <FaBath className="text-gold text-xl" />
-                                    <span className="text-gray-600">Private Bathroom</span>
+                                    <span className="text-gray-600">{cabin.bathroom || "Private Bathroom"}</span>
                                   </div>
                                 </div>
 
@@ -562,7 +562,7 @@ export default function DetailBoat({ boat }: DetailBoatProps) {
                                   </div>
                                   <div className="flex items-center space-x-2">
                                     <FaBath className="text-gold text-xl" />
-                                    <span className="text-gray-600">Private Bathroom</span>
+                                    <span className="text-gray-600">{cabin.bathroom || "Private Bathroom"}</span>
                                   </div>
                                 </div>
 

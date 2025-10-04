@@ -369,13 +369,30 @@ const DetailPaketPrivateTrip: React.FC<DetailPaketPrivateTripProps> = ({
             {data.operational_days && data.operational_days.length > 0 && (
               <div className="flex items-center space-x-4">
                 <div className="p-2">
-                <Image
-                  src="/img/icon-destination.png"
-                  alt="Operational Days Icon"
-                    width={40}
-                    height={40}
-                    className="min-w-[40px]"
-                  />
+                  <svg
+                    width="40"
+                    height="40"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="text-gold"
+                  >
+                    <path
+                      d="M8 2V5M16 2V5M3.5 9.09H20.5M21 8.5V17C21 20 19.5 22 16 22H8C4.5 22 3 20 3 17V8.5C3 5.5 4.5 3.5 8 3.5H16C19.5 3.5 21 5.5 21 8.5Z"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeMiterlimit="10"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                    <path
+                      d="M8 13H8.01M12 13H12.01M16 13H16.01M8 17H8.01M12 17H12.01M16 17H16.01"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
                 </div>
                 <div className="flex flex-col">
                   <span className="text-gold font-semibold">Hari Operasional</span>
@@ -402,13 +419,70 @@ const DetailPaketPrivateTrip: React.FC<DetailPaketPrivateTripProps> = ({
             {data.boat_ids && data.boat_ids.length > 0 && (
               <div className="flex items-center space-x-4">
                 <div className="p-2">
-                <Image
-                  src="/img/icon-destination.png"
-                  alt="Boats Icon"
-                    width={40}
-                    height={40}
-                    className="min-w-[40px]"
-                  />
+                  <svg
+                    width="40"
+                    height="40"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="text-gold"
+                  >
+                    <path
+                      d="M3.01 15.28C2.4 15.28 1.9 15.78 1.9 16.39C1.9 17 2.4 17.5 3.01 17.5C3.62 17.5 4.12 17 4.12 16.39C4.12 15.78 3.62 15.28 3.01 15.28Z"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeMiterlimit="10"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                    <path
+                      d="M20.99 15.28C20.38 15.28 19.88 15.78 19.88 16.39C19.88 17 20.38 17.5 20.99 17.5C21.6 17.5 22.1 17 22.1 16.39C22.1 15.78 21.6 15.28 20.99 15.28Z"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeMiterlimit="10"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                    <path
+                      d="M1 13H2.5L3.5 8.5H5.5L6.5 13H8"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeMiterlimit="10"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                    <path
+                      d="M8 15.5H6.5L5.5 20H3.5L2.5 15.5H1"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeMiterlimit="10"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                    <path
+                      d="M8 13H16L17 8.5H19L20 13H21.5"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeMiterlimit="10"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                    <path
+                      d="M21.5 15.5H20L19 20H17L16 15.5H8"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeMiterlimit="10"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                    <path
+                      d="M12 3V5M12 7V9M12 11V13"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
                 </div>
                 <div className="flex flex-col">
                   <span className="text-gold font-semibold">Kapal</span>
