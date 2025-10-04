@@ -18,6 +18,24 @@ import { FaChevronDown, FaUsers, FaBed, FaBath, FaImage } from "react-icons/fa";
 import { Boat } from "@/types/boats";
 import { motion, AnimatePresence } from "framer-motion";
 
+// Komponen untuk HTML content dengan text wrapping
+function HtmlContent({ html }: { html: string }) {
+  return (
+    <div 
+      dangerouslySetInnerHTML={{ __html: html }} 
+      className="prose prose-sm max-w-none break-words"
+      style={{
+        wordWrap: 'break-word',
+        overflowWrap: 'break-word',
+        wordBreak: 'break-word',
+        hyphens: 'auto',
+        whiteSpace: 'normal',
+        maxWidth: '100%'
+      }}
+    />
+  )
+}
+
 interface DetailBoatProps {
   boat: Boat;
 }
@@ -88,8 +106,73 @@ export default function DetailBoat({ boat }: DetailBoatProps) {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
-      className="py-4 px-3 max-w-6xl mx-auto"
+      className="py-4 px-3 max-w-6xl mx-auto w-full overflow-hidden"
     >
+      <style jsx global>{`
+        .prose * {
+          word-wrap: break-word !important;
+          overflow-wrap: break-word !important;
+          word-break: break-word !important;
+          hyphens: auto !important;
+          white-space: normal !important;
+          max-width: 100% !important;
+        }
+        .prose p, .prose div, .prose span, .prose li, .prose td, .prose th, .prose ul, .prose ol {
+          word-wrap: break-word !important;
+          overflow-wrap: break-word !important;
+          word-break: break-word !important;
+          hyphens: auto !important;
+          white-space: normal !important;
+          max-width: 100% !important;
+        }
+        .prose table {
+          table-layout: fixed !important;
+          width: 100% !important;
+        }
+        .prose table td, .prose table th {
+          word-wrap: break-word !important;
+          overflow-wrap: break-word !important;
+          word-break: break-word !important;
+          hyphens: auto !important;
+          white-space: normal !important;
+          max-width: 100% !important;
+        }
+        .prose img {
+          max-width: 100% !important;
+          height: auto !important;
+        }
+        .prose pre, .prose code {
+          word-wrap: break-word !important;
+          overflow-wrap: break-word !important;
+          word-break: break-word !important;
+          white-space: pre-wrap !important;
+          max-width: 100% !important;
+        }
+        .prose strong, .prose b {
+          word-wrap: break-word !important;
+          overflow-wrap: break-word !important;
+          word-break: break-word !important;
+          hyphens: auto !important;
+          white-space: normal !important;
+          max-width: 100% !important;
+        }
+        .prose h1, .prose h2, .prose h3, .prose h4, .prose h5, .prose h6 {
+          word-wrap: break-word !important;
+          overflow-wrap: break-word !important;
+          word-break: break-word !important;
+          hyphens: auto !important;
+          white-space: normal !important;
+          max-width: 100% !important;
+        }
+        .prose a {
+          word-wrap: break-word !important;
+          overflow-wrap: break-word !important;
+          word-break: break-word !important;
+          hyphens: auto !important;
+          white-space: normal !important;
+          max-width: 100% !important;
+        }
+      `}</style>
       {/* Section 1: Gambar Utama dan Gambar Kecil */}
       <motion.div 
         className="relative mb-6"
@@ -249,39 +332,47 @@ export default function DetailBoat({ boat }: DetailBoatProps) {
 
       {/* Section 3: Fasilitas dan Spesifikasi */}
       <motion.div 
-        className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6"
+        className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 w-full overflow-hidden"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.4 }}
       >
         {/* Spesifikasi */}
         <motion.div 
-          className="bg-white p-3 rounded-lg shadow-sm"
+          className="bg-white p-3 rounded-lg shadow-sm w-full overflow-hidden"
           whileHover={{ scale: 1.02 }}
           transition={{ type: "spring", stiffness: 300 }}
         >
           <h2 className="text-base md:text-lg font-bold text-gold mb-3">
             Boat Specification
           </h2>
-          <div className="text-gray-600 text-sm [&_ul]:list-disc [&_ol]:list-decimal [&_ul]:pl-5 [&_ol]:pl-5" dangerouslySetInnerHTML={{ __html: boat.spesification }} />
+          <div className="text-gray-600 text-sm w-full overflow-hidden">
+            <div className="prose prose-sm max-w-none break-words overflow-wrap-anywhere">
+              <HtmlContent html={boat.spesification} />
+            </div>
+          </div>
         </motion.div>
 
         {/* Fasilitas */}
         <motion.div 
-          className="md:col-span-2 bg-white p-3 rounded-lg shadow-sm"
+          className="md:col-span-2 bg-white p-3 rounded-lg shadow-sm w-full overflow-hidden"
           whileHover={{ scale: 1.02 }}
           transition={{ type: "spring", stiffness: 300 }}
         >
           <h2 className="text-base md:text-lg font-bold text-gold mb-3">
             Facilities
           </h2>
-          <div className="text-gray-600 text-sm [&_ul]:list-disc [&_ol]:list-decimal [&_ul]:pl-5 [&_ol]:pl-5" dangerouslySetInnerHTML={{ __html: boat.facilities }} />
+          <div className="text-gray-600 text-sm w-full overflow-hidden">
+            <div className="prose prose-sm max-w-none break-words overflow-wrap-anywhere">
+              <HtmlContent html={boat.facilities} />
+            </div>
+          </div>
         </motion.div>
       </motion.div>
 
       {/* Section 4: Cabin Information */}
       <motion.div 
-        className="bg-white p-3 rounded-lg shadow-sm mb-6"
+        className="bg-white p-3 rounded-lg shadow-sm mb-6 w-full overflow-hidden"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.5 }}
@@ -290,7 +381,11 @@ export default function DetailBoat({ boat }: DetailBoatProps) {
         <h2 className="text-base md:text-lg font-bold text-gold mb-3">
           Cabin Information
         </h2>
-        <div className="text-gray-600 text-sm [&_ul]:list-disc [&_ol]:list-decimal [&_ul]:pl-5 [&_ol]:pl-5" dangerouslySetInnerHTML={{ __html: boat.cabin_information }} />
+        <div className="text-gray-600 text-sm w-full overflow-hidden">
+          <div className="prose prose-sm max-w-none break-words overflow-wrap-anywhere">
+            <HtmlContent html={boat.cabin_information} />
+          </div>
+        </div>
       </motion.div>
 
       {/* Section 5: Picture of Cabin */}
@@ -355,8 +450,8 @@ export default function DetailBoat({ boat }: DetailBoatProps) {
                           exit="hidden"
                           variants={contentVariants}
                         >
-                          <AccordionContent className="p-4">
-                            <div className="grid grid-cols-2 gap-6">
+                          <AccordionContent className="p-4 w-full overflow-hidden">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full overflow-hidden">
                               {/* Kolom Kiri - Gambar */}
                               <div className="space-y-0">
                                 {/* Gambar Atas - 2 Column Merge */}
@@ -415,37 +510,37 @@ export default function DetailBoat({ boat }: DetailBoatProps) {
                               <div className="space-y-6">
                                 {/* Icons and Info */}
                                 <div className="space-y-4">
-                                  <div className="flex items-center space-x-2">
-                                    <FaUsers className="text-gold text-xl" />
-                                    <span className="text-gray-600">{cabin.min_pax}-{cabin.max_pax} Person</span>
+                                  <div className="flex items-center space-x-2 w-full overflow-hidden">
+                                    <FaUsers className="text-gold text-xl flex-shrink-0" />
+                                    <span className="text-gray-600 break-words">{cabin.min_pax}-{cabin.max_pax} Person</span>
                                   </div>
-                                  <div className="flex items-center space-x-2">
-                                    <FaBed className="text-gold text-xl" />
-                                    <span className="text-gray-600">{cabin.bed_type}</span>
+                                  <div className="flex items-center space-x-2 w-full overflow-hidden">
+                                    <FaBed className="text-gold text-xl flex-shrink-0" />
+                                    <span className="text-gray-600 break-words">{cabin.bed_type}</span>
                                   </div>
-                                  <div className="flex items-center space-x-2">
-                                    <FaBath className="text-gold text-xl" />
-                                    <span className="text-gray-600">{cabin.bathroom || "Private Bathroom"}</span>
+                                  <div className="flex items-center space-x-2 w-full overflow-hidden">
+                                    <FaBath className="text-gold text-xl flex-shrink-0" />
+                                    <span className="text-gray-600 break-words">{cabin.bathroom || "Private Bathroom"}</span>
                                   </div>
                                 </div>
 
                                 {/* Pricing */}
                                 <div className="space-y-3">
                                   <motion.div 
-                                    className="flex items-center justify-between bg-gold/5 p-4 rounded-lg"
+                                    className="flex items-center justify-between bg-gold/5 p-4 rounded-lg w-full overflow-hidden"
                                     whileHover={{ scale: 1.02 }}
                                   >
-                                    <span className="text-gray-600">Kapasitas Minimum ({cabin.min_pax} pax)</span>
-                                    <span className="font-semibold">
+                                    <span className="text-gray-600 break-words flex-1 mr-2">Kapasitas Minimum ({cabin.min_pax} pax)</span>
+                                    <span className="font-semibold break-words text-right">
                                       IDR {parseInt(cabin.base_price).toLocaleString('id-ID')}/pax
                                     </span>
                                   </motion.div>
                                   <motion.div 
-                                    className="flex items-center justify-between bg-gold/5 p-4 rounded-lg"
+                                    className="flex items-center justify-between bg-gold/5 p-4 rounded-lg w-full overflow-hidden"
                                     whileHover={{ scale: 1.02 }}
                                   >
-                                    <span className="text-gray-600">Tambahan Per Pax</span>
-                                    <span className="font-semibold">
+                                    <span className="text-gray-600 break-words flex-1 mr-2">Tambahan Per Pax</span>
+                                    <span className="font-semibold break-words text-right">
                                       IDR {parseInt(cabin.additional_price).toLocaleString('id-ID')}/pax
                                     </span>
                                   </motion.div>
@@ -492,8 +587,8 @@ export default function DetailBoat({ boat }: DetailBoatProps) {
                           exit="hidden"
                           variants={contentVariants}
                         >
-                          <AccordionContent className="p-4">
-                            <div className="grid grid-cols-2 gap-6">
+                          <AccordionContent className="p-4 w-full overflow-hidden">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full overflow-hidden">
                               {/* Kolom Kiri - Gambar */}
                               <div className="space-y-0">
                                 {/* Gambar Atas - 2 Column Merge */}
@@ -552,37 +647,37 @@ export default function DetailBoat({ boat }: DetailBoatProps) {
                               <div className="space-y-6">
                                 {/* Icons and Info */}
                                 <div className="space-y-4">
-                                  <div className="flex items-center space-x-2">
-                                    <FaUsers className="text-gold text-xl" />
-                                    <span className="text-gray-600">{cabin.min_pax}-{cabin.max_pax} Person</span>
+                                  <div className="flex items-center space-x-2 w-full overflow-hidden">
+                                    <FaUsers className="text-gold text-xl flex-shrink-0" />
+                                    <span className="text-gray-600 break-words">{cabin.min_pax}-{cabin.max_pax} Person</span>
                                   </div>
-                                  <div className="flex items-center space-x-2">
-                                    <FaBed className="text-gold text-xl" />
-                                    <span className="text-gray-600">{cabin.bed_type}</span>
+                                  <div className="flex items-center space-x-2 w-full overflow-hidden">
+                                    <FaBed className="text-gold text-xl flex-shrink-0" />
+                                    <span className="text-gray-600 break-words">{cabin.bed_type}</span>
                                   </div>
-                                  <div className="flex items-center space-x-2">
-                                    <FaBath className="text-gold text-xl" />
-                                    <span className="text-gray-600">{cabin.bathroom || "Private Bathroom"}</span>
+                                  <div className="flex items-center space-x-2 w-full overflow-hidden">
+                                    <FaBath className="text-gold text-xl flex-shrink-0" />
+                                    <span className="text-gray-600 break-words">{cabin.bathroom || "Private Bathroom"}</span>
                                   </div>
                                 </div>
 
                                 {/* Pricing */}
                                 <div className="space-y-3">
                                   <motion.div 
-                                    className="flex items-center justify-between bg-gold/5 p-4 rounded-lg"
+                                    className="flex items-center justify-between bg-gold/5 p-4 rounded-lg w-full overflow-hidden"
                                     whileHover={{ scale: 1.02 }}
                                   >
-                                    <span className="text-gray-600">Kapasitas Minimum ({cabin.min_pax} pax)</span>
-                                    <span className="font-semibold">
+                                    <span className="text-gray-600 break-words flex-1 mr-2">Kapasitas Minimum ({cabin.min_pax} pax)</span>
+                                    <span className="font-semibold break-words text-right">
                                       IDR {parseInt(cabin.base_price).toLocaleString('id-ID')}/pax
                                     </span>
                                   </motion.div>
                                   <motion.div 
-                                    className="flex items-center justify-between bg-gold/5 p-4 rounded-lg"
+                                    className="flex items-center justify-between bg-gold/5 p-4 rounded-lg w-full overflow-hidden"
                                     whileHover={{ scale: 1.02 }}
                                   >
-                                    <span className="text-gray-600">Tambahan Per Pax</span>
-                                    <span className="font-semibold">
+                                    <span className="text-gray-600 break-words flex-1 mr-2">Tambahan Per Pax</span>
+                                    <span className="font-semibold break-words text-right">
                                       IDR {parseInt(cabin.additional_price).toLocaleString('id-ID')}/pax
                                     </span>
                                   </motion.div>

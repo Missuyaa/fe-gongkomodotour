@@ -44,17 +44,19 @@ export const columns = (): ColumnDef<Boat>[] => [
     header: () => null,
     cell: ({ row }) => {
       return (
-        <Button
-          variant="ghost"
-          onClick={() => row.toggleExpanded()}
-          className="p-0 w-6 h-6"
-        >
-          {row.getIsExpanded() ? (
-            <ChevronDown className="h-4 w-4" />
-          ) : (
-            <ChevronRight className="h-4 w-4" />
-          )}
-        </Button>
+        <div className="text-center">
+          <Button
+            variant="ghost"
+            onClick={() => row.toggleExpanded()}
+            className="p-0 w-6 h-6"
+          >
+            {row.getIsExpanded() ? (
+              <ChevronDown className="h-4 w-4" />
+            ) : (
+              <ChevronRight className="h-4 w-4" />
+            )}
+          </Button>
+        </div>
       )
     },
     enableHiding: false,
@@ -62,7 +64,7 @@ export const columns = (): ColumnDef<Boat>[] => [
   {
     id: "select",
     header: ({ table }) => (
-      <div className="w-[30px]">
+      <div className="w-[30px] text-center">
         <input
           type="checkbox"
           checked={table.getIsAllPageRowsSelected()}
@@ -72,7 +74,7 @@ export const columns = (): ColumnDef<Boat>[] => [
       </div>
     ),
     cell: ({ row }) => (
-      <div className="w-[30px]">
+      <div className="w-[30px] text-center">
         <input
           type="checkbox"
           checked={row.getIsSelected()}
@@ -86,9 +88,9 @@ export const columns = (): ColumnDef<Boat>[] => [
   },
   {
     id: "no",
-    header: "No",
+    header: () => <div className="text-center font-medium w-full">No</div>,
     cell: ({ row }) => {
-      return <div className="w-[50px] font-medium">{row.index + 1}</div>
+      return <div className="w-full font-medium text-center">{row.index + 1}</div>
     },
     enableSorting: false,
     enableHiding: false,
@@ -99,14 +101,14 @@ export const columns = (): ColumnDef<Boat>[] => [
       <Button
         variant="ghost"
         onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        className="px-0"
+        className="px-0 text-left font-medium"
       >
         Nama Kapal
         <ArrowUpDown className="ml-2 h-4 w-4" />
       </Button>
     ),
     cell: ({ row }) => (
-      <div className="min-w-[180px]">{row.getValue("boat_name")}</div>
+      <div className="min-w-[180px] text-left">{row.getValue("boat_name")}</div>
     ),
   },
   {
@@ -115,7 +117,7 @@ export const columns = (): ColumnDef<Boat>[] => [
       <Button
         variant="ghost"
         onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        className="px-0"
+        className="px-0 text-center font-medium w-full justify-center"
       >
         Status
         <ArrowUpDown className="ml-2 h-4 w-4" />
@@ -124,7 +126,7 @@ export const columns = (): ColumnDef<Boat>[] => [
     cell: ({ row }) => {
       const status = row.getValue("status") as string
       return (
-        <div className="min-w-[100px]">
+        <div className="w-full text-center">
           <Badge className={`${status === "Aktif" ? "bg-emerald-500" : "bg-red-500"} text-white`}>
             {status}
           </Badge>
@@ -134,17 +136,21 @@ export const columns = (): ColumnDef<Boat>[] => [
   },
   {
     accessorKey: "cabin",
-    header: "Jumlah Kabin",
+    header: () => <div className="text-center font-medium w-full">Jumlah Kabin</div>,
     cell: ({ row }) => {
       const cabins = row.original.cabin
-      return <div className="min-w-[120px]">{cabins.length} kabin</div>
+      return <div className="w-full text-center">{cabins.length} kabin</div>
     },
   },
   {
     id: "actions",
-    header: () => null,
+    header: () => <div className="text-center font-medium w-full">Aksi</div>,
     cell: ({ row }) => {
-      return <ActionsCell row={row} />;
+      return (
+        <div className="w-full text-center">
+          <ActionsCell row={row} />
+        </div>
+      );
     },
     enableHiding: false,
   },

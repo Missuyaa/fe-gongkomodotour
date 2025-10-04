@@ -69,12 +69,31 @@ interface BoatResponse {
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
-// Fungsi untuk mendapatkan URL gambar
+// Fungsi untuk mendapatkan URL gambar dengan fallback
 const getImageUrl = (fileUrl: string) => {
+  if (!fileUrl) return '/placeholder-image.png'
   if (fileUrl.startsWith('http')) {
     return fileUrl
   }
   return `${API_URL}${fileUrl}`
+}
+
+
+function HtmlContent({ html }: { html: string }) {
+  return (
+    <div 
+      dangerouslySetInnerHTML={{ __html: html }} 
+      className="prose prose-sm max-w-none break-words"
+      style={{
+        wordWrap: 'break-word',
+        overflowWrap: 'break-word',
+        wordBreak: 'break-word',
+        hyphens: 'auto',
+        whiteSpace: 'normal',
+        maxWidth: '100%'
+      }}
+    />
+  )
 }
 
 const exportToPDF = (data: Boat[]) => {
@@ -193,6 +212,46 @@ export function DataTable({
     pageSize: 10,
   })
   const [isDeleting, setIsDeleting] = useState(false)
+  const [imageErrors, setImageErrors] = useState<Set<string>>(new Set())
+  const [imageLoading, setImageLoading] = useState<Set<string>>(new Set())
+
+  // Fungsi untuk handle error gambar
+  const handleImageError = (imageSrc: string) => {
+    console.error("Image failed to load:", imageSrc)
+    setImageErrors(prev => new Set(prev).add(imageSrc))
+    setImageLoading(prev => {
+      const newSet = new Set(prev)
+      newSet.delete(imageSrc)
+      return newSet
+    })
+  }
+
+  // Fungsi untuk handle loading gambar
+  const handleImageLoad = (imageSrc: string) => {
+    setImageLoading(prev => {
+      const newSet = new Set(prev)
+      newSet.delete(imageSrc)
+      return newSet
+    })
+  }
+
+  // Fungsi untuk mendapatkan safe image source
+  const getSafeImageSrc = (imageSrc: string, fallback: string = '/placeholder-image.png') => {
+    if (!imageSrc || imageErrors.has(imageSrc)) {
+      return fallback
+    }
+    return imageSrc
+  }
+
+  // Fungsi untuk retry loading gambar
+  const retryImageLoad = (imageSrc: string) => {
+    setImageErrors(prev => {
+      const newSet = new Set(prev)
+      newSet.delete(imageSrc)
+      return newSet
+    })
+    setImageLoading(prev => new Set(prev).add(imageSrc))
+  }
 
   const handleEdit = (boat: Boat) => {
     router.push(`/dashboard/boats/${boat.id}/edit`)
@@ -303,93 +362,73 @@ export function DataTable({
   const renderSubComponent = ({ row }: { row: Row<Boat> }) => {
     const boat = row.original as Boat
     
-    return (
-      <div className="p-4 bg-muted/50 rounded-lg">
-        {/* Informasi Kapal */}
-        <div className="space-y-4 max-w-5xl mx-auto">
-          <div className="bg-white p-4 rounded-lg shadow-sm">
-            <h4 className="font-semibold text-lg mb-4 text-gray-800 border-b pb-2">Informasi Kapal</h4>
-            <div className="grid gap-4">
-              <div className="space-y-4">
-                <div>
-                  <p className="text-gray-600 font-medium mb-2">Spesifikasi:</p>
-                  <div className="bg-gray-50 p-3 rounded-md">
-                    <div 
-                      className="prose prose-sm max-w-none"
-                      style={{ 
-                        maxWidth: '100%',
-                        overflowX: 'auto',
-                        whiteSpace: 'nowrap'
-                      }}
-                      dangerouslySetInnerHTML={{ __html: boat.spesification }}
-                    />
-                  </div>
-                </div>
-                <div>
-                  <p className="text-gray-600 font-medium mb-2">Informasi Kabin:</p>
-                  <div className="bg-gray-50 p-3 rounded-md">
-                    <div 
-                      className="prose prose-sm max-w-none"
-                      style={{ 
-                        maxWidth: '100%',
-                        overflowX: 'auto',
-                        whiteSpace: 'nowrap'
-                      }}
-                      dangerouslySetInnerHTML={{ __html: boat.cabin_information }}
-                    />
-                  </div>
-                </div>
-                <div>
-                  <p className="text-gray-600 font-medium mb-2">Fasilitas:</p>
-                  <div className="bg-gray-50 p-3 rounded-md">
-                    <div 
-                      className="prose prose-sm max-w-none"
-                      style={{ 
-                        maxWidth: '100%',
-                        overflowX: 'auto',
-                        whiteSpace: 'nowrap'
-                      }}
-                      dangerouslySetInnerHTML={{ __html: boat.facilities }}
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+     return (
+       <div className="p-4 bg-muted/50 rounded-lg w-full overflow-hidden">
+         {/* Informasi Kapal */}
+         <div className="space-y-4 w-full">
+           <div className="bg-white p-4 rounded-lg shadow-sm w-full overflow-hidden">
+             <h4 className="font-semibold text-lg mb-4 text-gray-800 border-b pb-2">Informasi Kapal</h4>
+             <div className="space-y-6 w-full">
+               <div>
+                 <p className="text-gray-600 font-medium mb-2">Spesifikasi:</p>
+                 <div className="bg-gray-50 p-3 rounded-md overflow-auto w-full">
+                   <div className="prose prose-sm max-w-none break-words overflow-wrap-anywhere">
+                     <HtmlContent html={boat.spesification} />
+                   </div>
+                 </div>
+               </div>
+               <div>
+                 <p className="text-gray-600 font-medium mb-2">Informasi Kabin:</p>
+                 <div className="bg-gray-50 p-3 rounded-md overflow-auto w-full">
+                   <div className="prose prose-sm max-w-none break-words overflow-wrap-anywhere">
+                     <HtmlContent html={boat.cabin_information} />
+                   </div>
+                 </div>
+               </div>
+               <div>
+                 <p className="text-gray-600 font-medium mb-2">Fasilitas:</p>
+                 <div className="bg-gray-50 p-3 rounded-md overflow-auto w-full">
+                   <div className="prose prose-sm max-w-none break-words overflow-wrap-anywhere">
+                     <HtmlContent html={boat.facilities} />
+                   </div>
+                 </div>
+               </div>
+             </div>
+           </div>
 
           {/* Kabin */}
-          <div className="bg-white p-4 sm:p-6 rounded-lg shadow-sm min-w-[800px]">
+          <div className="bg-white p-4 sm:p-6 rounded-lg shadow-sm w-full overflow-hidden">
             <h4 className="font-semibold text-lg mb-4 text-gray-800 border-b pb-2">Daftar Kabin</h4>
-            <div className="space-y-6">
+            <div className="space-y-6 w-full">
               {boat.cabin.map((cabin, index) => (
-                <div key={index} className="bg-gray-50 p-3 sm:p-4 rounded-md">
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div key={index} className="bg-gray-50 p-3 sm:p-4 rounded-md w-full overflow-hidden">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 w-full">
                     <div>
                       <p className="text-gray-600 font-medium mb-1">Nama Kabin:</p>
                       <div className="bg-white p-2 rounded border border-gray-100">
-                        <p className="text-gray-800">{cabin.cabin_name}</p>
+                        <p className="text-gray-800 break-words">{cabin.cabin_name}</p>
                       </div>
                     </div>
                     <div>
                       <p className="text-gray-600 font-medium mb-1">Tipe Bed:</p>
                       <div className="bg-white p-2 rounded border border-gray-100">
-                        <p className="text-gray-800 capitalize">{cabin.bed_type}</p>
+                        <p className="text-gray-800 capitalize break-words">{cabin.bed_type}</p>
                       </div>
                     </div>
                     <div>
                       <p className="text-gray-600 font-medium mb-1">Bathroom:</p>
                       <div className="bg-white p-2 rounded border border-gray-100">
-                        <p className="text-gray-800">{cabin.bathroom || "Tidak ada informasi"}</p>
+                        <p className="text-gray-800 break-words">{cabin.bathroom || "Tidak ada informasi"}</p>
                       </div>
                     </div>
                     <div>
                       <p className="text-gray-600 font-medium mb-1">Kapasitas:</p>
                       <div className="bg-white p-2 rounded border border-gray-100">
-                        <p className="text-gray-800">{cabin.min_pax} - {cabin.max_pax} orang</p>
+                        <p className="text-gray-800 break-words">{cabin.min_pax} - {cabin.max_pax} orang</p>
                       </div>
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-4 w-full">
                     <div>
                       <p className="text-gray-600 font-medium mb-1">Status:</p>
                       <div className="bg-white p-2 rounded border border-gray-100">
@@ -401,43 +440,71 @@ export function DataTable({
                     <div>
                       <p className="text-gray-600 font-medium mb-1">Harga Dasar:</p>
                       <div className="bg-white p-2 rounded border border-gray-100">
-                        <p className="text-gray-800">Rp {cabin.base_price}</p>
+                        <p className="text-gray-800 break-words">Rp {cabin.base_price}</p>
                       </div>
                     </div>
                     <div>
                       <p className="text-gray-600 font-medium mb-1">Harga Tambahan:</p>
                       <div className="bg-white p-2 rounded border border-gray-100">
-                        <p className="text-gray-800">Rp {cabin.additional_price}</p>
+                        <p className="text-gray-800 break-words">Rp {cabin.additional_price}</p>
                       </div>
                     </div>
                   </div>
 
                   {/* Gambar Kabin */}
                   {cabin.assets && cabin.assets.length > 0 && (
-                    <div className="mt-4">
+                    <div className="mt-4 w-full overflow-hidden">
                       <p className="text-gray-600 font-medium mb-2">Gambar Kabin:</p>
-                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 w-full">
                         {cabin.assets.map((asset, assetIndex) => {
                           const imageUrl = getImageUrl(asset.file_url)
+                          const isError = imageErrors.has(imageUrl)
+                          const isLoading = imageLoading.has(imageUrl)
+                          
                           return (
                             <div 
                               key={assetIndex} 
                               className="relative aspect-[4/3] rounded-lg overflow-hidden border border-gray-200 cursor-pointer group"
-                              onClick={() => setSelectedImage(asset)}
+                              onClick={() => !isError && setSelectedImage(asset)}
                             >
-                              <Image
-                                src={imageUrl}
-                                alt={asset.title || `Gambar Kabin ${assetIndex + 1}`}
-                                fill
-                                sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw"
-                                className="object-cover transition-transform duration-200 group-hover:scale-105"
-                                onError={(e) => {
-                                  console.error(`Error loading image ${assetIndex}:`, e)
-                                  const target = e.target as HTMLImageElement
-                                  target.src = '/placeholder-image.png'
-                                }}
-                              />
-                              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-200" />
+                              {isLoading && (
+                                <div className="absolute inset-0 bg-gray-100 flex items-center justify-center">
+                                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                                </div>
+                              )}
+                              {isError ? (
+                                <div className="absolute inset-0 bg-gray-100 flex flex-col items-center justify-center p-2">
+                                  <div className="text-gray-400 mb-2">
+                                    <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                    </svg>
+                                  </div>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      retryImageLoad(imageUrl)
+                                    }}
+                                    className="text-xs bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600 transition-colors"
+                                  >
+                                    Retry
+                                  </button>
+                                </div>
+                              ) : (
+                                <>
+                                  <Image
+                                    src={getSafeImageSrc(imageUrl)}
+                                    alt={asset.title || `Gambar Kabin ${assetIndex + 1}`}
+                                    fill
+                                    sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw"
+                                    className="object-cover transition-transform duration-200 group-hover:scale-105"
+                                    onError={() => handleImageError(imageUrl)}
+                                    onLoad={() => handleImageLoad(imageUrl)}
+                                    unoptimized={true}
+                                    priority={assetIndex < 3}
+                                  />
+                                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-200" />
+                                </>
+                              )}
                             </div>
                           )
                         })}
@@ -452,40 +519,67 @@ export function DataTable({
 
         {/* Gambar Kapal */}
         {boat.assets && boat.assets.length > 0 && (
-          <div className="bg-white p-6 rounded-lg shadow-sm mt-6">
+          <div className="bg-white p-6 rounded-lg shadow-sm mt-6 w-full overflow-hidden">
             <h4 className="font-semibold text-lg mb-4 text-gray-800 border-b pb-2">Gambar Kapal</h4>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 w-full">
               {boat.assets.map((asset, index) => {
                 const imageUrl = getImageUrl(asset.file_url)
+                const isError = imageErrors.has(imageUrl)
+                const isLoading = imageLoading.has(imageUrl)
+                
                 return (
                   <div 
                     key={index} 
-                    className="space-y-2 cursor-pointer group"
-                    onClick={() => setSelectedImage(asset)}
+                    className="space-y-2 cursor-pointer group w-full"
+                    onClick={() => !isError && setSelectedImage(asset)}
                   >
                     <div className="relative aspect-[4/3] rounded-lg overflow-hidden border border-gray-200">
-                      <Image
-                        src={imageUrl}
-                        alt={asset.title || `Gambar ${index + 1}`}
-                        fill
-                        sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, (max-width: 1024px) 25vw, 20vw"
-                        className="object-cover transition-transform duration-200 group-hover:scale-105"
-                        onError={(e) => {
-                          console.error(`Error loading image ${index}:`, e)
-                          const target = e.target as HTMLImageElement
-                          target.src = '/placeholder-image.png'
-                        }}
-                        priority={index < 5}
-                      />
-                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-200" />
+                      {isLoading && (
+                        <div className="absolute inset-0 bg-gray-100 flex items-center justify-center">
+                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                        </div>
+                      )}
+                      {isError ? (
+                        <div className="absolute inset-0 bg-gray-100 flex flex-col items-center justify-center p-2">
+                          <div className="text-gray-400 mb-2">
+                            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                          </div>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              retryImageLoad(imageUrl)
+                            }}
+                            className="text-xs bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600 transition-colors"
+                          >
+                            Retry
+                          </button>
+                        </div>
+                      ) : (
+                        <>
+                          <Image
+                            src={getSafeImageSrc(imageUrl)}
+                            alt={asset.title || `Gambar ${index + 1}`}
+                            fill
+                            sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, (max-width: 1024px) 25vw, 20vw"
+                            className="object-cover transition-transform duration-200 group-hover:scale-105"
+                            onError={() => handleImageError(imageUrl)}
+                            onLoad={() => handleImageLoad(imageUrl)}
+                            unoptimized={true}
+                            priority={index < 5}
+                          />
+                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-200" />
+                        </>
+                      )}
                     </div>
                     {asset.title && (
-                      <p className="text-sm text-gray-600 text-center truncate" title={asset.title}>
+                      <p className="text-sm text-gray-600 text-center break-words" title={asset.title}>
                         {asset.title}
                       </p>
                     )}
                     {asset.description && (
-                      <p className="text-xs text-gray-500 text-center truncate" title={asset.description}>
+                      <p className="text-xs text-gray-500 text-center break-words" title={asset.description}>
                         {asset.description}
                       </p>
                     )}
@@ -501,7 +595,7 @@ export function DataTable({
           <ImageModal
             isOpen={!!selectedImage}
             onClose={() => setSelectedImage(null)}
-            imageUrl={getImageUrl(selectedImage.file_url)}
+            imageUrl={getSafeImageSrc(getImageUrl(selectedImage.file_url))}
             title={selectedImage.title}
             description={selectedImage.description || undefined}
           />
@@ -511,8 +605,71 @@ export function DataTable({
   }
 
   return (
-    <div className="container mx-auto max-w-7xl">
+    <div className="w-full overflow-hidden">
       <style jsx global>{`
+        .prose * {
+          word-wrap: break-word !important;
+          overflow-wrap: break-word !important;
+          word-break: break-word !important;
+          hyphens: auto !important;
+          white-space: normal !important;
+          max-width: 100% !important;
+        }
+        .prose p, .prose div, .prose span, .prose li, .prose td, .prose th, .prose ul, .prose ol {
+          word-wrap: break-word !important;
+          overflow-wrap: break-word !important;
+          word-break: break-word !important;
+          hyphens: auto !important;
+          white-space: normal !important;
+          max-width: 100% !important;
+        }
+        .prose table {
+          table-layout: fixed !important;
+          width: 100% !important;
+        }
+        .prose table td, .prose table th {
+          word-wrap: break-word !important;
+          overflow-wrap: break-word !important;
+          word-break: break-word !important;
+          hyphens: auto !important;
+          white-space: normal !important;
+          max-width: 100% !important;
+        }
+        .prose img {
+          max-width: 100% !important;
+          height: auto !important;
+        }
+        .prose pre, .prose code {
+          word-wrap: break-word !important;
+          overflow-wrap: break-word !important;
+          word-break: break-word !important;
+          white-space: pre-wrap !important;
+          max-width: 100% !important;
+        }
+        .prose strong, .prose b {
+          word-wrap: break-word !important;
+          overflow-wrap: break-word !important;
+          word-break: break-word !important;
+          hyphens: auto !important;
+          white-space: normal !important;
+          max-width: 100% !important;
+        }
+        .prose h1, .prose h2, .prose h3, .prose h4, .prose h5, .prose h6 {
+          word-wrap: break-word !important;
+          overflow-wrap: break-word !important;
+          word-break: break-word !important;
+          hyphens: auto !important;
+          white-space: normal !important;
+          max-width: 100% !important;
+        }
+        .prose a {
+          word-wrap: break-word !important;
+          overflow-wrap: break-word !important;
+          word-break: break-word !important;
+          hyphens: auto !important;
+          white-space: normal !important;
+          max-width: 100% !important;
+        }
         .custom-scrollbar {
           scrollbar-width: thin;
           scrollbar-color: #888 #f1f1f1;
@@ -532,42 +689,21 @@ export function DataTable({
         .custom-scrollbar::-webkit-scrollbar-thumb:hover {
           background: #666;
         }
-        .prose {
-          word-break: normal;
-          overflow-wrap: anywhere;
-        }
-        .prose {
-          -webkit-overflow-scrolling: touch;
-        }
-        .prose::-webkit-scrollbar {
-          height: 4px;
-        }
-        .prose::-webkit-scrollbar-track {
-          background: #f1f1f1;
-          border-radius: 2px;
-        }
-        .prose::-webkit-scrollbar-thumb {
-          background: #888;
-          border-radius: 2px;
-        }
-        .prose::-webkit-scrollbar-thumb:hover {
-          background: #666;
-        }
       `}</style>
       {/* Toolbar */}
-      <div className="flex items-center justify-between py-4">
-        <div className="flex items-center space-x-2">
+      <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between py-4 gap-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-2 w-full lg:w-auto">
           <Input
             placeholder="Filter berdasarkan nama..."
             value={(table.getColumn("boat_name")?.getFilterValue() as string) || ""}
             onChange={(event) =>
               table.getColumn("boat_name")?.setFilterValue(event.target.value)
             }
-            className="max-w-sm"
+            className="max-w-sm w-full sm:w-auto"
           />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="ml-auto">
+              <Button variant="outline" className="w-full sm:w-auto">
                 Kolom <ChevronDown className="ml-2 h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
@@ -593,7 +729,7 @@ export function DataTable({
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
-        <div className="flex space-x-2">
+        <div className="flex flex-wrap gap-2 w-full lg:w-auto">
           {table.getSelectedRowModel().rows.length > 0 && (
             <>
               <Button
@@ -604,12 +740,14 @@ export function DataTable({
                     table.getSelectedRowModel().rows.map((row) => (row.original as Boat).id)
                   )
                 }
+                className="text-xs sm:text-sm"
               >
                 Hapus Terpilih ({table.getSelectedRowModel().rows.length})
               </Button>
               <Button 
                 variant="outline"
                 onClick={() => exportToPDF(table.getSelectedRowModel().rows.map(row => row.original as Boat))}
+                className="text-xs sm:text-sm"
               >
                 <FileDown className="mr-2 h-4 w-4" />
                 Export Terpilih ({table.getSelectedRowModel().rows.length})
@@ -618,13 +756,13 @@ export function DataTable({
           )}
           <Button 
             onClick={() => router.push('/dashboard/boats/create')}
-            className="bg-yellow-500 hover:bg-yellow-600 text-white transition-colors duration-200"
+            className="bg-yellow-500 hover:bg-yellow-600 text-white transition-colors duration-200 text-xs sm:text-sm"
           >
             <Plus className="mr-2 h-4 w-4" />
             Tambah Kapal
           </Button>
           <Button 
-            className="bg-red-500 hover:bg-red-600 text-white transition-colors duration-200"
+            className="bg-red-500 hover:bg-red-600 text-white transition-colors duration-200 text-xs sm:text-sm"
             variant="outline"
             onClick={() => exportToPDF(table.getFilteredRowModel().rows.map(row => row.original as Boat))}
           >
@@ -635,13 +773,13 @@ export function DataTable({
       </div>
 
       {/* Table */}
-      <div className="rounded-md border overflow-x-auto">
-        <Table>
+      <div className="rounded-md border w-full">
+        <Table className="w-full">
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map((header) => (
-                  <TableHead key={header.id} colSpan={header.colSpan}>
+                  <TableHead key={header.id} colSpan={header.colSpan} className="whitespace-nowrap text-center">
                     {header.isPlaceholder
                       ? null
                       : flexRender(
@@ -661,7 +799,7 @@ export function DataTable({
                     data-state={row.getIsSelected() && "selected"}
                   >
                     {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id}>
+                      <TableCell key={cell.id} className="break-words">
                         {flexRender(
                           cell.column.columnDef.cell,
                           cell.getContext()
@@ -671,7 +809,7 @@ export function DataTable({
                   </TableRow>
                   {row.getIsExpanded() && (
                     <TableRow key={`${row.id}-expanded`}>
-                      <TableCell colSpan={row.getVisibleCells().length}>
+                      <TableCell colSpan={row.getVisibleCells().length} className="p-0">
                         {renderSubComponent({ row })}
                       </TableCell>
                     </TableRow>
@@ -693,11 +831,11 @@ export function DataTable({
       </div>
 
       {/* Pagination */}
-      <div className="flex items-center justify-between px-2 py-4 bg-gray-50 rounded-b-md">
+      <div className="flex flex-col sm:flex-row items-center justify-between px-2 py-4 bg-gray-50 rounded-b-md gap-4">
         <div className="text-sm text-muted-foreground">
           {table.getFilteredSelectedRowModel().rows.length} of {table.getFilteredRowModel().rows.length} row(s) selected.
         </div>
-        <div className="flex items-center gap-x-6">
+        <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-x-6">
           <div className="flex items-center gap-x-2">
             <p className="text-sm font-medium">Rows per page</p>
             <Select
