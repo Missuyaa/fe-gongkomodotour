@@ -2,7 +2,7 @@
 import axios, { AxiosRequestConfig, InternalAxiosRequestConfig } from 'axios';
 
 // Untuk debugging
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.gongkomodotour.com';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 console.log('API Base URL:', API_BASE_URL);
 
 // 1. Buat Axios instance
@@ -13,24 +13,54 @@ const api = axios.create({
     'Content-Type': 'application/json',
     'X-Requested-With': 'XMLHttpRequest',
   },
-  withCredentials: false, // Tidak perlu credentials untuk API
+  withCredentials: true, // Enable credentials untuk CSRF token
   timeout: 30000, // Menambahkan timeout 30 detik
   // Tambahkan proxy untuk bypass CORS issue
   proxy: false
 });
 
-// 2. Interceptor: tambahkan Bearer token jika ada
-api.interceptors.request.use((config: InternalAxiosRequestConfig<unknown>) => {
+// 2. Fungsi untuk mendapatkan CSRF token
+async function getCsrfToken(): Promise<string | null> {
+  try {
+    const response = await axios.get(`${API_BASE_URL}/sanctum/csrf-cookie`, {
+      withCredentials: true,
+    });
+    
+    // Extract CSRF token from cookies
+    const cookies = document.cookie.split(';');
+    for (let cookie of cookies) {
+      const [name, value] = cookie.trim().split('=');
+      if (name === 'XSRF-TOKEN') {
+        return decodeURIComponent(value);
+      }
+    }
+    return null;
+  } catch (error) {
+    console.error('Error getting CSRF token:', error);
+    return null;
+  }
+}
+
+// 3. Interceptor: tambahkan Bearer token dan CSRF token jika ada
+api.interceptors.request.use(async (config: InternalAxiosRequestConfig<unknown>) => {
   if (typeof window !== "undefined") {
     const token = localStorage.getItem('access_token');
     if (token && config.headers) {
       config.headers['Authorization'] = `Bearer ${token}`;
     }
+    
+    // Tambahkan CSRF token untuk request yang memerlukan
+    if (config.method && ['post', 'put', 'patch', 'delete'].includes(config.method.toLowerCase())) {
+      const csrfToken = await getCsrfToken();
+      if (csrfToken && config.headers) {
+        config.headers['X-XSRF-TOKEN'] = csrfToken;
+      }
+    }
   }
   return config;
 });
 
-// 3. Helper function apiRequest<T>
+// 4. Helper function apiRequest<T>
 export async function apiRequest<T>(
   method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH',
   url: string,
@@ -41,6 +71,11 @@ export async function apiRequest<T>(
     console.log(`Making ${method} request to ${url}`);
     console.log('Request config:', { method, url, data, config });
     console.log('API Base URL:', API_BASE_URL);
+    
+    // Untuk request yang memerlukan CSRF token, pastikan kita mendapatkannya terlebih dahulu
+    if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
+      await getCsrfToken();
+    }
     
     const response = await api({
       method,
@@ -75,7 +110,9 @@ export async function apiRequest<T>(
           headers: {
             'Accept': 'application/json',
             'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
           },
+          credentials: 'include', // Include credentials for CSRF
           body: data ? JSON.stringify(data) : undefined,
         });
         
@@ -101,6 +138,7 @@ export async function apiRequest<T>(
           xhr.setRequestHeader('Accept', 'application/json');
           xhr.setRequestHeader('Content-Type', 'application/json');
           xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+          xhr.withCredentials = true; // Enable credentials for CSRF
           
           xhr.timeout = 30000;
           
@@ -143,6 +181,7 @@ export async function apiRequest<T>(
         xhr.setRequestHeader('Accept', 'application/json');
         xhr.setRequestHeader('Content-Type', 'application/json');
         xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+        xhr.withCredentials = true; // Enable credentials for CSRF
         
         xhr.timeout = 30000;
         

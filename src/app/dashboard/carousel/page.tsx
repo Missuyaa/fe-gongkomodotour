@@ -452,7 +452,7 @@ export default function CarouselAdmin() {
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       <span>Order: {carouselItem.order_num}</span>
                       <span>|</span>
-                      <span>Status: {carouselItem.is_active ? 'Active' : 'Inactive'}</span>
+                      <span>Status: {String(carouselItem.is_active) === '1' ? 'Active' : 'Inactive'}</span>
                       <span>|</span>
                       <span className={carouselItem.primary_image ? 'text-green-600' : 'text-red-600'}>
                         {carouselItem.primary_image ? 'Has Image' : 'No Image'}
