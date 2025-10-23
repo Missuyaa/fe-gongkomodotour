@@ -25,7 +25,7 @@ interface FileUploadProps {
   accept?: Record<string, string[]>
 }
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.gongkomodotour.com'
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
 export function FileUpload({
   onUpload,

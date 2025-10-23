@@ -117,7 +117,7 @@ export default function BlogPage() {
           
           <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded">
             <h3 className="font-medium text-blue-800 mb-2">Debug Information:</h3>
-            <p className="text-sm text-blue-700">API URL: {process.env.NEXT_PUBLIC_API_URL || 'https://api.gongkomodotour.com'}</p>
+            <p className="text-sm text-blue-700">API URL: {process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}</p>
             <p className="text-sm text-blue-700">Endpoint: /api/blogs</p>
             <p className="text-sm text-blue-700">Method: GET</p>
           </div>
