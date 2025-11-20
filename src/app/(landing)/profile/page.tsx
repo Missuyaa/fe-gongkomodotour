@@ -2,14 +2,37 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
-import logo from "../../../../public/img/logo.png";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import countries from "i18n-iso-countries";
 import enLocale from "i18n-iso-countries/langs/en.json";
 import { motion } from "framer-motion";
-import { User, Mail, MapPin, Phone, Globe, Calendar, Shield, CheckCircle2 } from "lucide-react";
+import { User, Mail, MapPin, Phone, Globe, Calendar, Shield, CheckCircle2, Save } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { apiRequest } from "@/lib/api";
+import { toast } from "sonner";
+// @ts-expect-error: No types for country-telephone-data
+import { allCountries } from "country-telephone-data";
 
 // Inisialisasi daftar negara
 countries.registerLocale(enLocale);
@@ -25,6 +48,84 @@ function getCountryName(countryCode: string): string {
   const country = countryOptions.find(opt => opt.value === countryCode.toUpperCase());
   return country ? country.label : countryCode;
 }
+
+// Helper untuk mendapatkan kode negara telepon
+function getCountryCallingCode(countryCode: string) {
+  if (!countryCode) return "";
+  const country = allCountries.find(
+    (c: { iso2: string }) => c.iso2.toUpperCase() === countryCode.toUpperCase()
+  );
+  return country ? `+${country.dialCode}` : "";
+}
+
+// Helper untuk mencari country code dari nama negara atau country code
+function getCountryCodeFromName(countryNameOrCode: string): string {
+  if (!countryNameOrCode) return "";
+  
+  // Jika sudah country code (2-3 karakter uppercase), langsung return
+  if (countryNameOrCode.length <= 3 && /^[A-Z]+$/.test(countryNameOrCode.toUpperCase())) {
+    const isValidCode = countryOptions.some(opt => opt.value === countryNameOrCode.toUpperCase());
+    if (isValidCode) {
+      return countryNameOrCode.toUpperCase();
+    }
+  }
+  
+  // Coba cari exact match (case insensitive) dengan nama negara
+  const entry = Object.entries(countryList).find(
+    ([_, name]) => name.toLowerCase() === countryNameOrCode.toLowerCase()
+  );
+  
+  if (entry) return entry[0];
+  
+  // Coba cari partial match untuk handle variasi nama
+  const partialMatch = Object.entries(countryList).find(
+    ([_, name]) => name.toLowerCase().includes(countryNameOrCode.toLowerCase()) || 
+                   countryNameOrCode.toLowerCase().includes(name.toLowerCase())
+  );
+  
+  return partialMatch ? partialMatch[0] : "";
+}
+
+// Helper untuk parse phone number (memisahkan country code dari nomor)
+function parsePhoneNumber(phoneNumber: string, countryCode: string): string {
+  if (!phoneNumber) return "";
+  
+  const callingCode = getCountryCallingCode(countryCode);
+  if (!callingCode) return phoneNumber;
+  
+  // Jika phone number sudah dimulai dengan country calling code, hapus
+  if (phoneNumber.startsWith(callingCode)) {
+    return phoneNumber.substring(callingCode.length).trim();
+  }
+  
+  // Jika phone number dimulai dengan +, coba parse
+  if (phoneNumber.startsWith("+")) {
+    const sortedCountries = [...allCountries].sort((a: { dialCode: string }, b: { dialCode: string }) => 
+      b.dialCode.length - a.dialCode.length
+    );
+    
+    const matchedCountry = sortedCountries.find((c: { dialCode: string }) => 
+      phoneNumber.startsWith(`+${c.dialCode}`)
+    );
+    if (matchedCountry) {
+      return phoneNumber.substring(matchedCountry.dialCode.length + 1).trim();
+    }
+  }
+  
+  return phoneNumber;
+}
+
+// Form schema
+const profileFormSchema = z.object({
+  name: z.string().min(1, { message: "Name is required." }),
+  email: z.string().email({ message: "Please enter a valid email address." }),
+  alamat: z.string().min(1, { message: "Address is required." }),
+  no_hp: z
+    .string()
+    .min(10, { message: "Phone number must be at least 10 digits." })
+    .regex(/^\d+$/, { message: "Phone number must contain only digits." }),
+  nasionality: z.string().min(1, { message: "Please select a nationality." }),
+});
 
 interface UserData {
   id: number;
@@ -53,8 +154,26 @@ interface UserData {
 
 export default function ProfilePage() {
   const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [userData, setUserData] = useState<UserData | null>(null);
+  const [hasChanges, setHasChanges] = useState(false);
+  const [initialFormData, setInitialFormData] = useState<any>(null);
   const router = useRouter();
+
+  // Initialize form
+  const form = useForm<z.infer<typeof profileFormSchema>>({
+    resolver: zodResolver(profileFormSchema),
+    defaultValues: {
+      name: "",
+      email: "",
+      alamat: "",
+      no_hp: "",
+      nasionality: "",
+    },
+  });
+
+  // Watch form changes
+  const formValues = form.watch();
 
   // Load user data from localStorage
   useEffect(() => {
@@ -73,13 +192,139 @@ export default function ProfilePage() {
     try {
       const data = JSON.parse(userDataString);
       setUserData(data);
+      
+      // Set form default values
+      if (data.customer) {
+        const countryCode = getCountryCodeFromName(data.customer.nasionality);
+        const phoneNumber = parsePhoneNumber(data.customer.no_hp, countryCode);
+        
+        const formData = {
+          name: data.name || data.customer.user?.name || "",
+          email: data.email || data.customer.user?.email || "",
+          alamat: data.customer.alamat || "",
+          no_hp: phoneNumber || "",
+          nasionality: countryCode || data.customer.nasionality || "",
+        };
+        
+        form.reset(formData);
+        setInitialFormData(formData);
+      } else {
+        const formData = {
+          name: data.name || "",
+          email: data.email || "",
+          alamat: "",
+          no_hp: "",
+          nasionality: "",
+        };
+        form.reset(formData);
+        setInitialFormData(formData);
+      }
     } catch (error) {
       console.error('Error parsing user data:', error);
       router.push('/auth/login');
     } finally {
       setIsLoading(false);
     }
-  }, [router]);
+  }, [router, form]);
+
+  // Check for changes
+  useEffect(() => {
+    if (initialFormData) {
+      const currentData = {
+        name: formValues.name || "",
+        email: formValues.email || "",
+        alamat: formValues.alamat || "",
+        no_hp: formValues.no_hp || "",
+        nasionality: formValues.nasionality || "",
+      };
+      
+      const changed = JSON.stringify(currentData) !== JSON.stringify(initialFormData);
+      setHasChanges(changed);
+    }
+  }, [formValues, initialFormData]);
+
+  // Handle form submission
+  const onSubmit = async (values: z.infer<typeof profileFormSchema>) => {
+    try {
+      setIsSubmitting(true);
+
+      // Determine region based on nationality
+      const region = values.nasionality === "ID" ? "domestic" : "overseas";
+
+      // Prepare phone number with country code
+      const countryCallingCode = getCountryCallingCode(values.nasionality);
+      const fullPhoneNumber = countryCallingCode ? `${countryCallingCode}${values.no_hp}` : values.no_hp;
+
+      // Update user data
+      const updateUserData = {
+        name: values.name,
+        email: values.email,
+      };
+
+      // Update customer data if exists
+      if (userData?.customer) {
+        const updateCustomerData = {
+          alamat: values.alamat,
+          no_hp: fullPhoneNumber,
+          nasionality: values.nasionality,
+          region: region,
+        };
+
+        // Update customer via API
+        await apiRequest("PUT", `/api/customers/${userData.customer.id}`, updateCustomerData);
+      } else {
+        // Create customer if doesn't exist
+        const createCustomerData = {
+          alamat: values.alamat,
+          no_hp: fullPhoneNumber,
+          nasionality: values.nasionality,
+          region: region,
+        };
+
+        await apiRequest("POST", "/api/customers", createCustomerData);
+      }
+
+      // Update user via API
+      // Backend akan mengecek apakah user update profil sendiri atau user lain
+      // Jika update profil sendiri: tidak perlu permission
+      // Jika update user lain: akan dicek permission di controller
+      if (!userData?.id) {
+        throw new Error("User ID tidak ditemukan");
+      }
+
+      // Pastikan ID yang dikirim adalah ID user yang sedang login (untuk keamanan)
+      await apiRequest("PUT", `/api/users/${userData.id}`, updateUserData);
+
+      // Update localStorage
+      if (userData) {
+        const updatedUserData: UserData = {
+          ...userData,
+          name: values.name,
+          email: values.email,
+          customer: userData.customer ? {
+            ...userData.customer,
+            alamat: values.alamat,
+            no_hp: fullPhoneNumber,
+            nasionality: values.nasionality,
+            region: region,
+          } : undefined,
+        };
+
+        localStorage.setItem('user', JSON.stringify(updatedUserData));
+        setUserData(updatedUserData);
+      }
+      setInitialFormData(values);
+      setHasChanges(false);
+
+      toast.success("Profile berhasil diperbarui!");
+    } catch (error) {
+      console.error("Profile update error:", error);
+      const errorMessage = error instanceof Error ? error.message : 'Gagal memperbarui profile. Silakan coba lagi.';
+      toast.error(errorMessage);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -97,7 +342,7 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-gold/5 py-8 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-[#f5f5f5] py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-5xl mx-auto">
         {/* Header Section */}
         <motion.div
@@ -106,10 +351,10 @@ export default function ProfilePage() {
           transition={{ duration: 0.5 }}
           className="text-center mb-8"
         >
-          <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 mb-3">
+          <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-2">
             Profile Saya
           </h1>
-          <p className="text-lg text-gray-600">
+          <p className="text-gray-600">
             Informasi akun dan profil Anda
           </p>
         </motion.div>
@@ -122,7 +367,7 @@ export default function ProfilePage() {
             transition={{ duration: 0.5, delay: 0.2 }}
             className="lg:col-span-1"
           >
-            <Card className="p-6 bg-gradient-to-br from-gold/10 to-gold/5 border-2 border-gold/20 shadow-lg">
+            <Card className="p-6 bg-white border border-gray-200 shadow-md">
               {/* Avatar Section */}
               <div className="flex flex-col items-center mb-6">
                 <div className="relative mb-4">
@@ -186,108 +431,182 @@ export default function ProfilePage() {
             transition={{ duration: 0.5, delay: 0.3 }}
             className="lg:col-span-2 space-y-4"
           >
-            {/* Contact Information */}
-            <Card className="p-6 shadow-lg border-2 border-gray-100">
-              <h3 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
-                <Mail className="w-5 h-5 text-gold" />
-                Informasi Kontak
-              </h3>
-              <div className="space-y-4">
-                <div className="flex items-start gap-4 p-4 bg-blue-50/50 rounded-lg hover:bg-blue-50 transition-colors">
-                  <div className="p-2 bg-blue-100 rounded-lg">
-                    <Mail className="w-5 h-5 text-blue-600" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-gray-600 mb-1">Email</p>
-                    <p className="text-gray-900 font-medium">
-                      {userData.email || userData.customer?.user?.email || "-"}
-                    </p>
-                  </div>
-                </div>
+            {/* Profile Form */}
+            <Card className="p-6 bg-white border border-gray-200 shadow-md">
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                  <h3 className="text-xl font-bold text-gray-900 mb-6">Edit Profile</h3>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Name */}
+                    <FormField
+                      control={form.control}
+                      name="name"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="flex items-center gap-2">
+                            <User className="w-4 h-4" />
+                            Nama Lengkap
+                          </FormLabel>
+                          <FormControl>
+                            <Input placeholder="Masukkan nama lengkap" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-                {userData.customer && (
-                  <div className="flex items-start gap-4 p-4 bg-green-50/50 rounded-lg hover:bg-green-50 transition-colors">
-                    <div className="p-2 bg-green-100 rounded-lg">
-                      <Phone className="w-5 h-5 text-green-600" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-gray-600 mb-1">Nomor Telepon</p>
-                      <p className="text-gray-900 font-medium">
-                        {userData.customer.no_hp || "-"}
+                    {/* Email */}
+                    <FormField
+                      control={form.control}
+                      name="email"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="flex items-center gap-2">
+                            <Mail className="w-4 h-4" />
+                            Email
+                          </FormLabel>
+                          <FormControl>
+                            <Input type="email" placeholder="Masukkan email" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    {/* Address */}
+                    <FormField
+                      control={form.control}
+                      name="alamat"
+                      render={({ field }) => (
+                        <FormItem className="md:col-span-2">
+                          <FormLabel className="flex items-center gap-2">
+                            <MapPin className="w-4 h-4" />
+                            Alamat
+                          </FormLabel>
+                          <FormControl>
+                            <Input placeholder="Masukkan alamat lengkap" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    {/* Phone Number */}
+                    <FormField
+                      control={form.control}
+                      name="no_hp"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="flex items-center gap-2">
+                            <Phone className="w-4 h-4" />
+                            Nomor Telepon
+                          </FormLabel>
+                          <FormControl>
+                            <div className="flex space-x-2">
+                              <Input
+                                value={getCountryCallingCode(form.watch("nasionality"))}
+                                disabled
+                                className="w-1/4 text-center bg-gray-100"
+                              />
+                              <Input
+                                placeholder="Nomor telepon"
+                                {...field}
+                                className="w-3/4"
+                              />
+                            </div>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    {/* Nationality */}
+                    <FormField
+                      control={form.control}
+                      name="nasionality"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="flex items-center gap-2">
+                            <Globe className="w-4 h-4" />
+                            Kebangsaan
+                          </FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Pilih kebangsaan" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {countryOptions.map((country) => (
+                                <SelectItem key={country.value} value={country.value}>
+                                  {country.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  {/* Region Display */}
+                  {form.watch("nasionality") && (
+                    <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                      <p className="text-sm text-gray-700">
+                        <span className="font-medium">Region:</span>{" "}
+                        {form.watch("nasionality") === "ID" ? "Domestic" : "Overseas"}
                       </p>
                     </div>
-                  </div>
-                )}
-              </div>
+                  )}
+
+                  {/* Submit Button */}
+                  {hasChanges && (
+                    <div className="flex justify-end gap-4 pt-4 border-t border-gray-200">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          form.reset(initialFormData);
+                          setHasChanges(false);
+                        }}
+                        disabled={isSubmitting}
+                      >
+                        Batal
+                      </Button>
+                      <Button
+                        type="submit"
+                        className="bg-gold text-white hover:bg-gold-dark-20"
+                        disabled={isSubmitting}
+                      >
+                        {isSubmitting ? (
+                          <>
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                            Menyimpan...
+                          </>
+                        ) : (
+                          <>
+                            <Save className="w-4 h-4 mr-2" />
+                            Simpan Perubahan
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  )}
+                </form>
+              </Form>
             </Card>
-
-            {/* Personal Information */}
-            {userData.customer && (
-              <Card className="p-6 shadow-lg border-2 border-gray-100">
-                <h3 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
-                  <User className="w-5 h-5 text-gold" />
-                  Informasi Pribadi
-                </h3>
-                <div className="space-y-4">
-                  <div className="flex items-start gap-4 p-4 bg-purple-50/50 rounded-lg hover:bg-purple-50 transition-colors">
-                    <div className="p-2 bg-purple-100 rounded-lg">
-                      <MapPin className="w-5 h-5 text-purple-600" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-gray-600 mb-1">Alamat</p>
-                      <p className="text-gray-900 font-medium">
-                        {userData.customer.alamat || "-"}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="flex items-start gap-4 p-4 bg-orange-50/50 rounded-lg hover:bg-orange-50 transition-colors">
-                      <div className="p-2 bg-orange-100 rounded-lg">
-                        <Globe className="w-5 h-5 text-orange-600" />
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-sm font-medium text-gray-600 mb-1">Kebangsaan</p>
-                        <p className="text-gray-900 font-medium">
-                          {getCountryName(userData.customer.nasionality) || userData.customer.nasionality || "-"}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-start gap-4 p-4 bg-indigo-50/50 rounded-lg hover:bg-indigo-50 transition-colors">
-                      <div className="p-2 bg-indigo-100 rounded-lg">
-                        <Globe className="w-5 h-5 text-indigo-600" />
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-sm font-medium text-gray-600 mb-1">Region</p>
-                        <Badge 
-                          variant="secondary" 
-                          className={`mt-1 ${
-                            userData.customer.region === "domestic" 
-                              ? "bg-blue-100 text-blue-700" 
-                              : "bg-purple-100 text-purple-700"
-                          }`}
-                        >
-                          {userData.customer.region === "domestic" ? "Domestic" : "Overseas"}
-                        </Badge>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </Card>
-            )}
 
             {/* Info Message */}
             {!userData.customer && (
-              <Card className="p-6 bg-gradient-to-r from-yellow-50 to-orange-50 border-2 border-yellow-200 shadow-lg">
+              <Card className="p-6 bg-yellow-50 border border-yellow-200">
                 <div className="flex items-start gap-4">
-                  <div className="p-2 bg-yellow-100 rounded-lg">
-                    <Shield className="w-5 h-5 text-yellow-600" />
-                  </div>
+                  <Shield className="w-5 h-5 text-yellow-600 mt-0.5" />
                   <div className="flex-1">
                     <h4 className="font-semibold text-yellow-900 mb-1">Profil Belum Lengkap</h4>
                     <p className="text-sm text-yellow-700">
-                      Profil Anda belum lengkap. Silakan lengkapi data profil saat melakukan registrasi atau booking.
+                      Silakan lengkapi data profil di atas dan klik "Simpan Perubahan" untuk menyimpan.
                     </p>
                   </div>
                 </div>
