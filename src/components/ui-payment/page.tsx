@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import Image from "next/image";
 import { FaUpload, FaCopy, FaCalendarAlt } from "react-icons/fa";
 import { MdOutlineDescription } from "react-icons/md";
@@ -213,6 +213,7 @@ export default function Payment({
   date,
   tripCount,
 }: PaymentProps) {
+  const router = useRouter();
   const ALLOWED_MIME_TYPES = ["image/jpeg", "image/png", "image/jpg"];
   const ALLOWED_EXTENSIONS = [".jpg", ".jpeg", ".png"];
   const [isUploaded, setIsUploaded] = useState(false);
@@ -1104,10 +1105,12 @@ export default function Payment({
                                   }
                                 );
                                 setSubmitSuccess(true);
+                                // Redirect ke history setelah 2 detik
                                 setTimeout(() => {
                                   setShowDialog(false);
                                   setSubmitSuccess(false);
-                                }, 4000);
+                                  router.push('/booking/book-history');
+                                }, 2000);
                               } catch (err: unknown) {
                                 const anyErr = err as { response?: { data?: { message?: string } } ; message?: string }
                                 const apiMsg = (anyErr?.response?.data?.message || anyErr?.message || '').toString();
@@ -1167,9 +1170,12 @@ export default function Payment({
                           </button>
                           <button
                             className="px-6 py-2 rounded-lg bg-gray-200 text-gray-700 font-semibold hover:bg-gray-300 transition"
-                            onClick={() => setShowDialog(false)}
+                            onClick={() => {
+                              setShowDialog(false);
+                              router.push('/booking/book-history');
+                            }}
                           >
-                            Tutup
+                            Lihat History
                           </button>
                         </div>
                       </motion.div>

@@ -5,7 +5,7 @@ import { NavigationMenu, NavigationMenuList, NavigationMenuItem, NavigationMenuL
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { Sheet, SheetContent, SheetTrigger, SheetClose } from '@/components/ui/sheet';
 import { GoPerson } from "react-icons/go";
-import { LogOut, User, Settings, Menu, X } from "lucide-react";
+import { LogOut, User, Settings, Menu, X, History } from "lucide-react";
 import Image from 'next/image';
 import logo from '../../public/img/logo.png';
 import CountryFlag from 'react-country-flag';
@@ -265,6 +265,15 @@ export default function LandingHeader() {
                           {t('myProfile')}
                         </a>
                       )}
+                      {userData.customer && (
+                        <a 
+                          href="/booking/book-history" 
+                          className="flex items-center px-3 sm:px-4 py-2 text-xs sm:text-sm hover:text-gold transition-colors duration-200 gap-2"
+                        >
+                          <History size={14} className="sm:w-4 sm:h-4" />
+                          Riwayat Pemesanan
+                        </a>
+                      )}
                       <button
                         onClick={handleLogout}
                         className="flex items-center px-3 sm:px-4 py-2 text-xs sm:text-sm text-red-600 hover:text-red-700 transition-colors duration-200 gap-2"
@@ -459,6 +468,17 @@ export default function LandingHeader() {
                             >
                               <User size={18} />
                               {t('myProfile')}
+                            </a>
+                          </SheetClose>
+                        )}
+                        {userData.customer && (
+                          <SheetClose asChild>
+                            <a 
+                              href="/booking/book-history" 
+                              className="w-full flex items-center px-4 py-3 text-sm text-gray-700 hover:text-gold hover:bg-gray-50 rounded-lg transition-colors duration-200 gap-3"
+                            >
+                              <History size={18} />
+                              Riwayat Pemesanan
                             </a>
                           </SheetClose>
                         )}
