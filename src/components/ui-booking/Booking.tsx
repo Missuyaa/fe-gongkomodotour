@@ -124,6 +124,95 @@ function getCountryCallingCode(countryCode: string) {
   return country ? `+${country.dialCode}` : "";
 }
 
+// Helper untuk mencari country code dari nama negara atau country code
+function getCountryCodeFromName(countryNameOrCode: string): string {
+  if (!countryNameOrCode) return "";
+  
+  // Jika sudah country code (2-3 karakter uppercase), langsung return
+  if (countryNameOrCode.length <= 3 && /^[A-Z]+$/.test(countryNameOrCode.toUpperCase())) {
+    // Validasi apakah country code valid
+    const isValidCode = countryOptions.some(opt => opt.value === countryNameOrCode.toUpperCase());
+    if (isValidCode) {
+      return countryNameOrCode.toUpperCase();
+    }
+  }
+  
+  // Coba cari exact match (case insensitive) dengan nama negara
+  const entry = Object.entries(countryList).find(
+    ([_, name]) => name.toLowerCase() === countryNameOrCode.toLowerCase()
+  );
+  
+  if (entry) return entry[0];
+  
+  // Coba cari partial match untuk handle variasi nama
+  const partialMatch = Object.entries(countryList).find(
+    ([_, name]) => name.toLowerCase().includes(countryNameOrCode.toLowerCase()) || 
+                   countryNameOrCode.toLowerCase().includes(name.toLowerCase())
+  );
+  
+  return partialMatch ? partialMatch[0] : "";
+}
+
+// Helper untuk mendapatkan country code dari dial code
+function getCountryCodeFromDialCode(dialCode: string): string {
+  if (!dialCode) return "";
+  // Remove + if present
+  const cleanDialCode = dialCode.replace("+", "");
+  
+  // Cari country dari allCountries yang memiliki dial code ini
+  const country = allCountries.find((c: { dialCode: string }) => c.dialCode === cleanDialCode);
+  if (!country) return "";
+  
+  // Cari country code dari countryOptions berdasarkan dial code
+  for (const opt of countryOptions) {
+    const callingCode = getCountryCallingCode(opt.value);
+    if (callingCode === `+${cleanDialCode}`) {
+      return opt.value;
+    }
+  }
+  
+  return "";
+}
+
+// Helper untuk parse phone number (memisahkan country code dari nomor)
+function parsePhoneNumber(phoneNumber: string, countryCode: string): string {
+  if (!phoneNumber) return "";
+  
+  // Jika phone number dimulai dengan +, coba parse country code
+  if (phoneNumber.startsWith("+")) {
+    // Cari country code yang cocok dari allCountries (urutkan dari yang terpanjang ke terpendek)
+    const sortedCountries = [...allCountries].sort((a: { dialCode: string }, b: { dialCode: string }) => 
+      b.dialCode.length - a.dialCode.length
+    );
+    
+    const matchedCountry = sortedCountries.find((c: { dialCode: string }) => 
+      phoneNumber.startsWith(`+${c.dialCode}`)
+    );
+    
+    if (matchedCountry) {
+      const localNumber = phoneNumber.substring(matchedCountry.dialCode.length + 1).trim();
+      return localNumber;
+    }
+  }
+  
+  // Jika phone number dimulai dengan country calling code (tanpa +)
+  const callingCode = getCountryCallingCode(countryCode);
+  if (callingCode) {
+    const cleanCallingCode = callingCode.replace("+", "");
+    if (phoneNumber.startsWith(cleanCallingCode)) {
+      return phoneNumber.substring(cleanCallingCode.length).trim();
+    }
+  }
+  
+  // Jika phone number dimulai dengan country calling code (dengan +)
+  if (callingCode && phoneNumber.startsWith(callingCode)) {
+    return phoneNumber.substring(callingCode.length).trim();
+  }
+  
+  // Jika tidak ada country code, return as is (mungkin sudah local number)
+  return phoneNumber;
+}
+
 export default function Booking() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -178,6 +267,7 @@ export default function Booking() {
     selectedHotel: "",
     numberOfRooms: 1
   });
+  const [isFormAutoFilled, setIsFormAutoFilled] = useState(false);
 
   const isWeekend = (date: Date) => {
     const day = date.getDay();
@@ -423,6 +513,132 @@ export default function Booking() {
 
     fetchTripData();
   }, [packageId]);
+
+  // Auto-fill form dari data user yang sudah login
+  useEffect(() => {
+    // Cek apakah user sudah login
+    const token = localStorage.getItem('access_token');
+    if (!token) {
+      setIsFormAutoFilled(false);
+      return;
+    }
+
+    // Load data user dari localStorage
+    const userDataString = localStorage.getItem('user');
+    if (!userDataString) {
+      setIsFormAutoFilled(false);
+      return;
+    }
+
+    try {
+      const userData = JSON.parse(userDataString);
+      const customer = userData.customer;
+
+      // Jika tidak ada data customer, biarkan form kosong
+      if (!customer) {
+        setIsFormAutoFilled(false);
+        return;
+      }
+
+      // Auto-fill form dengan data customer
+      const newFormData = {
+        name: userData.name || customer.user?.name || "",
+        email: userData.email || customer.user?.email || "",
+        address: customer.alamat || "",
+        country: "",
+        phone: "",
+        notes: "",
+        requestHotel: false,
+        selectedHotel: "",
+        numberOfRooms: 1
+      };
+
+      // Convert nationality ke country code
+      // Cek apakah nasionality adalah country code (2-3 karakter) atau country name
+      let countryCode = "";
+      if (customer.nasionality) {
+        // Jika sudah country code (2-3 karakter uppercase), langsung pakai
+        if (customer.nasionality.length <= 3 && /^[A-Z]+$/.test(customer.nasionality.toUpperCase())) {
+          const isValidCode = countryOptions.some(opt => opt.value === customer.nasionality.toUpperCase());
+          if (isValidCode) {
+            countryCode = customer.nasionality.toUpperCase();
+          }
+        }
+        
+        // Jika belum dapat country code, coba convert dari nama negara
+        if (!countryCode) {
+          countryCode = getCountryCodeFromName(customer.nasionality);
+        }
+      }
+
+      // Parse phone number (hapus country code jika ada)
+      // Prioritaskan country code dari phone number karena lebih akurat
+      if (customer.no_hp) {
+        // Jika phone number dimulai dengan +, cari country code dari phone number
+        if (customer.no_hp.startsWith("+")) {
+          // Cari country code yang cocok dari allCountries (urutkan dari yang terpanjang)
+          const sortedCountries = [...allCountries].sort((a: { dialCode: string }, b: { dialCode: string }) => 
+            b.dialCode.length - a.dialCode.length
+          );
+          
+          const matchedCountry = sortedCountries.find((c: { dialCode: string }) => 
+            customer.no_hp.startsWith(`+${c.dialCode}`)
+          );
+          
+          if (matchedCountry) {
+            // Extract local number
+            newFormData.phone = customer.no_hp.substring(matchedCountry.dialCode.length + 1).trim();
+            
+            // Update country code berdasarkan phone number (prioritaskan dari phone)
+            const countryCodeFromPhone = getCountryCodeFromDialCode(`+${matchedCountry.dialCode}`);
+            if (countryCodeFromPhone) {
+              // Prioritaskan country code dari phone number
+              countryCode = countryCodeFromPhone;
+              newFormData.country = countryCode;
+            } else if (countryCode) {
+              // Jika tidak dapat dari phone, gunakan dari nationality
+              newFormData.country = countryCode;
+            }
+          } else {
+            // Jika tidak match, gunakan country code yang sudah ada
+            if (countryCode) {
+              newFormData.country = countryCode;
+            }
+            newFormData.phone = parsePhoneNumber(customer.no_hp, countryCode);
+          }
+        } else {
+          // Jika tidak dimulai dengan +, parse dengan country code yang sudah ada
+          if (countryCode) {
+            newFormData.country = countryCode;
+          }
+          newFormData.phone = parsePhoneNumber(customer.no_hp, countryCode);
+        }
+      } else if (countryCode) {
+        // Jika tidak ada phone number, set country code dari nationality
+        newFormData.country = countryCode;
+      }
+
+      // Set region berdasarkan customer.region atau country
+      if (customer.region) {
+        setUserRegion(customer.region === "domestic" ? "domestic" : "overseas");
+      } else if (newFormData.country === "ID") {
+        setUserRegion("domestic");
+      } else if (newFormData.country) {
+        setUserRegion("overseas");
+      }
+
+      // Update form data hanya jika ada data yang valid
+      if (newFormData.name || newFormData.email || newFormData.address || newFormData.country || newFormData.phone) {
+        setFormData(newFormData);
+        setIsFormAutoFilled(true);
+      } else {
+        setIsFormAutoFilled(false);
+      }
+    } catch (error) {
+      console.error('Error parsing user data:', error);
+      setIsFormAutoFilled(false);
+    }
+  }, []); // Hanya run sekali saat mount
 
   // Set tripCount ke minimal pax saat paket/durasi berubah
   // Catatan: Jangan bergantung pada tripCount agar tidak me-reset saat user menambah
@@ -1231,7 +1447,14 @@ export default function Booking() {
                 transition={{ duration: 0.5, delay: 0.5 }}
                 className="space-y-6"
               >
-                <h3 className="text-lg font-semibold">Data Diri Pemesan</h3>
+                {/* <h3 className="text-lg font-semibold">Data Diri Pemesan</h3>
+                {isFormAutoFilled && (
+                  <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <p className="text-sm text-blue-700">
+                      ✓ Data telah diisi otomatis dari profil Anda. Form ini dalam mode read-only.
+                    </p>
+                  </div>
+                )} */}
                 <div className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="name">Name</Label>
@@ -1240,6 +1463,8 @@ export default function Booking() {
                       value={formData.name}
                       onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
                       placeholder="Your name"
+                      readOnly={isFormAutoFilled}
+                      className={isFormAutoFilled ? "bg-gray-100 cursor-not-allowed" : ""}
                     />
                   </div>
                   <div className="space-y-2">
@@ -1250,6 +1475,8 @@ export default function Booking() {
                       value={formData.email}
                       onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
                       placeholder="example@gmail.com"
+                      readOnly={isFormAutoFilled}
+                      className={isFormAutoFilled ? "bg-gray-100 cursor-not-allowed" : ""}
                     />
                   </div>
                   <div className="space-y-2">
@@ -1259,6 +1486,8 @@ export default function Booking() {
                       value={formData.address}
                       onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
                       placeholder="Your address"
+                      readOnly={isFormAutoFilled}
+                      className={isFormAutoFilled ? "bg-gray-100 cursor-not-allowed" : ""}
                     />
                   </div>
                   <div className="space-y-2">
@@ -1270,8 +1499,9 @@ export default function Booking() {
                         // Update region based on country
                         setUserRegion(value === "ID" ? "domestic" : "overseas");
                       }}
+                      disabled={isFormAutoFilled}
                     >
-                      <SelectTrigger>
+                      <SelectTrigger className={isFormAutoFilled ? "bg-gray-100 cursor-not-allowed" : ""}>
                         <SelectValue placeholder="Select a country" />
                       </SelectTrigger>
                       <SelectContent>
@@ -1296,7 +1526,8 @@ export default function Booking() {
                         value={formData.phone}
                         onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
                         placeholder="Nomor telepon"
-                        className="w-3/4"
+                        className={`w-3/4 ${isFormAutoFilled ? "bg-gray-100 cursor-not-allowed" : ""}`}
+                        readOnly={isFormAutoFilled}
                       />
                     </div>
                   </div>
@@ -1308,7 +1539,8 @@ export default function Booking() {
                         value={formData.notes}
                         onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
                         placeholder="Catatan Tambahan"
-                        className="h-20"
+                        className={`h-20 ${isFormAutoFilled ? "bg-gray-100 cursor-not-allowed" : ""}`}
+                        readOnly={isFormAutoFilled}
                       />
                       {/* Hotel Section */}
                       {selectedDuration && selectedDate && selectedPackage?.has_hotel && (
