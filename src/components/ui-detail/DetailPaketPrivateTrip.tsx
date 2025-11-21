@@ -98,7 +98,7 @@ const DetailPaketPrivateTrip: React.FC<DetailPaketPrivateTripProps> = ({
 }) => {
   const searchParams = useSearchParams();
   const mainImage =
-    searchParams.get("mainImage") || data.mainImage || "/img/default-image.png"; // Ambil mainImage dari query string
+    searchParams.get("mainImage") || data.mainImage || "/img/default-trip.jpg"; // Ambil mainImage dari query string
 
   const [activeTab, setActiveTab] = useState("itinerary");
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
@@ -112,13 +112,54 @@ const DetailPaketPrivateTrip: React.FC<DetailPaketPrivateTripProps> = ({
   const [imageErrors, setImageErrors] = useState<Set<string>>(new Set());
   const handleImageError = (imageSrc: string) => {
     if (!imageSrc) return;
+    console.error("Image failed to load:", imageSrc);
     setImageErrors((prev) => new Set(prev).add(imageSrc));
   };
+
+  // Function untuk encode URL dengan aman (sama persis seperti di TripHighlight)
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+  const toSafeUrl = (raw: string) => {
+    try {
+      // Jika sudah absolute URL
+      if (/^https?:\/\//.test(raw)) {
+        // Cek apakah sudah ter-encode (mengandung %)
+        // Jika sudah ter-encode, jangan encode lagi untuk menghindari double encoding
+        if (raw.includes('%')) {
+          return raw;
+        }
+        // Jika belum ter-encode, encode hanya bagian yang perlu
+        return encodeURI(raw);
+      }
+      // Jika path static Next.js (dimulai dengan /img/ atau path public lainnya), jangan tambahkan API_URL
+      if (raw.startsWith('/img/') || raw.startsWith('/_next/') || raw.startsWith('/api/')) {
+        return raw; // Path static tidak perlu di-encode
+      }
+      // Relative path dari API - cek apakah sudah ter-encode
+      if (raw.includes('%')) {
+        // Jika sudah ter-encode, langsung gabungkan dengan API_URL
+        return `${API_URL}${raw}`;
+      }
+      // Jika belum ter-encode, encode dulu
+      return `${API_URL}${encodeURI(raw)}`;
+    } catch {
+      // Jika error, cek apakah path static
+      if (raw.startsWith('/img/') || raw.startsWith('/_next/') || raw.startsWith('/api/')) {
+        return raw;
+      }
+      return `${API_URL}${raw}`;
+    }
+  };
+
   const getSafeImageSrc = (imageSrc: string | undefined | null, fallback: string = "/img/default-trip.jpg") => {
     if (!imageSrc || imageErrors.has(imageSrc)) {
       return fallback;
     }
-    return imageSrc;
+    // Jika path static, langsung return tanpa proses toSafeUrl
+    if (imageSrc.startsWith('/img/') || imageSrc.startsWith('/_next/') || imageSrc.startsWith('/api/')) {
+      return imageSrc;
+    }
+    // Encode URL untuk menghindari masalah dengan karakter khusus
+    return toSafeUrl(imageSrc);
   };
 
   // Disabled date berdasarkan hari operasional paket
@@ -165,22 +206,23 @@ const DetailPaketPrivateTrip: React.FC<DetailPaketPrivateTripProps> = ({
                 />
               </div>
             </DialogTrigger>
-            <DialogContent className="max-w-4xl">
-              {selectedImage && (
-                <Image
-                  src={selectedImage}
-                  alt="Selected Image"
-                  width={800}
-                  height={600}
-                  className="rounded-lg"
-                  unoptimized={true}
-                />
-              )}
-            </DialogContent>
+                <DialogContent className="max-w-4xl">
+                  {selectedImage && (
+                    <Image
+                      src={getSafeImageSrc(selectedImage)}
+                      alt="Selected Image"
+                      width={800}
+                      height={600}
+                      className="rounded-lg"
+                      unoptimized={true}
+                      onError={() => selectedImage && handleImageError(selectedImage)}
+                    />
+                  )}
+                </DialogContent>
           </Dialog>
-          {/* Gambar Kecil */}
+          {/* Gambar Kecil - hanya tampilkan jika ada gambar */}
           <div className="grid grid-cols-2 gap-4 md:col-span-5">
-            {data.images.slice(1, 4).map((image, index) => (
+            {data.images.slice(1, 4).filter(img => img && !img.includes('default-trip.jpg')).map((image, index) => (
               <Dialog
                 key={index}
                 open={!!selectedImage}
@@ -192,7 +234,7 @@ const DetailPaketPrivateTrip: React.FC<DetailPaketPrivateTripProps> = ({
                     onClick={() => setSelectedImage(image)}
                   >
                     <Image
-                      src={getSafeImageSrc(image || "/img/default-trip.jpg")}
+                      src={getSafeImageSrc(image)}
                       alt={`${data.title} ${index + 1}`}
                       fill
                       className="rounded-sm object-cover"
@@ -204,52 +246,63 @@ const DetailPaketPrivateTrip: React.FC<DetailPaketPrivateTripProps> = ({
                 <DialogContent className="max-w-4xl">
                   {selectedImage && (
                     <Image
-                      src={selectedImage}
+                      src={getSafeImageSrc(selectedImage)}
                       alt="Selected Image"
                       width={800}
                       height={600}
                       className="rounded-lg"
                       unoptimized={true}
+                      onError={() => selectedImage && handleImageError(selectedImage)}
                     />
                   )}
                 </DialogContent>
               </Dialog>
             ))}
-            {/* Gambar ke-4 dengan More Info */}
+            {/* Gambar ke-4 dengan More Info - selalu tampil, bisa diklik jika ada lebih dari 4 gambar */}
             <Dialog>
               <DialogTrigger asChild>
                 <div className="relative h-[196px] md:h-[221px] w-full flex items-center justify-center rounded-sm cursor-pointer">
-                  <Image
-                    src={getSafeImageSrc(data.images[4] || "/img/default-trip.jpg")}
-                    alt="More Info Background"
-                    fill
-                    className="rounded-sm object-cover"
-                    unoptimized={true}
-                    onError={() => data.images[4] && handleImageError(data.images[4])}
-                  />
+                  {data.images.length > 4 && data.images[4] ? (
+                    <Image
+                      src={getSafeImageSrc(data.images[4])}
+                      alt="More Info Background"
+                      fill
+                      className="rounded-sm object-cover"
+                      unoptimized={true}
+                      onError={() => data.images[4] && handleImageError(data.images[4])}
+                    />
+                  ) : (
+                    <div className="absolute inset-0 bg-gray-300 rounded-sm" />
+                  )}
                   <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
                     <p className="text-white font-semibold">More Info</p>
                   </div>
                 </div>
               </DialogTrigger>
               <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-                <div className="grid grid-cols-2 gap-4">
-                  {data.images.slice(4).map((image, index) => (
-                    <div
-                      key={index}
-                      className="relative h-[150px] w-[150px] md:h-[200px] md:w-[200px]"
-                    >
-                      <Image
-                        src={getSafeImageSrc(image || "/img/default-trip.jpg")}
-                        alt={`${data.title} ${index + 4}`}
-                        fill
-                        className="rounded-sm object-cover"
-                        unoptimized={true}
-                        onError={() => handleImageError(image)}
-                      />
-                    </div>
-                  ))}
-                </div>
+                {data.images.length > 0 ? (
+                  <div className="grid grid-cols-2 gap-4">
+                    {data.images.map((image, index) => (
+                      <div
+                        key={index}
+                        className="relative h-[150px] w-[150px] md:h-[200px] md:w-[200px]"
+                      >
+                        <Image
+                          src={getSafeImageSrc(image)}
+                          alt={`${data.title} ${index + 1}`}
+                          fill
+                          className="rounded-sm object-cover"
+                          unoptimized={true}
+                          onError={() => handleImageError(image)}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <p className="text-gray-500">Tidak ada gambar tersedia</p>
+                  </div>
+                )}
               </DialogContent>
             </Dialog>
           </div>

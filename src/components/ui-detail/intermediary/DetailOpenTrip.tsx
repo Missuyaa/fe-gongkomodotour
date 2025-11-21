@@ -11,7 +11,43 @@ import { useState, useEffect } from "react";
 import { apiRequest } from "@/lib/api";
 import { Trip, FlightSchedule } from "@/types/trips";
 import { Boat } from "@/types/boats";
-import { getImageUrl } from "@/lib/imageUrl";
+// getImageUrl didefinisikan lokal di bawah, tidak perlu import
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
+// Helper function untuk mendapatkan URL gambar (sama seperti di data-table.tsx yang berhasil)
+const getImageUrl = (fileUrl: string) => {
+  console.log('getImageUrl called with:', { fileUrl, type: typeof fileUrl });
+  
+  if (!fileUrl || fileUrl.trim() === '') {
+    console.warn('Empty or invalid file URL provided:', fileUrl);
+    return '/img/default-trip.jpg';
+  }
+  
+  // Jika sudah URL lengkap, return langsung
+  if (fileUrl.startsWith('http://') || fileUrl.startsWith('https://')) {
+    console.log('Full URL detected:', fileUrl);
+    return fileUrl;
+  }
+  
+  // Jika path static Next.js (dimulai dengan /img/ atau path public lainnya), jangan tambahkan API_URL
+  if (fileUrl.startsWith('/img/') || fileUrl.startsWith('/_next/') || fileUrl.startsWith('/api/')) {
+    return fileUrl;
+  }
+  
+  // Pastikan fileUrl dimulai dengan slash
+  const cleanUrl = fileUrl.startsWith('/') ? fileUrl : `/${fileUrl}`;
+  const fullUrl = `${API_URL}${cleanUrl}`;
+  
+  console.log('Image URL constructed:', { 
+    original: fileUrl, 
+    cleanUrl: cleanUrl,
+    apiUrl: API_URL,
+    constructed: fullUrl 
+  });
+  
+  return fullUrl;
+};
 
 interface ApiResponse {
   data: Trip;
@@ -122,22 +158,35 @@ export default function DetailOpenTrip() {
           const similarTripsData = similarResponse.data
             .filter((trip: Trip) => trip.id !== response.data.id) // Exclude current trip
             .slice(0, 3) // Take only 3 trips
-            .map((trip: Trip) => ({
-              image: trip.assets?.[0]?.file_url
-                ? getImageUrl(trip.assets[0].file_url)
-                : "/img/default-trip.jpg",
-              label: trip.type || "Open Trip",
-              name: trip.name || "Trip Name",
-              duration:
-                trip.trip_durations?.[0]?.duration_label || "Custom Duration",
-              priceIDR: trip.trip_durations?.[0]?.trip_prices?.[0]
-                ?.price_per_pax
-                ? `IDR ${parseInt(
-                    String(trip.trip_durations[0].trip_prices[0].price_per_pax)
-                  ).toLocaleString("id-ID")}/pax`
-                : "Price not available",
-              slug: trip.id?.toString() || "",
-            }));
+            .map((trip: Trip) => {
+              const firstAsset = trip.assets?.[0];
+              let imageUrl = "/img/default-trip.jpg";
+              
+              if (firstAsset) {
+                // Prioritas: original_file_url > file_url (jika bukan placeholder)
+                // Menggunakan getImageUrl seperti di data-table.tsx yang berhasil
+                if (firstAsset.original_file_url) {
+                  imageUrl = getImageUrl(firstAsset.original_file_url);
+                } else if (firstAsset.file_url && !firstAsset.file_url.includes('placeholder')) {
+                  imageUrl = getImageUrl(firstAsset.file_url);
+                }
+              }
+              
+              return {
+                image: imageUrl,
+                label: trip.type || "Open Trip",
+                name: trip.name || "Trip Name",
+                duration:
+                  trip.trip_durations?.[0]?.duration_label || "Custom Duration",
+                priceIDR: trip.trip_durations?.[0]?.trip_prices?.[0]
+                  ?.price_per_pax
+                  ? `IDR ${parseInt(
+                      String(trip.trip_durations[0].trip_prices[0].price_per_pax)
+                    ).toLocaleString("id-ID")}/pax`
+                  : "Price not available",
+                slug: trip.id?.toString() || "",
+              };
+            });
           setSimilarTrips(similarTripsData);
         }
 
@@ -231,21 +280,52 @@ export default function DetailOpenTrip() {
     boat: "Speed Boat", // Sesuaikan dengan data yang ada
     groupSize: "10-15 people", // Sesuaikan dengan data yang ada
     images:
-      selectedPackage.assets?.map((asset) => 
-        asset.original_file_url 
-          ? getImageUrl(asset.original_file_url)
-          : getImageUrl(asset.file_url)
-      ) || [],
+      selectedPackage.assets
+        ?.map((asset) => {
+          // Prioritas: original_file_url > file_url (jika bukan placeholder)
+          // Menggunakan getImageUrl seperti di data-table.tsx yang berhasil
+          if (asset.original_file_url) {
+            const url = getImageUrl(asset.original_file_url);
+            console.log('Using original_file_url:', asset.original_file_url, '->', url);
+            return url;
+          }
+          if (asset.file_url && !asset.file_url.includes('placeholder')) {
+            const url = getImageUrl(asset.file_url);
+            console.log('Using file_url:', asset.file_url, '->', url);
+            return url;
+          }
+          console.warn('Asset has no valid URL:', asset);
+          return null; // Return null untuk asset yang tidak valid
+        })
+        .filter((url): url is string => url !== null) || [], // Filter out null values
     destinations: selectedPackage.destination_count || 0,
     include:
       selectedPackage.include?.split("\n").filter((item) => item.trim()) || [],
     exclude:
       selectedPackage.exclude?.split("\n").filter((item) => item.trim()) || [],
-    mainImage: selectedPackage.assets?.[0]?.original_file_url
-      ? getImageUrl(selectedPackage.assets[0].original_file_url)
-      : selectedPackage.assets?.[0]?.file_url
-      ? getImageUrl(selectedPackage.assets[0].file_url)
-      : "/img/default-trip.jpg",
+    mainImage: (() => {
+      const firstAsset = selectedPackage.assets?.[0];
+      if (!firstAsset) {
+        console.warn('No assets found for trip, using default image');
+        return "/img/default-trip.jpg";
+      }
+      
+      // Prioritas: original_file_url > file_url (jika bukan placeholder)
+      // Menggunakan getImageUrl seperti di data-table.tsx yang berhasil
+      if (firstAsset.original_file_url) {
+        const url = getImageUrl(firstAsset.original_file_url);
+        console.log('Main image using original_file_url:', firstAsset.original_file_url, '->', url);
+        return url;
+      }
+      if (firstAsset.file_url && !firstAsset.file_url.includes('placeholder')) {
+        const url = getImageUrl(firstAsset.file_url);
+        console.log('Main image using file_url:', firstAsset.file_url, '->', url);
+        return url;
+      }
+      // Hanya return default jika benar-benar tidak ada gambar valid
+      console.warn('First asset has no valid URL, using default image');
+      return "/img/default-trip.jpg";
+    })(),
     flightSchedules: selectedPackage.flight_schedules || [],
     has_boat: selectedPackage.has_boat || false,
     destination_count: selectedPackage.destination_count || 0,
@@ -316,15 +396,26 @@ export default function DetailOpenTrip() {
     },
     boatImages: boats
       .filter(boat => selectedPackage.boat_ids?.includes(boat.id))
-      .map((boat) => ({
-        image: boat.assets?.[0]?.original_file_url
-          ? getImageUrl(boat.assets[0].original_file_url)
-          : boat.assets?.[0]?.file_url
-          ? getImageUrl(boat.assets[0].file_url)
-          : "/img/default-trip.jpg",
-        title: boat.boat_name,
-        id: boat.id.toString(),
-      })),
+      .map((boat) => {
+        const firstAsset = boat.assets?.[0];
+        let imageUrl = "/img/default-trip.jpg";
+        
+        if (firstAsset) {
+          // Prioritas: original_file_url > file_url (jika bukan placeholder)
+          // Menggunakan getImageUrl seperti di data-table.tsx yang berhasil
+          if (firstAsset.original_file_url) {
+            imageUrl = getImageUrl(firstAsset.original_file_url);
+          } else if (firstAsset.file_url && !firstAsset.file_url.includes('placeholder')) {
+            imageUrl = getImageUrl(firstAsset.file_url);
+          }
+        }
+        
+        return {
+          image: imageUrl,
+          title: boat.boat_name,
+          id: boat.id.toString(),
+        };
+      }),
     note: selectedPackage.note, // Tambahkan field note ke transformedData
   };
 

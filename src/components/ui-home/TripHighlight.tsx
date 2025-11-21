@@ -116,10 +116,10 @@ export default function TripHighlight() {
       y: 0,
       transition: {
         duration: 0.8,
-        ease: "easeOut"
+        ease: "easeOut" as const
       }
     }
-  };
+  } as const;
 
   useEffect(() => {
     const fetchHighlights = async () => {
@@ -223,13 +223,32 @@ export default function TripHighlight() {
 
     const toSafeUrl = (raw: string) => {
       try {
-        // Jika sudah absolute
+        // Jika sudah absolute URL
         if (/^https?:\/\//.test(raw)) {
+          // Cek apakah sudah ter-encode (mengandung %)
+          // Jika sudah ter-encode, jangan encode lagi untuk menghindari double encoding
+          if (raw.includes('%')) {
+            return raw;
+          }
+          // Jika belum ter-encode, encode hanya bagian yang perlu
           return encodeURI(raw);
         }
-        // Relative path dari API
-        return encodeURI(`${API_URL}${raw}`);
+        // Jika path static Next.js (dimulai dengan /img/ atau path public lainnya), jangan tambahkan API_URL
+        if (raw.startsWith('/img/') || raw.startsWith('/_next/') || raw.startsWith('/api/')) {
+          return raw; // Path static tidak perlu di-encode
+        }
+        // Relative path dari API - cek apakah sudah ter-encode
+        if (raw.includes('%')) {
+          // Jika sudah ter-encode, langsung gabungkan dengan API_URL
+          return `${API_URL}${raw}`;
+        }
+        // Jika belum ter-encode, encode dulu
+        return `${API_URL}${encodeURI(raw)}`;
       } catch {
+        // Jika error, cek apakah path static
+        if (raw.startsWith('/img/') || raw.startsWith('/_next/') || raw.startsWith('/api/')) {
+          return raw;
+        }
         return `${API_URL}${raw}`;
       }
     };

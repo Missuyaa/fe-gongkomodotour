@@ -129,12 +129,51 @@ const DetailPaketOpenTrip: React.FC<DetailPaketOpenTripProps> = ({ data }) => {
     setImageErrors(prev => new Set(prev).add(imageSrc));
   };
 
+  // Function untuk encode URL dengan aman (sama persis seperti di TripHighlight)
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+  const toSafeUrl = (raw: string) => {
+    try {
+      // Jika sudah absolute URL
+      if (/^https?:\/\//.test(raw)) {
+        // Cek apakah sudah ter-encode (mengandung %)
+        // Jika sudah ter-encode, jangan encode lagi untuk menghindari double encoding
+        if (raw.includes('%')) {
+          return raw;
+        }
+        // Jika belum ter-encode, encode hanya bagian yang perlu
+        return encodeURI(raw);
+      }
+      // Jika path static Next.js (dimulai dengan /img/ atau path public lainnya), jangan tambahkan API_URL
+      if (raw.startsWith('/img/') || raw.startsWith('/_next/') || raw.startsWith('/api/')) {
+        return raw; // Path static tidak perlu di-encode
+      }
+      // Relative path dari API - cek apakah sudah ter-encode
+      if (raw.includes('%')) {
+        // Jika sudah ter-encode, langsung gabungkan dengan API_URL
+        return `${API_URL}${raw}`;
+      }
+      // Jika belum ter-encode, encode dulu
+      return `${API_URL}${encodeURI(raw)}`;
+    } catch {
+      // Jika error, cek apakah path static
+      if (raw.startsWith('/img/') || raw.startsWith('/_next/') || raw.startsWith('/api/')) {
+        return raw;
+      }
+      return `${API_URL}${raw}`;
+    }
+  };
+
   // Function untuk get safe image source
-  const getSafeImageSrc = (imageSrc: string, fallback: string = "/img/default-trip.jpg") => {
-    if (imageErrors.has(imageSrc)) {
+  const getSafeImageSrc = (imageSrc: string | undefined | null, fallback: string = "/img/default-trip.jpg") => {
+    if (!imageSrc || imageErrors.has(imageSrc)) {
       return fallback;
     }
-    return imageSrc;
+    // Jika path static, langsung return tanpa proses toSafeUrl
+    if (imageSrc.startsWith('/img/') || imageSrc.startsWith('/_next/') || imageSrc.startsWith('/api/')) {
+      return imageSrc;
+    }
+    // Encode URL untuk menghindari masalah dengan karakter khusus
+    return toSafeUrl(imageSrc);
   };
 
   // Disabled date berdasarkan hari operasional paket
@@ -235,9 +274,9 @@ const DetailPaketOpenTrip: React.FC<DetailPaketOpenTripProps> = ({ data }) => {
               </AnimatePresence>
             </DialogContent>
           </Dialog>
-          {/* Gambar Kecil */}
+          {/* Gambar Kecil - hanya tampilkan jika ada gambar */}
           <div className="grid grid-cols-2 gap-4 md:col-span-5">
-            {data.images.slice(1, 4).map((image, index) => (
+            {data.images.slice(1, 4).filter(img => img && !img.includes('default-trip.jpg')).map((image, index) => (
               <Dialog
                 key={index}
                 open={!!selectedImage}
@@ -306,20 +345,24 @@ const DetailPaketOpenTrip: React.FC<DetailPaketOpenTripProps> = ({ data }) => {
               </Dialog>
             ))}
 
-            {/* Gambar ke-4 dengan More Info */}
+            {/* Gambar ke-4 dengan More Info - selalu tampil, bisa diklik jika ada lebih dari 4 gambar */}
             <Dialog>
               <DialogTrigger asChild>
                 <div className="relative h-[196px] md:h-[221px] w-full flex items-center justify-center rounded-sm cursor-pointer">
-                  <Image
-                    src={getSafeImageSrc(data.images[4] || "/img/default-trip.jpg")}
-                    alt="More Info Background"
-                    fill
-                    quality={100}
-                    className="rounded-sm object-cover"
-                    unoptimized={true}
-                    onError={() => data.images[4] && handleImageError(data.images[4])}
-                    onLoad={() => console.log("Gallery image 4 loaded successfully:", data.images[4])}
-                  />
+                  {data.images.length > 4 && data.images[4] ? (
+                    <Image
+                      src={getSafeImageSrc(data.images[4])}
+                      alt="More Info Background"
+                      fill
+                      quality={100}
+                      className="rounded-sm object-cover"
+                      unoptimized={true}
+                      onError={() => data.images[4] && handleImageError(data.images[4])}
+                      onLoad={() => console.log("Gallery image 4 loaded successfully:", data.images[4])}
+                    />
+                  ) : (
+                    <div className="absolute inset-0 bg-gray-300 rounded-sm" />
+                  )}
                   <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
                     <p className="text-white font-semibold">More Info</p>
                   </div>
@@ -327,25 +370,31 @@ const DetailPaketOpenTrip: React.FC<DetailPaketOpenTripProps> = ({ data }) => {
               </DialogTrigger>
               <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
                 <DialogTitle className="sr-only">Galeri Gambar</DialogTitle>
-                <div className="grid grid-cols-2 gap-4">
-                  {data.images.map((image, index) => (
-                    <div
-                      key={index}
-                      className="relative h-[150px] w-[150px] md:h-[200px] md:w-[200px]"
-                    >
-                                              <Image
-                          src={getSafeImageSrc(image || "/img/default-trip.jpg")}
-                        alt={`${data.title || "Default Image"} ${index + 4}`}
-                        fill
-                        quality={100}
-                        className="rounded-sm object-cover"
-                        unoptimized={true}
-                        onError={() => handleImageError(image)}
-                        onLoad={() => console.log(`Gallery image ${index + 4} loaded successfully:`, image)}
-                      />
-                    </div>
-                  ))}
-                </div>
+                {data.images.length > 0 ? (
+                  <div className="grid grid-cols-2 gap-4">
+                    {data.images.map((image, index) => (
+                      <div
+                        key={index}
+                        className="relative h-[150px] w-[150px] md:h-[200px] md:w-[200px]"
+                      >
+                        <Image
+                          src={getSafeImageSrc(image)}
+                          alt={`${data.title || "Trip Image"} ${index + 1}`}
+                          fill
+                          quality={100}
+                          className="rounded-sm object-cover"
+                          unoptimized={true}
+                          onError={() => handleImageError(image)}
+                          onLoad={() => console.log(`Gallery image ${index + 1} loaded successfully:`, image)}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <p className="text-gray-500">Tidak ada gambar tersedia</p>
+                  </div>
+                )}
               </DialogContent>
             </Dialog>
           </div>
