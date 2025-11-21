@@ -10,6 +10,7 @@ import { motion } from "framer-motion";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+// Icons dari lucide-react (shadcn UI standard icon library)
 import { 
   Calendar, 
   Users, 
@@ -30,6 +31,7 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
+import { ImageModal } from "@/components/ui/image-modal";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
@@ -37,11 +39,45 @@ interface BookingResponse {
   data: Booking;
 }
 
-// Helper untuk mendapatkan image URL
-function getImageUrl(file_url: string | undefined) {
-  if (!file_url) return "/img/default-image.png";
-  if (/^https?:\/\//.test(file_url)) return file_url;
-  return `${API_URL}${file_url}`;
+// Helper untuk mendapatkan image URL (mengikuti pattern dari data-table.tsx)
+function getImageUrl(fileUrl: string | undefined) {
+  if (!fileUrl || fileUrl.trim() === '') {
+    return 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjNmNGY2Ii8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzk5YTNhZiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPkltYWdlIE5vdCBGb3VuZDwvdGV4dD48L3N2Zz4=';
+  }
+  
+  // Jika sudah URL lengkap, return langsung
+  if (fileUrl.startsWith('http://') || fileUrl.startsWith('https://')) {
+    return fileUrl;
+  }
+  
+  // Jika Next.js static path, return langsung
+  if (fileUrl.startsWith('/img/') || fileUrl.startsWith('/_next/') || fileUrl.startsWith('/api/')) {
+    return fileUrl;
+  }
+  
+  // Pastikan fileUrl dimulai dengan slash
+  const cleanUrl = fileUrl.startsWith('/') ? fileUrl : `/${fileUrl}`;
+  const fullUrl = `${API_URL}${cleanUrl}`;
+  
+  return fullUrl;
+}
+
+// Helper untuk parse HTML content (include/exclude)
+function parseHtmlContent(html: string): string {
+  if (!html) return '';
+  
+  // Remove HTML tags
+  const text = html.replace(/<[^>]*>/g, '');
+  // Decode HTML entities
+  const decoded = text
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'");
+  
+  return decoded.trim();
 }
 
 // Helper untuk format status badge
@@ -69,6 +105,7 @@ export default function BookingDetailPage() {
   const [transaction, setTransaction] = useState<Transaction | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedImage, setSelectedImage] = useState<TransactionAsset | null>(null);
   const router = useRouter();
   const params = useParams();
   const bookingId = params?.id as string;
@@ -92,24 +129,79 @@ export default function BookingDetailPage() {
       setIsLoading(true);
       setError(null);
       
-      // Fetch booking detail menggunakan endpoint yang sudah ada
-      const response = await apiRequest<BookingResponse>(
-        'GET',
-        `/api/bookings/${bookingId}`
-      );
+      // Coba endpoint landing-page terlebih dahulu (seperti di payment page)
+      let response;
+      try {
+        response = await apiRequest<Record<string, unknown>>(
+          'GET',
+          `/api/landing-page/bookings/${bookingId}`
+        );
+      } catch (err: any) {
+        // Jika endpoint tidak ada, coba endpoint biasa
+        if (err?.response?.status === 404) {
+          response = await apiRequest<BookingResponse>(
+            'GET',
+            `/api/bookings/${bookingId}`
+          );
+        } else {
+          throw err;
+        }
+      }
 
       console.log('Booking detail response:', response);
 
-      // Handle berbagai format response
+      // Handle berbagai format response (seperti di payment page)
       let bookingData: Booking | null = null;
       
-      if (response?.data) {
-        bookingData = response.data as unknown as Booking;
-      } else if (response && typeof response === 'object' && (response as any).id) {
-        bookingData = response as unknown as Booking;
-      }
+      // Normalize berbagai format response
+      const extractBooking = (raw: any): Booking | null => {
+        if (!raw) return null;
+        // { data: {...} }
+        if (raw?.data && typeof raw.data === 'object' && !Array.isArray(raw.data)) {
+          return raw.data as Booking;
+        }
+        // { booking: {...} }
+        if (raw?.booking && typeof raw.booking === 'object') {
+          return raw.booking as Booking;
+        }
+        // Direct object
+        if (raw?.id && raw?.trip_id) {
+          return raw as Booking;
+        }
+        return null;
+      };
+
+      bookingData = extractBooking(response);
 
       if (bookingData) {
+        console.log('Booking data extracted:', bookingData);
+        const bookingAny = bookingData as any;
+        console.log('Date fields check:', {
+          start_date: bookingAny.start_date,
+          trip_start_date: bookingAny.trip_start_date,
+          departure_date: bookingAny.departure_date,
+          end_date: bookingAny.end_date,
+          trip_end_date: bookingAny.trip_end_date,
+          return_date: bookingAny.return_date,
+          created_at: bookingData.created_at,
+          updated_at: bookingData.updated_at,
+          allDateKeys: Object.keys(bookingAny).filter(k => 
+            k.toLowerCase().includes('date') || 
+            k.toLowerCase().includes('start') || 
+            k.toLowerCase().includes('departure') ||
+            k.toLowerCase().includes('end') ||
+            k.toLowerCase().includes('return')
+          )
+        });
+        
+        // Log warning jika start_date tidak ada
+        if (!bookingAny.start_date && !bookingAny.trip_start_date && !bookingAny.departure_date) {
+          console.warn('⚠️ WARNING: No start_date found in booking data!', {
+            bookingId: bookingData.id,
+            availableKeys: Object.keys(bookingAny)
+          });
+        }
+        
         setBooking(bookingData);
       } else {
         setError('Data booking tidak ditemukan.');
@@ -143,59 +235,86 @@ export default function BookingDetailPage() {
 
   const fetchTransaction = async () => {
     try {
-      // Coba fetch transaction berdasarkan booking_id menggunakan endpoint yang mungkin ada
-      // Jika endpoint /api/transactions?booking_id tidak ada, fallback ke /api/transactions
+      // Coba berbagai endpoint untuk mendapatkan transaksi
       let response;
+      let transactionData: Transaction | null = null;
+
+      // Coba 1: Endpoint landing-page dengan booking_id
       try {
-        response = await apiRequest<TransactionResponse>(
+        response = await apiRequest<any>(
           'GET',
           `/api/landing-page/transactions/${bookingId}`
         );
+        console.log('Transaction response from landing-page:', response);
+        
+        // Handle response
+        if (response?.data && typeof response.data === 'object' && !Array.isArray(response.data)) {
+          transactionData = response.data as Transaction;
+        } else if (response && typeof response === 'object' && (response as any).id) {
+          transactionData = response as Transaction;
+        }
       } catch (err: any) {
-        // Jika endpoint tidak ada, coba fetch semua transactions
-        if (err?.response?.status === 404) {
+        console.log('Landing-page transaction endpoint not found, trying alternatives...');
+        
+        // Coba 2: Query parameter dengan booking_id
+        try {
           response = await apiRequest<TransactionResponse>(
             'GET',
-            '/api/transactions'
+            `/api/transactions?booking_id=${bookingId}`
           );
-        } else {
-          throw err;
-        }
-      }
-
-      console.log('Transaction response:', response);
-
-      // Handle berbagai format response
-      let transactionData: Transaction | null = null;
-      
-      // Jika response adalah single transaction
-      if (response?.data && typeof response.data === 'object' && !Array.isArray(response.data)) {
-        transactionData = response.data as unknown as Transaction;
-      }
-      // Jika response adalah array, cari yang sesuai dengan booking_id
-      else if (response?.data && Array.isArray(response.data)) {
-        transactionData = response.data.find(
-          (t: Transaction) => {
-            const tBookingId = typeof t.booking_id === 'string' ? t.booking_id : String(t.booking_id);
-            const tBookingIdFromBooking = t.booking?.id ? (typeof t.booking.id === 'string' ? t.booking.id : String(t.booking.id)) : null;
-            return tBookingId === bookingId || tBookingIdFromBooking === bookingId;
+          console.log('Transaction response from query param:', response);
+          
+          if (response?.data && Array.isArray(response.data) && response.data.length > 0) {
+            transactionData = response.data[0] as Transaction;
           }
-        ) || null;
-      }
-      // Jika response langsung adalah transaction
-      else if (response && typeof response === 'object' && (response as any).id) {
-        transactionData = response as unknown as Transaction;
+        } catch (err2: any) {
+          console.log('Query param endpoint not found, trying all transactions...');
+          
+          // Coba 3: Fetch semua transactions dan filter
+          try {
+            response = await apiRequest<TransactionResponse>(
+              'GET',
+              '/api/transactions'
+            );
+            console.log('All transactions response:', response);
+            
+            if (response?.data && Array.isArray(response.data)) {
+              // Cari transaction yang sesuai dengan booking_id
+              transactionData = response.data.find(
+                (t: Transaction) => {
+                  const tBookingId = typeof t.booking_id === 'string' ? t.booking_id : String(t.booking_id);
+                  const tBookingIdFromBooking = t.booking?.id ? (typeof t.booking.id === 'string' ? t.booking.id : String(t.booking.id)) : null;
+                  const bookingIdStr = String(bookingId);
+                  return tBookingId === bookingIdStr || tBookingIdFromBooking === bookingIdStr;
+                }
+              ) || null;
+            }
+          } catch (err3: any) {
+            console.error('All transaction endpoints failed:', err3);
+          }
+        }
       }
 
       if (transactionData) {
         console.log('Transaction found:', transactionData);
+        console.log('Transaction details:', {
+          id: transactionData.id,
+          booking_id: transactionData.booking_id,
+          bank_type: transactionData.bank_type,
+          total_amount: transactionData.total_amount,
+          payment_status: transactionData.payment_status,
+          has_payment_proof: !!transactionData.payment_proof,
+          assets_count: transactionData.assets?.length || 0
+        });
         setTransaction(transactionData);
       } else {
         console.log('No transaction found for booking_id:', bookingId);
+        setTransaction(null);
       }
     } catch (err: any) {
       console.error('Error fetching transaction:', err);
       // Tidak set error karena transaction mungkin belum ada
+      setTransaction(null);
     }
   };
 
@@ -245,15 +364,30 @@ export default function BookingDetailPage() {
     );
   }
 
-  // Get start and end date
-  const startDate = (booking as any).start_date || 
-                   (booking as any).trip_start_date ||
-                   (booking as any).departure_date ||
-                   booking.trip?.start_time;
-  const endDate = (booking as any).end_date || 
-                 (booking as any).trip_end_date ||
-                 (booking as any).return_date ||
-                 booking.trip?.end_time;
+  // Sederhanakan: langsung ambil start_date dari booking (field yang dikirim saat booking)
+  const bookingAny = booking as any;
+  
+  // Prioritas: start_date (field yang dikirim saat booking) > trip_start_date > departure_date
+  const startDate = bookingAny.start_date || 
+                   bookingAny.trip_start_date ||
+                   bookingAny.departure_date ||
+                   null;
+  
+  // Cek end_date (sederhana juga)
+  const endDate = bookingAny.end_date || 
+                 bookingAny.trip_end_date ||
+                 bookingAny.return_date ||
+                 null;
+  
+  // Log untuk debugging jika tidak ada start_date
+  if (!startDate) {
+    console.warn('⚠️ Start date not found for booking:', booking.id, {
+      start_date: bookingAny.start_date,
+      trip_start_date: bookingAny.trip_start_date,
+      departure_date: bookingAny.departure_date,
+      created_at: booking.created_at
+    });
+  }
 
   // Get trip image
   const trip = booking.trip as any;
@@ -294,9 +428,9 @@ export default function BookingDetailPage() {
           </div>
         </motion.div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
           {/* Main Content */}
-          <div className="lg:col-span-2 space-y-6">
+          <div className="xl:col-span-8 space-y-6">
             {/* Trip Information */}
             <Card className="p-6 shadow-sm">
               <h2 className="text-xl font-bold text-gray-900 mb-6 border-b pb-3">Informasi Trip</h2>
@@ -325,50 +459,100 @@ export default function BookingDetailPage() {
               <div className="space-y-4">
                 <div>
                   <h3 className="text-xl font-bold text-gray-900 mb-2">{booking.trip?.name || "Trip"}</h3>
+                  {booking.trip?.meeting_point && (
+                    <div className="flex items-start gap-2 mt-2">
+                      <MapPin className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
+                      <p className="text-sm text-gray-600">{booking.trip.meeting_point}</p>
+                    </div>
+                  )}
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="flex items-start gap-2">
-                    <Package className="w-5 h-5 text-gray-400 mt-0.5" />
+                    <Package className="w-5 h-5 text-gray-400 mt-0.5 flex-shrink-0" />
                     <div>
                       <p className="text-sm font-medium text-gray-600">Durasi</p>
-                      <p className="text-gray-900">{booking.trip_duration?.duration_label || "-"}</p>
+                      <p className="text-gray-900 font-medium">{booking.trip_duration?.duration_label || "-"}</p>
                     </div>
                   </div>
                   <div className="flex items-start gap-2">
-                    <Users className="w-5 h-5 text-gray-400 mt-0.5" />
+                    <Users className="w-5 h-5 text-gray-400 mt-0.5 flex-shrink-0" />
                     <div>
                       <p className="text-sm font-medium text-gray-600">Jumlah Pax</p>
-                      <p className="text-gray-900">{booking.total_pax} orang</p>
+                      <p className="text-gray-900 font-medium">{booking.total_pax} orang</p>
                     </div>
                   </div>
-                  {startDate && (
-                    <div className="flex items-start gap-2">
-                      <Calendar className="w-5 h-5 text-gray-400 mt-0.5" />
-                      <div>
-                        <p className="text-sm font-medium text-gray-600">Tanggal Keberangkatan</p>
-                        <p className="text-gray-900">
-                          {(() => {
-                            // Jika startDate adalah waktu (format HH:mm:ss), skip
-                            if (typeof startDate === 'string' && /^\d{2}:\d{2}:\d{2}$/.test(startDate)) {
-                              return "-";
-                            }
-                            return formatDate(startDate);
-                          })()}
-                        </p>
-                        {endDate && !/^\d{2}:\d{2}:\d{2}$/.test(endDate) && (
-                          <p className="text-sm text-gray-500">Sampai {formatDate(endDate)}</p>
-                        )}
-                      </div>
-                    </div>
-                  )}
                   <div className="flex items-start gap-2">
-                    <Clock className="w-5 h-5 text-gray-400 mt-0.5" />
+                    <Calendar className="w-5 h-5 text-gray-400 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">Tanggal Keberangkatan</p>
+                      {startDate ? (
+                        <>
+                          <p className="text-gray-900 font-medium">
+                            {(() => {
+                              // Jika startDate adalah waktu (format HH:mm:ss), skip
+                              if (typeof startDate === 'string' && /^\d{2}:\d{2}:\d{2}$/.test(startDate)) {
+                                return "-";
+                              }
+                              return formatDate(startDate);
+                            })()}
+                          </p>
+                          {endDate && !/^\d{2}:\d{2}:\d{2}$/.test(endDate) && (
+                            <p className="text-sm text-gray-500">Sampai {formatDate(endDate)}</p>
+                          )}
+                        </>
+                      ) : (
+                        <p className="text-gray-500 italic">Belum ditentukan</p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <Clock className="w-5 h-5 text-gray-400 mt-0.5 flex-shrink-0" />
                     <div>
                       <p className="text-sm font-medium text-gray-600">Tanggal Pemesanan</p>
-                      <p className="text-gray-900">{formatDate(booking.created_at)}</p>
+                      <p className="text-gray-900 font-medium">{formatDate(booking.created_at)}</p>
                     </div>
                   </div>
                 </div>
+                
+                {/* Trip Include/Exclude jika ada */}
+                {(booking.trip?.include || booking.trip?.exclude) && (
+                  <div className="pt-4 border-t border-gray-200">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {booking.trip?.include && (
+                        <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                          <div className="flex items-center gap-2 mb-3">
+                            <CheckCircle2 className="w-5 h-5 text-green-600" />
+                            <p className="text-sm font-semibold text-green-900">Include</p>
+                          </div>
+                          <div className="text-sm text-gray-700 space-y-1">
+                            {parseHtmlContent(booking.trip.include).split('\n').filter(line => line.trim()).map((line, idx) => (
+                              <div key={idx} className="flex items-start gap-2">
+                                <span className="text-green-600 mt-1">•</span>
+                                <span>{line.trim()}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {booking.trip?.exclude && (
+                        <div className="bg-red-50 p-4 rounded-lg border border-red-200">
+                          <div className="flex items-center gap-2 mb-3">
+                            <XCircle className="w-5 h-5 text-red-600" />
+                            <p className="text-sm font-semibold text-red-900">Exclude</p>
+                          </div>
+                          <div className="text-sm text-gray-700 space-y-1">
+                            {parseHtmlContent(booking.trip.exclude).split('\n').filter(line => line.trim()).map((line, idx) => (
+                              <div key={idx} className="flex items-start gap-2">
+                                <span className="text-red-600 mt-1">•</span>
+                                <span>{line.trim()}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             </Card>
 
@@ -377,40 +561,42 @@ export default function BookingDetailPage() {
               <h2 className="text-xl font-bold text-gray-900 mb-6 border-b pb-3">Informasi Customer</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="flex items-start gap-2">
-                  <Users className="w-5 h-5 text-gray-400 mt-0.5" />
-                  <div>
+                  <Users className="w-5 h-5 text-gray-400 mt-0.5 flex-shrink-0" />
+                  <div className="min-w-0">
                     <p className="text-sm font-medium text-gray-600">Nama</p>
-                    <p className="text-gray-900">{booking.customer_name || "-"}</p>
+                    <p className="text-gray-900 font-medium break-words">{booking.customer_name || "-"}</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-2">
-                  <Mail className="w-5 h-5 text-gray-400 mt-0.5" />
-                  <div>
+                  <Mail className="w-5 h-5 text-gray-400 mt-0.5 flex-shrink-0" />
+                  <div className="min-w-0">
                     <p className="text-sm font-medium text-gray-600">Email</p>
-                    <p className="text-gray-900">{booking.customer_email || "-"}</p>
+                    <p className="text-gray-900 font-medium break-words">{booking.customer_email || "-"}</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-2">
-                  <Phone className="w-5 h-5 text-gray-400 mt-0.5" />
-                  <div>
+                  <Phone className="w-5 h-5 text-gray-400 mt-0.5 flex-shrink-0" />
+                  <div className="min-w-0">
                     <p className="text-sm font-medium text-gray-600">Telepon</p>
-                    <p className="text-gray-900">{booking.customer_phone || "-"}</p>
+                    <p className="text-gray-900 font-medium">{booking.customer_phone || "-"}</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-2">
-                  <MapPin className="w-5 h-5 text-gray-400 mt-0.5" />
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Alamat</p>
-                    <p className="text-gray-900">{booking.customer_address || "-"}</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-2">
-                  <MapPin className="w-5 h-5 text-gray-400 mt-0.5" />
-                  <div>
+                  <MapPin className="w-5 h-5 text-gray-400 mt-0.5 flex-shrink-0" />
+                  <div className="min-w-0">
                     <p className="text-sm font-medium text-gray-600">Negara</p>
-                    <p className="text-gray-900">{booking.customer_country || "-"}</p>
+                    <p className="text-gray-900 font-medium">{booking.customer_country || "-"}</p>
                   </div>
                 </div>
+                {booking.customer_address && (
+                  <div className="flex items-start gap-2 md:col-span-2">
+                    <MapPin className="w-5 h-5 text-gray-400 mt-0.5 flex-shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-gray-600">Alamat</p>
+                      <p className="text-gray-900 font-medium break-words">{booking.customer_address}</p>
+                    </div>
+                  </div>
+                )}
               </div>
             </Card>
 
@@ -471,89 +657,217 @@ export default function BookingDetailPage() {
               </Card>
             )}
 
-            {/* Payment Proof Section */}
-            {transaction && (
-              <Card className="p-6 shadow-sm">
-                <div className="flex items-center gap-2 mb-6 border-b pb-3">
-                  <Receipt className="w-5 h-5 text-gold" />
-                  <h2 className="text-xl font-bold text-gray-900">Bukti Pembayaran</h2>
-                </div>
+            {/* Transaction & Payment Proof Section */}
+            <Card className="p-6 shadow-sm">
+              <div className="flex items-center gap-2 mb-6 border-b pb-3">
+                <Receipt className="w-5 h-5 text-gold" />
+                <h2 className="text-xl font-bold text-gray-900">Informasi Pembayaran</h2>
+              </div>
+              
+              {transaction ? (
                 <div className="space-y-6">
-                  {transaction.payment_status && (
-                    <div>
-                      <p className="text-sm font-medium text-gray-600 mb-1">Status Pembayaran</p>
-                      <Badge 
-                        className={
-                          transaction.payment_status === "Lunas" || transaction.payment_status === "Pembayaran Berhasil"
-                            ? "bg-green-100 text-green-700"
-                            : transaction.payment_status === "Menunggu Pembayaran"
-                            ? "bg-yellow-100 text-yellow-700"
-                            : transaction.payment_status === "Ditolak"
-                            ? "bg-red-100 text-red-700"
-                            : "bg-gray-100 text-gray-700"
-                        }
-                      >
-                        {transaction.payment_status}
-                      </Badge>
-                    </div>
-                  )}
-                  {transaction.bank_type && (
-                    <div>
-                      <p className="text-sm font-medium text-gray-600 mb-1">Metode Pembayaran</p>
-                      <div className="flex items-center gap-2">
-                        <CreditCard className="w-4 h-4 text-gray-400" />
-                        <p className="text-gray-900">{transaction.bank_type}</p>
+                  {/* Transaction Info Grid */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {transaction.payment_status && (
+                      <div>
+                        <p className="text-sm font-medium text-gray-600 mb-2">Status Pembayaran</p>
+                        <Badge 
+                          className={
+                            transaction.payment_status === "Lunas" || 
+                            transaction.payment_status === "Pembayaran Berhasil" ||
+                            transaction.payment_status?.toLowerCase() === "paid" ||
+                            transaction.payment_status?.toLowerCase() === "confirmed"
+                              ? "bg-green-100 text-green-700 hover:bg-green-100"
+                              : transaction.payment_status === "Menunggu Pembayaran" ||
+                                transaction.payment_status?.toLowerCase() === "pending" ||
+                                transaction.payment_status?.toLowerCase() === "waiting"
+                              ? "bg-yellow-100 text-yellow-700 hover:bg-yellow-100"
+                              : transaction.payment_status === "Ditolak" ||
+                                transaction.payment_status?.toLowerCase() === "rejected" ||
+                                transaction.payment_status?.toLowerCase() === "cancelled"
+                              ? "bg-red-100 text-red-700 hover:bg-red-100"
+                              : "bg-gray-100 text-gray-700 hover:bg-gray-100"
+                          }
+                        >
+                          {transaction.payment_status}
+                        </Badge>
+                      </div>
+                    )}
+                    
+                    {transaction.bank_type && (
+                      <div>
+                        <p className="text-sm font-medium text-gray-600 mb-2">Metode Pembayaran</p>
+                        <div className="flex items-center gap-2">
+                          <CreditCard className="w-4 h-4 text-gray-400" />
+                          <p className="text-gray-900 font-medium">{transaction.bank_type}</p>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {transaction.total_amount && (
+                      <div>
+                        <p className="text-sm font-medium text-gray-600 mb-2">Total Pembayaran</p>
+                        <p className="text-gray-900 font-semibold text-lg">{formatCurrency(transaction.total_amount)}</p>
+                      </div>
+                    )}
+                    
+                    {transaction.created_at && (
+                      <div>
+                        <p className="text-sm font-medium text-gray-600 mb-2">Tanggal Transaksi</p>
+                        <div className="flex items-center gap-2">
+                          <Clock className="w-4 h-4 text-gray-400" />
+                          <p className="text-gray-900">{formatDate(transaction.created_at)}</p>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {transaction.id && (
+                      <div>
+                        <p className="text-sm font-medium text-gray-600 mb-2">Transaction ID</p>
+                        <p className="text-gray-900 font-mono text-sm">#{transaction.id}</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Transaction Details */}
+                  {transaction.details && transaction.details.length > 0 && (
+                    <div className="pt-4 border-t border-gray-200">
+                      <p className="text-sm font-medium text-gray-600 mb-3">Detail Transaksi</p>
+                      <div className="space-y-2">
+                        {transaction.details.map((detail, index) => (
+                          <div key={detail.id || index} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                            <div>
+                              <p className="text-sm font-medium text-gray-900">{detail.description || `Detail ${index + 1}`}</p>
+                              {detail.created_at && (
+                                <p className="text-xs text-gray-500">{formatDate(detail.created_at)}</p>
+                              )}
+                            </div>
+                            <p className="text-sm font-semibold text-gray-900">{formatCurrency(detail.amount)}</p>
+                          </div>
+                        ))}
                       </div>
                     </div>
                   )}
-                  {transaction.total_amount && (
-                    <div>
-                      <p className="text-sm font-medium text-gray-600 mb-1">Total Pembayaran</p>
-                      <p className="text-gray-900 font-semibold">{formatCurrency(transaction.total_amount)}</p>
-                    </div>
-                  )}
-                  <div>
-                    <p className="text-sm font-medium text-gray-600 mb-4">Gambar Bukti Pembayaran</p>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {/* Display assets jika ada */}
-                      {transaction.assets && transaction.assets.length > 0 && transaction.assets.map((asset: TransactionAsset, index: number) => (
-                        <div key={asset.id || index} className="relative aspect-video rounded-lg overflow-hidden border-2 border-gray-200 shadow-md hover:shadow-lg transition-shadow">
-                          <Image
-                            src={getImageUrl(asset.file_url || asset.original_file_url)}
-                            alt={asset.title || `Bukti Pembayaran ${index + 1}`}
-                            fill
-                            className="object-contain bg-gray-50"
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).src = "/img/default-image.png";
+
+                  {/* Payment Proof Images - Mengikuti pattern dari data-table.tsx */}
+                  <div className="pt-4 border-t border-gray-200">
+                    <p className="text-sm font-medium text-gray-600 mb-4">Bukti Pembayaran</p>
+                    {(transaction.assets && transaction.assets.length > 0) || transaction.payment_proof ? (
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                        {/* Display assets jika ada */}
+                        {transaction.assets && transaction.assets.length > 0 && transaction.assets.map((asset: TransactionAsset, index: number) => {
+                          if (!asset || !asset.file_url) return null;
+                          
+                          const imageUrl = getImageUrl(asset.file_url || asset.original_file_url);
+                          
+                          return (
+                            <div 
+                              key={asset.id || `asset-${index}`} 
+                              className="space-y-2 cursor-pointer group w-full"
+                              onClick={() => setSelectedImage(asset)}
+                            >
+                              <div className="relative aspect-[4/3] rounded-lg overflow-hidden border border-gray-200 w-full">
+                                <Image
+                                  src={imageUrl}
+                                  alt={asset.title || `Bukti Pembayaran ${index + 1}`}
+                                  fill
+                                  sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, (max-width: 1024px) 25vw, 20vw"
+                                  className="object-cover transition-transform duration-200 group-hover:scale-105"
+                                  unoptimized={true}
+                                  onError={(e) => {
+                                    const target = e.target as HTMLImageElement;
+                                    target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjNmNGY2Ii8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzk5YTNhZiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPkltYWdlIE5vdCBGb3VuZDwvdGV4dD48L3N2Zz4=';
+                                  }}
+                                />
+                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-200" />
+                              </div>
+                              {asset.title && (
+                                <p className="text-sm text-gray-600 text-center truncate" title={asset.title}>
+                                  {asset.title}
+                                </p>
+                              )}
+                              {asset.description && (
+                                <p className="text-xs text-gray-500 text-center truncate" title={asset.description}>
+                                  {asset.description}
+                                </p>
+                              )}
+                            </div>
+                          );
+                        })}
+                        {/* Fallback ke payment_proof jika assets tidak ada */}
+                        {(!transaction.assets || transaction.assets.length === 0) && transaction.payment_proof && (
+                          <div 
+                            className="space-y-2 cursor-pointer group w-full"
+                            onClick={() => {
+                              const tempAsset: TransactionAsset = {
+                                id: 0,
+                                title: "Bukti Pembayaran",
+                                description: "Bukti pembayaran transaksi",
+                                file_url: transaction.payment_proof,
+                                original_file_url: transaction.payment_proof,
+                                is_external: false,
+                                file_path: "",
+                                created_at: transaction.created_at,
+                                updated_at: transaction.updated_at
+                              };
+                              setSelectedImage(tempAsset);
                             }}
-                          />
-                        </div>
-                      ))}
-                      {/* Fallback ke payment_proof jika assets tidak ada */}
-                      {(!transaction.assets || transaction.assets.length === 0) && transaction.payment_proof && (
-                        <div className="relative aspect-video rounded-lg overflow-hidden border-2 border-gray-200 shadow-md hover:shadow-lg transition-shadow">
-                          <Image
-                            src={getImageUrl(transaction.payment_proof)}
-                            alt="Bukti Pembayaran"
-                            fill
-                            className="object-contain bg-gray-50"
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).src = "/img/default-image.png";
-                            }}
-                          />
-                        </div>
-                      )}
-                    </div>
+                          >
+                            <div className="relative aspect-[4/3] rounded-lg overflow-hidden border border-gray-200 w-full">
+                              <Image
+                                src={getImageUrl(transaction.payment_proof)}
+                                alt="Bukti Pembayaran"
+                                fill
+                                sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                                className="object-cover transition-transform duration-200 group-hover:scale-105"
+                                unoptimized={true}
+                                onError={(e) => {
+                                  const target = e.target as HTMLImageElement;
+                                  target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjNmNGY2Ii8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzk5YTNhZiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPkltYWdlIE5vdCBGb3VuZDwvdGV4dD48L3N2Zz4=';
+                                }}
+                              />
+                              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-200" />
+                            </div>
+                            <p className="text-sm text-gray-600 text-center truncate" title="Bukti Pembayaran">
+                              Bukti Pembayaran
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                        <Receipt className="w-12 h-12 text-gray-400 mx-auto mb-2" />
+                        <p className="text-sm text-gray-500">Belum ada bukti pembayaran yang diunggah</p>
+                      </div>
+                    )}
                   </div>
+                  
+                  {/* Image Modal */}
+                  {selectedImage && (
+                    <ImageModal
+                      isOpen={!!selectedImage}
+                      onClose={() => setSelectedImage(null)}
+                      imageUrl={getImageUrl(selectedImage.file_url)}
+                      title={selectedImage.title}
+                      description={selectedImage.description || "Bukti pembayaran transaksi"}
+                    />
+                  )}
                 </div>
-              </Card>
-            )}
+              ) : (
+                <div className="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                  <Receipt className="w-12 h-12 text-gray-400 mx-auto mb-2" />
+                  <p className="text-sm text-gray-500 mb-2">Belum ada transaksi untuk booking ini</p>
+                  <p className="text-xs text-gray-400">Silakan lakukan pembayaran terlebih dahulu</p>
+                </div>
+              )}
+            </Card>
           </div>
 
-          {/* Sidebar - Total Price */}
-          <div className="lg:col-span-1">
-            <Card className="p-6 sticky top-6 shadow-sm">
-              <div className="flex items-center gap-2 mb-6 border-b pb-3">
+          {/* Sidebar - Summary Cards */}
+          <div className="xl:col-span-4 space-y-6">
+            {/* Total Price Card */}
+            <Card className="p-6 shadow-sm bg-gradient-to-br from-gold/10 to-gold/5 border-gold/20">
+              <div className="flex items-center gap-2 mb-6 border-b border-gold/20 pb-3">
                 <DollarSign className="w-5 h-5 text-gold" />
                 <h2 className="text-xl font-bold text-gray-900">Total Harga</h2>
               </div>
@@ -562,28 +876,82 @@ export default function BookingDetailPage() {
                   <p className="text-3xl font-bold text-gold mb-2">
                     {formatCurrency(booking.total_price)}
                   </p>
-                  <p className="text-sm text-gray-500">
-                    untuk {booking.total_pax} orang
+                  <p className="text-sm text-gray-600">
+                    untuk {booking.total_pax} {booking.total_pax === 1 ? 'orang' : 'orang'}
                   </p>
                 </div>
-                {transaction && transaction.payment_status && (
-                  <div className="pt-4 border-t border-gray-200">
-                    <p className="text-sm font-medium text-gray-600 mb-2">Status Pembayaran</p>
-                    <Badge 
-                      className={
-                        transaction.payment_status === "Lunas" || transaction.payment_status === "Pembayaran Berhasil"
-                          ? "bg-green-100 text-green-700"
-                          : transaction.payment_status === "Menunggu Pembayaran"
-                          ? "bg-yellow-100 text-yellow-700"
-                          : transaction.payment_status === "Ditolak"
-                          ? "bg-red-100 text-red-700"
-                          : "bg-gray-100 text-gray-700"
-                      }
-                    >
-                      {transaction.payment_status}
-                    </Badge>
+                <div className="pt-4 border-t border-gold/20">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-sm font-medium text-gray-600">Status Booking</p>
+                    {getStatusBadge(booking.status)}
                   </div>
-                )}
+                  {transaction && transaction.payment_status && (
+                    <>
+                      <div className="flex items-center justify-between mt-3">
+                        <p className="text-sm font-medium text-gray-600">Status Pembayaran</p>
+                        <Badge 
+                          className={
+                            transaction.payment_status === "Lunas" || transaction.payment_status === "Pembayaran Berhasil" || transaction.payment_status?.toLowerCase() === "paid" || transaction.payment_status?.toLowerCase() === "confirmed"
+                              ? "bg-green-100 text-green-700 hover:bg-green-100"
+                              : transaction.payment_status === "Menunggu Pembayaran" || transaction.payment_status?.toLowerCase() === "pending" || transaction.payment_status?.toLowerCase() === "waiting"
+                              ? "bg-yellow-100 text-yellow-700 hover:bg-yellow-100"
+                              : transaction.payment_status === "Ditolak" || transaction.payment_status?.toLowerCase() === "rejected" || transaction.payment_status?.toLowerCase() === "cancelled"
+                              ? "bg-red-100 text-red-700 hover:bg-red-100"
+                              : "bg-gray-100 text-gray-700 hover:bg-gray-100"
+                          }
+                        >
+                          {transaction.payment_status}
+                        </Badge>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+            </Card>
+
+            {/* Quick Info Card */}
+            <Card className="p-6 shadow-sm">
+              <h3 className="text-lg font-bold text-gray-900 mb-4 border-b pb-3">Ringkasan</h3>
+              <div className="space-y-3">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-2">
+                    <Package className="w-4 h-4 text-gray-400" />
+                    <span className="text-sm text-gray-600">Durasi</span>
+                  </div>
+                  <span className="text-sm font-medium text-gray-900">{booking.trip_duration?.duration_label || "-"}</span>
+                </div>
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-2">
+                    <Users className="w-4 h-4 text-gray-400" />
+                    <span className="text-sm text-gray-600">Pax</span>
+                  </div>
+                  <span className="text-sm font-medium text-gray-900">{booking.total_pax} orang</span>
+                </div>
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-2">
+                    <Calendar className="w-4 h-4 text-gray-400" />
+                    <span className="text-sm text-gray-600">Keberangkatan</span>
+                  </div>
+                  <span className="text-sm font-medium text-gray-900 text-right">
+                    {startDate ? (
+                      (() => {
+                        if (typeof startDate === 'string' && /^\d{2}:\d{2}:\d{2}$/.test(startDate)) {
+                          return "-";
+                        }
+                        return formatDate(startDate);
+                      })()
+                    ) : (
+                      <span className="text-gray-400 italic">-</span>
+                    )}
+                  </span>
+                </div>
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-2">
+                    <Clock className="w-4 h-4 text-gray-400" />
+                    <span className="text-sm text-gray-600">Pemesanan</span>
+                  </div>
+                  <span className="text-sm font-medium text-gray-900 text-right">{formatDate(booking.created_at)}</span>
+                </div>
               </div>
             </Card>
           </div>

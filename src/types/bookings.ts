@@ -126,6 +126,12 @@ export interface Booking {
   total_price: string
   total_pax: number
   status: "Pending" | "Confirmed" | "Completed" | "Cancelled"
+  start_date?: string // Tanggal keberangkatan yang dipilih user (format: yyyy-MM-dd)
+  end_date?: string // Tanggal selesai trip (format: yyyy-MM-dd)
+  trip_start_date?: string // Alias untuk start_date (jika backend menggunakan nama ini)
+  trip_end_date?: string // Alias untuk end_date (jika backend menggunakan nama ini)
+  departure_date?: string // Alias lain untuk start_date
+  return_date?: string // Alias lain untuk end_date
   created_at: string
   updated_at: string
   customer_name: string

@@ -1133,8 +1133,8 @@ export default function Booking() {
           Number(selectedHotelRooms[0].hotelId) : null,
         total_pax: tripCount,
         status: "Pending",
-        start_date: format(selectedDate, "yyyy-MM-dd"),
-        end_date: format(endDate, "yyyy-MM-dd"),
+        start_date: format(selectedDate, "yyyy-MM-dd"), // Format: yyyy-MM-dd (contoh: 2025-11-24)
+        end_date: format(endDate, "yyyy-MM-dd"), // Format: yyyy-MM-dd
         total_price: calculateTotalPrice(),
         cabins: selectedCabins.length > 0 ? selectedCabins.map(cabin => {
           const cabinData = boats
@@ -1157,12 +1157,23 @@ export default function Booking() {
         })
       };
 
+      // Log data yang akan dikirim ke API untuk debugging
+      console.log('📤 Sending booking data to API:', {
+        ...bookingData,
+        start_date_formatted: bookingData.start_date,
+        end_date_formatted: bookingData.end_date,
+        selectedDate_original: selectedDate,
+        endDate_calculated: endDate
+      });
+
       // Kirim data ke API (tanpa dialog konfirmasi)
       const response = await apiRequest<BookingResponse>(
         'POST',
         '/api/landing-page/bookings',
         bookingData
       );
+
+      console.log('📥 Booking API response:', response);
 
       if (response?.data?.id) {
         // Redirect ke halaman payment dengan ID booking
@@ -1463,8 +1474,6 @@ export default function Booking() {
                       value={formData.name}
                       onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
                       placeholder="Your name"
-                      readOnly={isFormAutoFilled}
-                      className={isFormAutoFilled ? "bg-gray-100 cursor-not-allowed" : ""}
                     />
                   </div>
                   <div className="space-y-2">
@@ -1475,8 +1484,6 @@ export default function Booking() {
                       value={formData.email}
                       onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
                       placeholder="example@gmail.com"
-                      readOnly={isFormAutoFilled}
-                      className={isFormAutoFilled ? "bg-gray-100 cursor-not-allowed" : ""}
                     />
                   </div>
                   <div className="space-y-2">
@@ -1486,8 +1493,6 @@ export default function Booking() {
                       value={formData.address}
                       onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
                       placeholder="Your address"
-                      readOnly={isFormAutoFilled}
-                      className={isFormAutoFilled ? "bg-gray-100 cursor-not-allowed" : ""}
                     />
                   </div>
                   <div className="space-y-2">
@@ -1499,9 +1504,8 @@ export default function Booking() {
                         // Update region based on country
                         setUserRegion(value === "ID" ? "domestic" : "overseas");
                       }}
-                      disabled={isFormAutoFilled}
                     >
-                      <SelectTrigger className={isFormAutoFilled ? "bg-gray-100 cursor-not-allowed" : ""}>
+                      <SelectTrigger>
                         <SelectValue placeholder="Select a country" />
                       </SelectTrigger>
                       <SelectContent>
@@ -1526,8 +1530,7 @@ export default function Booking() {
                         value={formData.phone}
                         onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
                         placeholder="Nomor telepon"
-                        className={`w-3/4 ${isFormAutoFilled ? "bg-gray-100 cursor-not-allowed" : ""}`}
-                        readOnly={isFormAutoFilled}
+                        className="w-3/4"
                       />
                     </div>
                   </div>
@@ -1539,8 +1542,7 @@ export default function Booking() {
                         value={formData.notes}
                         onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
                         placeholder="Catatan Tambahan"
-                        className={`h-20 ${isFormAutoFilled ? "bg-gray-100 cursor-not-allowed" : ""}`}
-                        readOnly={isFormAutoFilled}
+                        className="h-20"
                       />
                       {/* Hotel Section */}
                       {selectedDuration && selectedDate && selectedPackage?.has_hotel && (

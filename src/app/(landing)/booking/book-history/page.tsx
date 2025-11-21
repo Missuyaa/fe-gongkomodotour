@@ -8,9 +8,12 @@ import { Booking } from "@/types/bookings";
 import { motion } from "framer-motion";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, MapPin, Users, Phone, Mail, Package, Clock, CheckCircle2, XCircle, AlertCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Calendar, MapPin, Users, Phone, Mail, Package, Clock, CheckCircle2, XCircle, AlertCircle, Search, Filter, X } from "lucide-react";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
@@ -43,9 +46,16 @@ function getStatusBadge(status: string) {
 
 export default function BookHistoryPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
+  const [filteredBookings, setFilteredBookings] = useState<Booking[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+  
+  // Filter states
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [tripTypeFilter, setTripTypeFilter] = useState<string>("all");
+  const [dateFilter, setDateFilter] = useState<string>("all");
 
   useEffect(() => {
     // Cek apakah user sudah login
@@ -86,15 +96,35 @@ export default function BookHistoryPage() {
       
       // Log sample booking untuk debugging
       if (response?.data && Array.isArray(response.data) && response.data.length > 0) {
-        console.log('Sample booking data:', response.data[0]);
-        console.log('Sample booking start_date:', (response.data[0] as any).start_date);
-        console.log('Sample booking trip:', (response.data[0] as any).trip);
-        console.log('Sample booking trip assets:', (response.data[0] as any).trip?.assets);
+        const sample = response.data[0] as any;
+        console.log('Sample booking data:', sample);
+        console.log('Sample booking date fields:', {
+          start_date: sample.start_date,
+          trip_start_date: sample.trip_start_date,
+          departure_date: sample.departure_date,
+          end_date: sample.end_date,
+          trip_end_date: sample.trip_end_date,
+          return_date: sample.return_date,
+          created_at: sample.created_at,
+          updated_at: sample.updated_at
+        });
+        console.log('Sample booking trip:', sample.trip);
+        console.log('Sample booking trip assets:', sample.trip?.assets);
       } else if (Array.isArray(response) && response.length > 0) {
-        console.log('Sample booking data (direct array):', response[0]);
-        console.log('Sample booking start_date:', (response[0] as any).start_date);
-        console.log('Sample booking trip:', (response[0] as any).trip);
-        console.log('Sample booking trip assets:', (response[0] as any).trip?.assets);
+        const sample = response[0] as any;
+        console.log('Sample booking data (direct array):', sample);
+        console.log('Sample booking date fields:', {
+          start_date: sample.start_date,
+          trip_start_date: sample.trip_start_date,
+          departure_date: sample.departure_date,
+          end_date: sample.end_date,
+          trip_end_date: sample.trip_end_date,
+          return_date: sample.return_date,
+          created_at: sample.created_at,
+          updated_at: sample.updated_at
+        });
+        console.log('Sample booking trip:', sample.trip);
+        console.log('Sample booking trip assets:', sample.trip?.assets);
       }
 
       // Handle berbagai format response
@@ -138,9 +168,42 @@ export default function BookHistoryPage() {
       console.log('Extracted bookingsData:', bookingsData);
       console.log('BookingsData length:', bookingsData.length);
 
+      // Log lengkap untuk debugging tanggal - tampilkan SEMUA field yang ada
+      if (bookingsData.length > 0) {
+        console.log('=== BOOKING DATE FIELDS CHECK ===');
+        bookingsData.forEach((booking: any, index: number) => {
+          console.log(`Booking ${index + 1} (ID: ${booking.id}):`, {
+            // Field utama yang dikirim saat booking
+            start_date: booking.start_date,
+            end_date: booking.end_date,
+            // Alias fields
+            trip_start_date: booking.trip_start_date,
+            trip_end_date: booking.trip_end_date,
+            departure_date: booking.departure_date,
+            return_date: booking.return_date,
+            // Timestamps
+            created_at: booking.created_at,
+            updated_at: booking.updated_at,
+            // SEMUA keys yang mengandung 'date' untuk debugging
+            allDateKeys: Object.keys(booking).filter(k => 
+              k.toLowerCase().includes('date') || 
+              k.toLowerCase().includes('start') || 
+              k.toLowerCase().includes('end') ||
+              k.toLowerCase().includes('departure') ||
+              k.toLowerCase().includes('return')
+            ),
+            // Full booking object untuk melihat struktur lengkap
+            fullBookingKeys: Object.keys(booking)
+          });
+        });
+        console.log('=== END DATE FIELDS CHECK ===');
+      }
+
       // Filter hanya booking yang memiliki trip data (valid booking)
+      // Jangan terlalu ketat - booking tetap valid meskipun trip data tidak lengkap
       const validBookings = bookingsData.filter(booking => {
-        const isValid = booking && booking.id && booking.trip;
+        // Booking valid jika memiliki ID dan minimal trip_id
+        const isValid = booking && booking.id && (booking.trip || booking.trip_id);
         if (!isValid) {
           console.log('Invalid booking filtered out:', booking);
         }
@@ -149,13 +212,73 @@ export default function BookHistoryPage() {
 
       console.log('Valid bookings after filter:', validBookings.length);
 
+      // Pastikan tidak ada duplikasi berdasarkan ID (jika API mengembalikan duplikat, ambil yang terbaru)
+      // Setiap booking harus memiliki ID unik, jadi ini hanya untuk safety
+      // TAPI: Jangan menghilangkan booking yang berbeda - setiap booking ID harus unik
+      const uniqueBookingsMap = new Map<number, Booking>();
+      validBookings.forEach(booking => {
+        // Jika booking dengan ID yang sama sudah ada, cek mana yang lebih baru berdasarkan updated_at
+        const existing = uniqueBookingsMap.get(booking.id);
+        if (!existing) {
+          // Booking baru, langsung tambahkan
+          uniqueBookingsMap.set(booking.id, booking);
+        } else {
+          // Booking dengan ID sama sudah ada - ambil yang updated_at lebih baru
+          const existingUpdated = new Date(existing.updated_at || existing.created_at).getTime();
+          const currentUpdated = new Date(booking.updated_at || booking.created_at).getTime();
+          
+          if (currentUpdated > existingUpdated) {
+            console.log(`Booking ID ${booking.id} ditemukan duplikat, menggunakan versi yang lebih baru (updated_at: ${booking.updated_at})`);
+            uniqueBookingsMap.set(booking.id, booking);
+          } else {
+            console.log(`Booking ID ${booking.id} ditemukan duplikat, mempertahankan versi yang lebih baru (updated_at: ${existing.updated_at})`);
+          }
+        }
+      });
+      
+      // Convert map back to array - setiap booking ID hanya muncul sekali
+      const allBookings = Array.from(uniqueBookingsMap.values());
+      
+      console.log(`Total bookings setelah deduplication: ${allBookings.length} dari ${validBookings.length} valid bookings`);
+      
+      // Log untuk debugging - cek apakah ada booking dengan trip_id dan tanggal yang sama
+      // Ini membantu mengidentifikasi jika user melakukan booking yang sama beberapa kali
+      const duplicateCheck = new Map<string, Booking[]>();
+      allBookings.forEach(booking => {
+        // Gunakan start_date yang sebenarnya (field yang dikirim saat booking)
+        const startDate = (booking as any).start_date || 
+                         (booking as any).trip_start_date || 
+                         (booking as any).departure_date ||
+                         null;
+        const key = startDate ? `${booking.trip_id}-${startDate}` : `${booking.trip_id}-${booking.id}`;
+        if (!duplicateCheck.has(key)) {
+          duplicateCheck.set(key, []);
+        }
+        duplicateCheck.get(key)!.push(booking);
+      });
+      
+      // Log booking yang mungkin duplikat (trip_id dan tanggal sama) - ini normal jika user booking trip yang sama beberapa kali
+      duplicateCheck.forEach((bookings, key) => {
+        if (bookings.length > 1) {
+          console.log(`Found ${bookings.length} bookings with same trip_id and date (${key}):`, 
+            bookings.map(b => ({ 
+              id: b.id, 
+              created_at: b.created_at,
+              status: b.status 
+            }))
+          );
+        }
+      });
+
       // Sort by created_at descending (terbaru di atas)
-      const sortedBookings = validBookings.sort((a, b) => 
+      const sortedBookings = allBookings.sort((a, b) => 
         new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       );
       
       console.log('Final sorted bookings:', sortedBookings.length);
+      console.log('All booking IDs:', sortedBookings.map(b => ({ id: b.id, trip_id: b.trip_id, created_at: b.created_at })));
       setBookings(sortedBookings);
+      setFilteredBookings(sortedBookings); // Set initial filtered bookings
     } catch (err: any) {
       console.error('Error fetching bookings:', err);
       
@@ -202,6 +325,73 @@ export default function BookHistoryPage() {
     }
   };
 
+  // Filter bookings berdasarkan search query, status, trip type, dan date
+  useEffect(() => {
+    let filtered = [...bookings];
+
+    // Filter berdasarkan search query (nama trip)
+    if (searchQuery.trim()) {
+      filtered = filtered.filter(booking =>
+        booking.trip?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        booking.id.toString().includes(searchQuery) ||
+        booking.customer_name?.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    }
+
+    // Filter berdasarkan status
+    if (statusFilter !== "all") {
+      filtered = filtered.filter(booking =>
+        booking.status?.toLowerCase() === statusFilter.toLowerCase()
+      );
+    }
+
+    // Filter berdasarkan trip type
+    if (tripTypeFilter !== "all") {
+      filtered = filtered.filter(booking =>
+        booking.trip?.type === tripTypeFilter
+      );
+    }
+
+    // Filter berdasarkan date (bulan ini, bulan lalu, atau semua)
+    if (dateFilter !== "all") {
+      const now = new Date();
+      const currentMonth = now.getMonth();
+      const currentYear = now.getFullYear();
+
+      filtered = filtered.filter(booking => {
+        const bookingDate = new Date(booking.created_at);
+        const bookingMonth = bookingDate.getMonth();
+        const bookingYear = bookingDate.getFullYear();
+
+        if (dateFilter === "thisMonth") {
+          return bookingMonth === currentMonth && bookingYear === currentYear;
+        } else if (dateFilter === "lastMonth") {
+          const lastMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+          const lastMonthYear = currentMonth === 0 ? currentYear - 1 : currentYear;
+          return bookingMonth === lastMonth && bookingYear === lastMonthYear;
+        } else if (dateFilter === "thisYear") {
+          return bookingYear === currentYear;
+        }
+        return true;
+      });
+    }
+
+    // Sort filtered results
+    filtered.sort((a, b) => 
+      new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
+
+    setFilteredBookings(filtered);
+  }, [bookings, searchQuery, statusFilter, tripTypeFilter, dateFilter]);
+
+  // Reset filters
+  const resetFilters = () => {
+    setSearchQuery("");
+    setStatusFilter("all");
+    setTripTypeFilter("all");
+    setDateFilter("all");
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-[#f5f5f5] flex items-center justify-center">
@@ -238,6 +428,85 @@ export default function BookHistoryPage() {
           </div>
         )}
 
+        {/* Filter Section */}
+        {bookings.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+            className="mb-6 bg-white rounded-lg shadow-sm p-4"
+          >
+            <div className="flex flex-col lg:flex-row gap-4">
+              {/* Search Input */}
+              <div className="flex-1 relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <Input
+                  placeholder="Cari berdasarkan nama trip, booking ID, atau nama..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+
+              {/* Status Filter */}
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-full lg:w-[180px]">
+                  <SelectValue placeholder="Filter Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Semua Status</SelectItem>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="confirmed">Confirmed</SelectItem>
+                  <SelectItem value="completed">Completed</SelectItem>
+                  <SelectItem value="cancelled">Cancelled</SelectItem>
+                </SelectContent>
+              </Select>
+
+              {/* Trip Type Filter */}
+              <Select value={tripTypeFilter} onValueChange={setTripTypeFilter}>
+                <SelectTrigger className="w-full lg:w-[180px]">
+                  <SelectValue placeholder="Filter Tipe Trip" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Semua Tipe</SelectItem>
+                  <SelectItem value="Open Trip">Open Trip</SelectItem>
+                  <SelectItem value="Private Trip">Private Trip</SelectItem>
+                </SelectContent>
+              </Select>
+
+              {/* Date Filter */}
+              <Select value={dateFilter} onValueChange={setDateFilter}>
+                <SelectTrigger className="w-full lg:w-[180px]">
+                  <SelectValue placeholder="Filter Tanggal" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Semua Waktu</SelectItem>
+                  <SelectItem value="thisMonth">Bulan Ini</SelectItem>
+                  <SelectItem value="lastMonth">Bulan Lalu</SelectItem>
+                  <SelectItem value="thisYear">Tahun Ini</SelectItem>
+                </SelectContent>
+              </Select>
+
+              {/* Reset Button */}
+              {(searchQuery || statusFilter !== "all" || tripTypeFilter !== "all" || dateFilter !== "all") && (
+                <Button
+                  variant="outline"
+                  onClick={resetFilters}
+                  className="w-full lg:w-auto"
+                >
+                  <X className="w-4 h-4 mr-2" />
+                  Reset
+                </Button>
+              )}
+            </div>
+
+            {/* Results Count */}
+            <div className="mt-4 text-sm text-gray-600">
+              Menampilkan {filteredBookings.length} dari {bookings.length} pemesanan
+            </div>
+          </motion.div>
+        )}
+
         {/* Bookings List */}
         {bookings.length === 0 ? (
           <Card className="p-12 text-center">
@@ -255,11 +524,27 @@ export default function BookHistoryPage() {
               Kembali ke Beranda
             </button>
           </Card>
+        ) : filteredBookings.length === 0 ? (
+          <Card className="p-12 text-center">
+            <Filter className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">
+              Tidak Ada Hasil
+            </h3>
+            <p className="text-gray-600 mb-6">
+              Tidak ada pemesanan yang sesuai dengan filter yang Anda pilih.
+            </p>
+            <button
+              onClick={resetFilters}
+              className="px-6 py-2 bg-gold text-white rounded-lg hover:bg-gold-dark-20 transition-colors"
+            >
+              Reset Filter
+            </button>
+          </Card>
         ) : (
           <div className="space-y-6">
-            {bookings.map((booking, index) => (
+            {filteredBookings.map((booking, index) => (
               <motion.div
-                key={booking.id}
+                key={`${booking.id}-${booking.created_at}`}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: index * 0.1 }}
@@ -321,27 +606,42 @@ export default function BookHistoryPage() {
                           <Calendar className="w-5 h-5 text-gray-400 mt-0.5" />
                           <div>
                             <p className="text-sm font-medium text-gray-600">Tanggal Keberangkatan</p>
-                            <p className="text-gray-900">
-                              {(() => {
-                                // Cek berbagai kemungkinan field untuk start_date
-                                const startDate = (booking as any).start_date || 
-                                                 (booking as any).trip_start_date ||
-                                                 (booking as any).departure_date ||
-                                                 booking.trip?.start_time;
-                                return startDate ? formatDate(startDate) : "-";
-                              })()}
-                            </p>
                             {(() => {
-                              // Cek berbagai kemungkinan field untuk end_date
-                              const endDate = (booking as any).end_date || 
-                                            (booking as any).trip_end_date ||
-                                            (booking as any).return_date ||
-                                            booking.trip?.end_time;
-                              return endDate ? (
-                                <p className="text-sm text-gray-500">
-                                  Sampai {formatDate(endDate)}
-                                </p>
-                              ) : null;
+                              // Sederhanakan: langsung ambil start_date dari booking (field yang dikirim saat booking)
+                              const bookingAny = booking as any;
+                              
+                              // Prioritas: start_date (field yang dikirim saat booking) > trip_start_date > departure_date
+                              const startDate = bookingAny.start_date || 
+                                               bookingAny.trip_start_date ||
+                                               bookingAny.departure_date ||
+                                               null;
+                              
+                              // Validasi format - skip jika format waktu (HH:mm:ss) atau null
+                              if (!startDate || (typeof startDate === 'string' && /^\d{2}:\d{2}:\d{2}$/.test(startDate))) {
+                                return <p className="text-gray-900">-</p>;
+                              }
+                              
+                              // Format tanggal
+                              const formattedStartDate = formatDate(startDate);
+                              
+                              // Cek end_date (sederhana juga)
+                              const endDate = bookingAny.end_date || 
+                                            bookingAny.trip_end_date ||
+                                            bookingAny.return_date ||
+                                            null;
+                              
+                              const formattedEndDate = endDate && !/^\d{2}:\d{2}:\d{2}$/.test(endDate) 
+                                ? formatDate(endDate) 
+                                : null;
+                              
+                              return (
+                                <>
+                                  <p className="text-gray-900 font-medium">{formattedStartDate}</p>
+                                  {formattedEndDate && (
+                                    <p className="text-sm text-gray-500">Sampai {formattedEndDate}</p>
+                                  )}
+                                </>
+                              );
                             })()}
                           </div>
                         </div>

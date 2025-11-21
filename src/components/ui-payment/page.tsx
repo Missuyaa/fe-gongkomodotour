@@ -1105,12 +1105,7 @@ export default function Payment({
                                   }
                                 );
                                 setSubmitSuccess(true);
-                                // Redirect ke history setelah 2 detik
-                                setTimeout(() => {
-                                  setShowDialog(false);
-                                  setSubmitSuccess(false);
-                                  router.push('/booking/book-history');
-                                }, 2000);
+                                // Tidak ada auto-close, user harus menutup manual atau klik tombol
                               } catch (err: unknown) {
                                 const anyErr = err as { response?: { data?: { message?: string } } ; message?: string }
                                 const apiMsg = (anyErr?.response?.data?.message || anyErr?.message || '').toString();
