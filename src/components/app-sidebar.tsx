@@ -170,7 +170,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     // Cek apakah user adalah Admin
     // Support untuk "Admin" (role baru) dan "Super Admin" (role lama, untuk backward compatibility)
     const isAdmin = user.roles.includes('Admin') || user.roles.includes('Super Admin');
-    
+
     if (isAdmin) {
       // Admin bisa melihat semua menu termasuk Users dan Roles
       return data.adminAccess;

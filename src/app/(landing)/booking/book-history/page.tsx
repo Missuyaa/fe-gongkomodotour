@@ -226,7 +226,7 @@ export default function BookHistoryPage() {
               is_null: booking.start_date === null,
               is_undefined: booking.start_date === undefined,
               is_empty_string: booking.start_date === ''
-            });
+          });
           }
         });
         console.log('=== END DATE FIELDS CHECK ===');
@@ -681,9 +681,9 @@ export default function BookHistoryPage() {
                               // Prioritas: start_date (format yyyy-MM-dd dari Booking.tsx) 
                               // > trip_start_date > departure_date > trip.departure_date
                               let startDate = bookingAny.start_date || 
-                                             bookingAny.trip_start_date ||
-                                             bookingAny.departure_date ||
-                                             null;
+                                               bookingAny.trip_start_date ||
+                                               bookingAny.departure_date ||
+                                               null;
                               
                               // Jika masih null, cek di relasi trip
                               if (!startDate && bookingAny.trip) {
@@ -694,9 +694,9 @@ export default function BookHistoryPage() {
                               }
                               
                               let endDate = bookingAny.end_date || 
-                                           bookingAny.trip_end_date ||
-                                           bookingAny.return_date ||
-                                           null;
+                                            bookingAny.trip_end_date ||
+                                            bookingAny.return_date ||
+                                            null;
                               
                               // Jika masih null, cek di relasi trip
                               if (!endDate && bookingAny.trip) {

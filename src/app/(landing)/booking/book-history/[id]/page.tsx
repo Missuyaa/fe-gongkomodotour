@@ -242,17 +242,17 @@ export default function BookingDetailPage() {
 
       // Coba 1: Query parameter dengan booking_id (lebih efisien)
       // Endpoint ini sama seperti yang digunakan di dashboard, tapi dengan filter
-      try {
-        response = await apiRequest<TransactionResponse>(
-          'GET',
-          `/api/transactions?booking_id=${bookingId}`
-        );
-        console.log('Transaction response from query param:', response);
-        
-        if (response?.data && Array.isArray(response.data) && response.data.length > 0) {
-          transactionData = response.data[0] as Transaction;
+        try {
+          response = await apiRequest<TransactionResponse>(
+            'GET',
+            `/api/transactions?booking_id=${bookingId}`
+          );
+          console.log('Transaction response from query param:', response);
+          
+          if (response?.data && Array.isArray(response.data) && response.data.length > 0) {
+            transactionData = response.data[0] as Transaction;
           console.log('✅ Transaction found via query param endpoint');
-        }
+          }
       } catch (err1: any) {
         const errorMessage1 = err1?.response?.data?.message || err1?.message || '';
         if (errorMessage1.includes('Transaction not found') || errorMessage1.includes('not found')) {
@@ -260,26 +260,26 @@ export default function BookingDetailPage() {
         } else {
           console.log('Query param endpoint error:', err1?.response?.status || err1?.message, '- Trying alternatives...');
         }
-        
+          
         // Coba 2: Fetch semua transactions dan filter (sama seperti dashboard admin)
         // Endpoint ini terbukti bekerja di dashboard, jadi kita gunakan juga di sini
-        try {
-          response = await apiRequest<TransactionResponse>(
-            'GET',
-            '/api/transactions'
-          );
-          console.log('All transactions response:', response);
-          
-          if (response?.data && Array.isArray(response.data)) {
-            // Cari transaction yang sesuai dengan booking_id
-            transactionData = response.data.find(
-              (t: Transaction) => {
-                const tBookingId = typeof t.booking_id === 'string' ? t.booking_id : String(t.booking_id);
-                const tBookingIdFromBooking = t.booking?.id ? (typeof t.booking.id === 'string' ? t.booking.id : String(t.booking.id)) : null;
-                const bookingIdStr = String(bookingId);
-                return tBookingId === bookingIdStr || tBookingIdFromBooking === bookingIdStr;
-              }
-            ) || null;
+          try {
+            response = await apiRequest<TransactionResponse>(
+              'GET',
+              '/api/transactions'
+            );
+            console.log('All transactions response:', response);
+            
+            if (response?.data && Array.isArray(response.data)) {
+              // Cari transaction yang sesuai dengan booking_id
+              transactionData = response.data.find(
+                (t: Transaction) => {
+                  const tBookingId = typeof t.booking_id === 'string' ? t.booking_id : String(t.booking_id);
+                  const tBookingIdFromBooking = t.booking?.id ? (typeof t.booking.id === 'string' ? t.booking.id : String(t.booking.id)) : null;
+                  const bookingIdStr = String(bookingId);
+                  return tBookingId === bookingIdStr || tBookingIdFromBooking === bookingIdStr;
+                }
+              ) || null;
             
             if (transactionData) {
               console.log('✅ Transaction found via all transactions endpoint (same as dashboard)');
@@ -315,8 +315,8 @@ export default function BookingDetailPage() {
               transactionData = response as Transaction;
               console.log('✅ Transaction found via landing-page endpoint (direct object)');
             }
-          }
-        } catch (err3: any) {
+            }
+          } catch (err3: any) {
           const errorMessage3 = err3?.response?.data?.message || err3?.message || '';
           if (errorMessage3.includes('Transaction not found') || errorMessage3.includes('not found')) {
             console.log('⚠️ Transaction not found via landing-page endpoint - This is normal if payment has not been made yet');
