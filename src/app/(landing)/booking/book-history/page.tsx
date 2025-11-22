@@ -171,9 +171,33 @@ export default function BookHistoryPage() {
       // Log lengkap untuk debugging tanggal - tampilkan SEMUA field yang ada
       if (bookingsData.length > 0) {
         console.log('=== BOOKING DATE FIELDS CHECK ===');
+        console.log('📋 INFO: Di Booking.tsx, start_date dikirim sebagai:', {
+          field_name: 'start_date',
+          format: 'yyyy-MM-dd',
+          example: '2025-11-24',
+          code_location: 'Booking.tsx line 1136: start_date: format(selectedDate, "yyyy-MM-dd")'
+        });
+        
         bookingsData.forEach((booking: any, index: number) => {
+          // Ambil SEMUA keys yang mungkin terkait dengan tanggal
+          const allKeys = Object.keys(booking);
+          const dateRelatedKeys = allKeys.filter(k => 
+            k.toLowerCase().includes('date') || 
+            k.toLowerCase().includes('start') || 
+            k.toLowerCase().includes('end') ||
+            k.toLowerCase().includes('departure') ||
+            k.toLowerCase().includes('return') ||
+            k.toLowerCase().includes('time')
+          );
+          
+          // Tampilkan nilai dari semua date-related keys
+          const dateRelatedValues = dateRelatedKeys.reduce((acc, key) => {
+            acc[key] = booking[key];
+            return acc;
+          }, {} as Record<string, any>);
+          
           console.log(`Booking ${index + 1} (ID: ${booking.id}):`, {
-            // Field utama yang dikirim saat booking
+            // Field utama yang dikirim saat booking (dari Booking.tsx line 1136)
             start_date: booking.start_date,
             end_date: booking.end_date,
             // Alias fields
@@ -185,16 +209,25 @@ export default function BookHistoryPage() {
             created_at: booking.created_at,
             updated_at: booking.updated_at,
             // SEMUA keys yang mengandung 'date' untuk debugging
-            allDateKeys: Object.keys(booking).filter(k => 
-              k.toLowerCase().includes('date') || 
-              k.toLowerCase().includes('start') || 
-              k.toLowerCase().includes('end') ||
-              k.toLowerCase().includes('departure') ||
-              k.toLowerCase().includes('return')
-            ),
+            allDateKeys: dateRelatedKeys,
+            // Tampilkan nilai dari semua date-related keys
+            dateRelatedValues: dateRelatedValues,
             // Full booking object untuk melihat struktur lengkap
-            fullBookingKeys: Object.keys(booking)
+            fullBookingKeys: allKeys
           });
+          
+          // Log FULL booking object untuk debugging lengkap (hanya untuk booking pertama)
+          if (index === 0) {
+            console.log(`📦 Full booking object ${index + 1} (FIRST BOOKING ONLY - RAW FROM API):`, JSON.stringify(booking, null, 2));
+            console.log(`🔍 Checking if start_date exists:`, {
+              has_start_date: 'start_date' in booking,
+              start_date_value: booking.start_date,
+              start_date_type: typeof booking.start_date,
+              is_null: booking.start_date === null,
+              is_undefined: booking.start_date === undefined,
+              is_empty_string: booking.start_date === ''
+            });
+          }
         });
         console.log('=== END DATE FIELDS CHECK ===');
       }
@@ -245,11 +278,24 @@ export default function BookHistoryPage() {
       // Ini membantu mengidentifikasi jika user melakukan booking yang sama beberapa kali
       const duplicateCheck = new Map<string, Booking[]>();
       allBookings.forEach(booking => {
+        const bookingAny = booking as any;
         // Gunakan start_date yang sebenarnya (field yang dikirim saat booking)
-        const startDate = (booking as any).start_date || 
-                         (booking as any).trip_start_date || 
-                         (booking as any).departure_date ||
+        // Prioritas: start_date > trip_start_date > departure_date
+        const startDate = bookingAny.start_date || 
+                         bookingAny.trip_start_date || 
+                         bookingAny.departure_date ||
                          null;
+        
+        // Log warning jika tidak ada start_date untuk booking ini
+        if (!startDate) {
+          console.warn(`⚠️ Booking ID ${booking.id} tidak memiliki start_date!`, {
+            start_date: bookingAny.start_date,
+            trip_start_date: bookingAny.trip_start_date,
+            departure_date: bookingAny.departure_date,
+            created_at: booking.created_at
+          });
+        }
+        
         const key = startDate ? `${booking.trip_id}-${startDate}` : `${booking.trip_id}-${booking.id}`;
         if (!duplicateCheck.has(key)) {
           duplicateCheck.set(key, []);
@@ -317,10 +363,32 @@ export default function BookHistoryPage() {
     }).format(numAmount);
   };
 
-  const formatDate = (dateString: string) => {
+  const formatDate = (dateString: string | null | undefined) => {
+    if (!dateString) return "-";
+    
     try {
-      return format(new Date(dateString), "dd MMMM yyyy", { locale: id });
-    } catch {
+      // Handle format yyyy-MM-dd dari Booking.tsx
+      // Format: "2025-11-24" -> perlu di-parse dengan benar
+      let date: Date;
+      
+      // Jika format yyyy-MM-dd, parse dengan benar
+      if (typeof dateString === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+        const [year, month, day] = dateString.split('-').map(Number);
+        date = new Date(year, month - 1, day); // month is 0-indexed
+      } else {
+        // Handle format lainnya (ISO, dll)
+        date = new Date(dateString);
+      }
+      
+      // Validasi apakah date valid
+      if (isNaN(date.getTime())) {
+        console.warn('Invalid date string:', dateString);
+        return dateString;
+      }
+      
+      return format(date, "dd MMMM yyyy", { locale: id });
+    } catch (error) {
+      console.warn('Error formatting date:', dateString, error);
       return dateString;
     }
   };
@@ -607,38 +675,88 @@ export default function BookHistoryPage() {
                           <div>
                             <p className="text-sm font-medium text-gray-600">Tanggal Keberangkatan</p>
                             {(() => {
-                              // Sederhanakan: langsung ambil start_date dari booking (field yang dikirim saat booking)
                               const bookingAny = booking as any;
                               
-                              // Prioritas: start_date (field yang dikirim saat booking) > trip_start_date > departure_date
-                              const startDate = bookingAny.start_date || 
-                                               bookingAny.trip_start_date ||
-                                               bookingAny.departure_date ||
-                                               null;
+                              // Cek SEMUA kemungkinan field yang mungkin menyimpan tanggal
+                              // Prioritas: start_date (format yyyy-MM-dd dari Booking.tsx) 
+                              // > trip_start_date > departure_date > trip.departure_date
+                              let startDate = bookingAny.start_date || 
+                                             bookingAny.trip_start_date ||
+                                             bookingAny.departure_date ||
+                                             null;
                               
-                              // Validasi format - skip jika format waktu (HH:mm:ss) atau null
-                              if (!startDate || (typeof startDate === 'string' && /^\d{2}:\d{2}:\d{2}$/.test(startDate))) {
-                                return <p className="text-gray-900">-</p>;
+                              // Jika masih null, cek di relasi trip
+                              if (!startDate && bookingAny.trip) {
+                                startDate = bookingAny.trip.start_date ||
+                                           bookingAny.trip.departure_date ||
+                                           bookingAny.trip.trip_start_date ||
+                                           null;
                               }
                               
-                              // Format tanggal
-                              const formattedStartDate = formatDate(startDate);
+                              let endDate = bookingAny.end_date || 
+                                           bookingAny.trip_end_date ||
+                                           bookingAny.return_date ||
+                                           null;
                               
-                              // Cek end_date (sederhana juga)
-                              const endDate = bookingAny.end_date || 
-                                            bookingAny.trip_end_date ||
-                                            bookingAny.return_date ||
-                                            null;
+                              // Jika masih null, cek di relasi trip
+                              if (!endDate && bookingAny.trip) {
+                                endDate = bookingAny.trip.end_date ||
+                                         bookingAny.trip.return_date ||
+                                         bookingAny.trip.trip_end_date ||
+                                         null;
+                              }
                               
-                              const formattedEndDate = endDate && !/^\d{2}:\d{2}:\d{2}$/.test(endDate) 
-                                ? formatDate(endDate) 
-                                : null;
+                              // Debug logging jika tidak ada tanggal - tampilkan SEMUA kemungkinan field
+                              if (!startDate) {
+                                const allDateKeys = Object.keys(bookingAny).filter(k => 
+                                  k.toLowerCase().includes('date') || 
+                                  k.toLowerCase().includes('start') || 
+                                  k.toLowerCase().includes('departure') ||
+                                  k.toLowerCase().includes('end') ||
+                                  k.toLowerCase().includes('return')
+                                );
+                                
+                                console.error('❌ ERROR: No start_date found for booking:', booking.id, {
+                                  booking_id: booking.id,
+                                  created_at: booking.created_at,
+                                  // Field yang dikirim saat booking (dari Booking.tsx line 1136)
+                                  start_date_sent_to_api: 'format(selectedDate, "yyyy-MM-dd")',
+                                  // Field yang seharusnya ada di response
+                                  start_date_in_response: bookingAny.start_date,
+                                  trip_start_date: bookingAny.trip_start_date,
+                                  departure_date: bookingAny.departure_date,
+                                  end_date: bookingAny.end_date,
+                                  // Cek di relasi trip
+                                  trip: bookingAny.trip ? {
+                                    start_date: bookingAny.trip.start_date,
+                                    departure_date: bookingAny.trip.departure_date,
+                                    trip_start_date: bookingAny.trip.trip_start_date,
+                                    start_time: bookingAny.trip.start_time,
+                                    end_time: bookingAny.trip.end_time,
+                                  } : null,
+                                  // Semua keys yang terkait dengan date
+                                  allDateKeys: allDateKeys,
+                                  allDateValues: allDateKeys.reduce((acc, key) => {
+                                    acc[key] = bookingAny[key];
+                                    return acc;
+                                  }, {} as Record<string, any>),
+                                  // Full booking object untuk debugging
+                                  fullBookingObject: bookingAny,
+                                  // INFO: Kemungkinan masalah
+                                  possible_issues: [
+                                    'Backend tidak menyimpan start_date ke database saat create booking',
+                                    'Backend tidak mengembalikan start_date di response API /api/my-bookings',
+                                    'Field name berbeda di backend (bukan start_date)'
+                                  ]
+                                });
+                                return <p className="text-gray-500 italic">Belum ditentukan</p>;
+                              }
                               
                               return (
                                 <>
-                                  <p className="text-gray-900 font-medium">{formattedStartDate}</p>
-                                  {formattedEndDate && (
-                                    <p className="text-sm text-gray-500">Sampai {formattedEndDate}</p>
+                                  <p className="text-gray-900 font-medium">{formatDate(startDate)}</p>
+                                  {endDate && (
+                                    <p className="text-sm text-gray-500">Sampai {formatDate(endDate)}</p>
                                   )}
                                 </>
                               );

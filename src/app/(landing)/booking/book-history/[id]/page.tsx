@@ -236,67 +236,98 @@ export default function BookingDetailPage() {
   const fetchTransaction = async () => {
     try {
       // Coba berbagai endpoint untuk mendapatkan transaksi
+      // Prioritas: endpoint yang lebih spesifik dulu, lalu fallback ke endpoint umum
       let response;
       let transactionData: Transaction | null = null;
 
-      // Coba 1: Endpoint landing-page dengan booking_id
+      // Coba 1: Query parameter dengan booking_id (lebih efisien)
+      // Endpoint ini sama seperti yang digunakan di dashboard, tapi dengan filter
       try {
-        response = await apiRequest<any>(
+        response = await apiRequest<TransactionResponse>(
           'GET',
-          `/api/landing-page/transactions/${bookingId}`
+          `/api/transactions?booking_id=${bookingId}`
         );
-        console.log('Transaction response from landing-page:', response);
+        console.log('Transaction response from query param:', response);
         
-        // Handle response
-        if (response?.data && typeof response.data === 'object' && !Array.isArray(response.data)) {
-          transactionData = response.data as Transaction;
-        } else if (response && typeof response === 'object' && (response as any).id) {
-          transactionData = response as Transaction;
+        if (response?.data && Array.isArray(response.data) && response.data.length > 0) {
+          transactionData = response.data[0] as Transaction;
+          console.log('✅ Transaction found via query param endpoint');
         }
-      } catch (err: any) {
-        console.log('Landing-page transaction endpoint not found, trying alternatives...');
+      } catch (err1: any) {
+        const errorMessage1 = err1?.response?.data?.message || err1?.message || '';
+        if (errorMessage1.includes('Transaction not found') || errorMessage1.includes('not found')) {
+          console.log('⚠️ Transaction not found via query param - Trying alternatives...');
+        } else {
+          console.log('Query param endpoint error:', err1?.response?.status || err1?.message, '- Trying alternatives...');
+        }
         
-        // Coba 2: Query parameter dengan booking_id
+        // Coba 2: Fetch semua transactions dan filter (sama seperti dashboard admin)
+        // Endpoint ini terbukti bekerja di dashboard, jadi kita gunakan juga di sini
         try {
           response = await apiRequest<TransactionResponse>(
             'GET',
-            `/api/transactions?booking_id=${bookingId}`
+            '/api/transactions'
           );
-          console.log('Transaction response from query param:', response);
+          console.log('All transactions response:', response);
           
-          if (response?.data && Array.isArray(response.data) && response.data.length > 0) {
-            transactionData = response.data[0] as Transaction;
+          if (response?.data && Array.isArray(response.data)) {
+            // Cari transaction yang sesuai dengan booking_id
+            transactionData = response.data.find(
+              (t: Transaction) => {
+                const tBookingId = typeof t.booking_id === 'string' ? t.booking_id : String(t.booking_id);
+                const tBookingIdFromBooking = t.booking?.id ? (typeof t.booking.id === 'string' ? t.booking.id : String(t.booking.id)) : null;
+                const bookingIdStr = String(bookingId);
+                return tBookingId === bookingIdStr || tBookingIdFromBooking === bookingIdStr;
+              }
+            ) || null;
+            
+            if (transactionData) {
+              console.log('✅ Transaction found via all transactions endpoint (same as dashboard)');
+            }
           }
         } catch (err2: any) {
-          console.log('Query param endpoint not found, trying all transactions...');
+          const errorMessage2 = err2?.response?.data?.message || err2?.message || '';
+          if (errorMessage2.includes('Transaction not found') || errorMessage2.includes('not found')) {
+            console.log('⚠️ Transaction not found via all transactions - This is normal if payment has not been made yet');
+          } else {
+            console.error('All transaction endpoints failed:', err2?.response?.status || err2?.message);
+          }
+        }
+        
+        // Coba 3: Endpoint landing-page dengan booking_id (fallback terakhir)
+        // Endpoint ini mungkin tidak selalu tersedia atau tidak bekerja dengan baik
+        try {
+          response = await apiRequest<any>(
+            'GET',
+            `/api/landing-page/transactions/${bookingId}`
+          );
+          console.log('Transaction response from landing-page:', response);
           
-          // Coba 3: Fetch semua transactions dan filter
-          try {
-            response = await apiRequest<TransactionResponse>(
-              'GET',
-              '/api/transactions'
-            );
-            console.log('All transactions response:', response);
-            
-            if (response?.data && Array.isArray(response.data)) {
-              // Cari transaction yang sesuai dengan booking_id
-              transactionData = response.data.find(
-                (t: Transaction) => {
-                  const tBookingId = typeof t.booking_id === 'string' ? t.booking_id : String(t.booking_id);
-                  const tBookingIdFromBooking = t.booking?.id ? (typeof t.booking.id === 'string' ? t.booking.id : String(t.booking.id)) : null;
-                  const bookingIdStr = String(bookingId);
-                  return tBookingId === bookingIdStr || tBookingIdFromBooking === bookingIdStr;
-                }
-              ) || null;
+          // Cek jika response mengandung error message
+          if (response?.message && response.message === 'Transaction not found') {
+            console.log('⚠️ Transaction not found message from landing-page endpoint');
+          } else {
+            // Handle response
+            if (response?.data && typeof response.data === 'object' && !Array.isArray(response.data)) {
+              transactionData = response.data as Transaction;
+              console.log('✅ Transaction found via landing-page endpoint');
+            } else if (response && typeof response === 'object' && (response as any).id) {
+              transactionData = response as Transaction;
+              console.log('✅ Transaction found via landing-page endpoint (direct object)');
             }
-          } catch (err3: any) {
-            console.error('All transaction endpoints failed:', err3);
+          }
+        } catch (err3: any) {
+          const errorMessage3 = err3?.response?.data?.message || err3?.message || '';
+          if (errorMessage3.includes('Transaction not found') || errorMessage3.includes('not found')) {
+            console.log('⚠️ Transaction not found via landing-page endpoint - This is normal if payment has not been made yet');
+          } else {
+            console.log('Landing-page transaction endpoint error:', err3?.response?.status || err3?.message);
           }
         }
       }
 
       if (transactionData) {
-        console.log('Transaction found:', transactionData);
+        console.log('✅ Transaction found:', transactionData);
         console.log('Transaction details:', {
           id: transactionData.id,
           booking_id: transactionData.booking_id,
@@ -308,12 +339,21 @@ export default function BookingDetailPage() {
         });
         setTransaction(transactionData);
       } else {
-        console.log('No transaction found for booking_id:', bookingId);
+        console.log('ℹ️ No transaction found for booking_id:', bookingId, '- This is normal if payment has not been made yet');
         setTransaction(null);
       }
     } catch (err: any) {
-      console.error('Error fetching transaction:', err);
-      // Tidak set error karena transaction mungkin belum ada
+      // Tangani error dengan lebih baik
+      const errorMessage = err?.response?.data?.message || err?.message || 'Unknown error';
+      
+      if (errorMessage.includes('Transaction not found') || errorMessage.includes('not found')) {
+        console.log('ℹ️ Transaction not found - This is normal if payment has not been made yet');
+      } else {
+        console.error('Error fetching transaction:', err?.response?.status || err?.message);
+        console.error('Full error:', err);
+      }
+      
+      // Tidak set error karena transaction mungkin belum ada (normal untuk booking baru)
       setTransaction(null);
     }
   };
@@ -327,10 +367,32 @@ export default function BookingDetailPage() {
     }).format(numAmount);
   };
 
-  const formatDate = (dateString: string) => {
+  const formatDate = (dateString: string | null | undefined) => {
+    if (!dateString) return "-";
+    
     try {
-      return format(new Date(dateString), "dd MMMM yyyy", { locale: id });
-    } catch {
+      // Handle format yyyy-MM-dd dari Booking.tsx
+      // Format: "2025-11-24" -> perlu di-parse dengan benar
+      let date: Date;
+      
+      // Jika format yyyy-MM-dd, parse dengan benar
+      if (typeof dateString === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+        const [year, month, day] = dateString.split('-').map(Number);
+        date = new Date(year, month - 1, day); // month is 0-indexed
+      } else {
+        // Handle format lainnya (ISO, dll)
+        date = new Date(dateString);
+      }
+      
+      // Validasi apakah date valid
+      if (isNaN(date.getTime())) {
+        console.warn('Invalid date string:', dateString);
+        return dateString;
+      }
+      
+      return format(date, "dd MMMM yyyy", { locale: id });
+    } catch (error) {
+      console.warn('Error formatting date:', dateString, error);
       return dateString;
     }
   };
@@ -364,28 +426,18 @@ export default function BookingDetailPage() {
     );
   }
 
-  // Sederhanakan: langsung ambil start_date dari booking (field yang dikirim saat booking)
-  const bookingAny = booking as any;
+  // Ambil tanggal keberangkatan - mengikuti format dari Booking.tsx
+  // Di Booking.tsx: start_date: format(selectedDate, "yyyy-MM-dd")
+  // Jadi langsung ambil start_date dari booking
+  const startDate = (booking as any).start_date || null;
+  const endDate = (booking as any).end_date || null;
   
-  // Prioritas: start_date (field yang dikirim saat booking) > trip_start_date > departure_date
-  const startDate = bookingAny.start_date || 
-                   bookingAny.trip_start_date ||
-                   bookingAny.departure_date ||
-                   null;
-  
-  // Cek end_date (sederhana juga)
-  const endDate = bookingAny.end_date || 
-                 bookingAny.trip_end_date ||
-                 bookingAny.return_date ||
-                 null;
-  
-  // Log untuk debugging jika tidak ada start_date
+  // Log untuk debugging
   if (!startDate) {
-    console.warn('⚠️ Start date not found for booking:', booking.id, {
-      start_date: bookingAny.start_date,
-      trip_start_date: bookingAny.trip_start_date,
-      departure_date: bookingAny.departure_date,
-      created_at: booking.created_at
+    console.log('Booking date fields:', {
+      start_date: (booking as any).start_date,
+      end_date: (booking as any).end_date,
+      booking_id: booking.id
     });
   }
 
@@ -399,7 +451,7 @@ export default function BookingDetailPage() {
 
   return (
     <div className="min-h-screen bg-[#f5f5f5] py-8 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-6xl mx-auto">
+      <div className="max-w-11/12 mx-auto">
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
@@ -488,15 +540,9 @@ export default function BookingDetailPage() {
                       {startDate ? (
                         <>
                           <p className="text-gray-900 font-medium">
-                            {(() => {
-                              // Jika startDate adalah waktu (format HH:mm:ss), skip
-                              if (typeof startDate === 'string' && /^\d{2}:\d{2}:\d{2}$/.test(startDate)) {
-                                return "-";
-                              }
-                              return formatDate(startDate);
-                            })()}
+                            {formatDate(startDate)}
                           </p>
-                          {endDate && !/^\d{2}:\d{2}:\d{2}$/.test(endDate) && (
+                          {endDate && (
                             <p className="text-sm text-gray-500">Sampai {formatDate(endDate)}</p>
                           )}
                         </>
@@ -599,64 +645,10 @@ export default function BookingDetailPage() {
                 )}
               </div>
             </Card>
+          </div>
 
-            {/* Additional Details */}
-            {(booking.cabin?.length > 0 || booking.hotel_occupancy || booking.additional_fees?.length > 0 || booking.boat?.length > 0) && (
-              <Card className="p-6 shadow-sm">
-                <h2 className="text-xl font-bold text-gray-900 mb-6 border-b pb-3">Detail Tambahan</h2>
-                <div className="space-y-4">
-                  {booking.hotel_occupancy && (
-                    <div className="flex items-start gap-2">
-                      <Hotel className="w-5 h-5 text-gray-400 mt-0.5" />
-                      <div>
-                        <p className="text-sm font-medium text-gray-600">Hotel</p>
-                        <p className="text-gray-900">
-                          {booking.hotel_occupancy.hotel_name} ({booking.hotel_occupancy.occupancy})
-                        </p>
-                      </div>
-                    </div>
-                  )}
-                  {booking.boat && booking.boat.length > 0 && (
-                    <div className="flex items-start gap-2">
-                      <Ship className="w-5 h-5 text-gray-400 mt-0.5" />
-                      <div>
-                        <p className="text-sm font-medium text-gray-600">Boat</p>
-                        <p className="text-gray-900">
-                          {booking.boat.map(b => b.boat_name).join(", ")}
-                        </p>
-                      </div>
-                    </div>
-                  )}
-                  {booking.cabin && booking.cabin.length > 0 && (
-                    <div className="flex items-start gap-2">
-                      <Ship className="w-5 h-5 text-gray-400 mt-0.5" />
-                      <div>
-                        <p className="text-sm font-medium text-gray-600">Cabin</p>
-                        <p className="text-gray-900">
-                          {booking.cabin.map(c => `${c.cabin_name} (${c.booking_total_pax || c.min_pax}-${c.max_pax} pax)`).join(", ")}
-                        </p>
-                      </div>
-                    </div>
-                  )}
-                  {booking.additional_fees && booking.additional_fees.length > 0 && (
-                    <div className="flex items-start gap-2">
-                      <Package className="w-5 h-5 text-gray-400 mt-0.5" />
-                      <div>
-                        <p className="text-sm font-medium text-gray-600">Additional Fees</p>
-                        <div className="space-y-1">
-                          {booking.additional_fees.map((fee, index) => (
-                            <p key={index} className="text-gray-900">
-                              • {fee.fee_category} - {formatCurrency(fee.price)}
-                            </p>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </Card>
-            )}
-
+          {/* Sidebar - Summary Cards */}
+          <div className="xl:col-span-4 space-y-6">
             {/* Transaction & Payment Proof Section */}
             <Card className="p-6 shadow-sm">
               <div className="flex items-center gap-2 mb-6 border-b pb-3">
@@ -861,53 +853,63 @@ export default function BookingDetailPage() {
                 </div>
               )}
             </Card>
-          </div>
 
-          {/* Sidebar - Summary Cards */}
-          <div className="xl:col-span-4 space-y-6">
-            {/* Total Price Card */}
-            <Card className="p-6 shadow-sm bg-gradient-to-br from-gold/10 to-gold/5 border-gold/20">
-              <div className="flex items-center gap-2 mb-6 border-b border-gold/20 pb-3">
-                <DollarSign className="w-5 h-5 text-gold" />
-                <h2 className="text-xl font-bold text-gray-900">Total Harga</h2>
-              </div>
-              <div className="space-y-4">
-                <div>
-                  <p className="text-3xl font-bold text-gold mb-2">
-                    {formatCurrency(booking.total_price)}
-                  </p>
-                  <p className="text-sm text-gray-600">
-                    untuk {booking.total_pax} {booking.total_pax === 1 ? 'orang' : 'orang'}
-                  </p>
-                </div>
-                <div className="pt-4 border-t border-gold/20">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-sm font-medium text-gray-600">Status Booking</p>
-                    {getStatusBadge(booking.status)}
-                  </div>
-                  {transaction && transaction.payment_status && (
-                    <>
-                      <div className="flex items-center justify-between mt-3">
-                        <p className="text-sm font-medium text-gray-600">Status Pembayaran</p>
-                        <Badge 
-                          className={
-                            transaction.payment_status === "Lunas" || transaction.payment_status === "Pembayaran Berhasil" || transaction.payment_status?.toLowerCase() === "paid" || transaction.payment_status?.toLowerCase() === "confirmed"
-                              ? "bg-green-100 text-green-700 hover:bg-green-100"
-                              : transaction.payment_status === "Menunggu Pembayaran" || transaction.payment_status?.toLowerCase() === "pending" || transaction.payment_status?.toLowerCase() === "waiting"
-                              ? "bg-yellow-100 text-yellow-700 hover:bg-yellow-100"
-                              : transaction.payment_status === "Ditolak" || transaction.payment_status?.toLowerCase() === "rejected" || transaction.payment_status?.toLowerCase() === "cancelled"
-                              ? "bg-red-100 text-red-700 hover:bg-red-100"
-                              : "bg-gray-100 text-gray-700 hover:bg-gray-100"
-                          }
-                        >
-                          {transaction.payment_status}
-                        </Badge>
+            {/* Additional Details */}
+            {(booking.cabin?.length > 0 || booking.hotel_occupancy || booking.additional_fees?.length > 0 || booking.boat?.length > 0) && (
+              <Card className="p-6 shadow-sm">
+                <h2 className="text-xl font-bold text-gray-900 mb-6 border-b pb-3">Detail Tambahan</h2>
+                <div className="space-y-4">
+                  {booking.hotel_occupancy && (
+                    <div className="flex items-start gap-2">
+                      <Hotel className="w-5 h-5 text-gray-400 mt-0.5" />
+                      <div>
+                        <p className="text-sm font-medium text-gray-600">Hotel</p>
+                        <p className="text-gray-900">
+                          {booking.hotel_occupancy.hotel_name} ({booking.hotel_occupancy.occupancy})
+                        </p>
                       </div>
-                    </>
+                    </div>
+                  )}
+                  {booking.boat && booking.boat.length > 0 && (
+                    <div className="flex items-start gap-2">
+                      <Ship className="w-5 h-5 text-gray-400 mt-0.5" />
+                      <div>
+                        <p className="text-sm font-medium text-gray-600">Boat</p>
+                        <p className="text-gray-900">
+                          {booking.boat.map(b => b.boat_name).join(", ")}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                  {booking.cabin && booking.cabin.length > 0 && (
+                    <div className="flex items-start gap-2">
+                      <Ship className="w-5 h-5 text-gray-400 mt-0.5" />
+                      <div>
+                        <p className="text-sm font-medium text-gray-600">Cabin</p>
+                        <p className="text-gray-900">
+                          {booking.cabin.map(c => `${c.cabin_name} (${c.booking_total_pax || c.min_pax}-${c.max_pax} pax)`).join(", ")}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                  {booking.additional_fees && booking.additional_fees.length > 0 && (
+                    <div className="flex items-start gap-2">
+                      <Package className="w-5 h-5 text-gray-400 mt-0.5" />
+                      <div>
+                        <p className="text-sm font-medium text-gray-600">Additional Fees</p>
+                        <div className="space-y-1">
+                          {booking.additional_fees.map((fee, index) => (
+                            <p key={index} className="text-gray-900">
+                              • {fee.fee_category} - {formatCurrency(fee.price)}
+                            </p>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
                   )}
                 </div>
-              </div>
-            </Card>
+              </Card>
+            )}
 
             {/* Quick Info Card */}
             <Card className="p-6 shadow-sm">
@@ -933,16 +935,7 @@ export default function BookingDetailPage() {
                     <span className="text-sm text-gray-600">Keberangkatan</span>
                   </div>
                   <span className="text-sm font-medium text-gray-900 text-right">
-                    {startDate ? (
-                      (() => {
-                        if (typeof startDate === 'string' && /^\d{2}:\d{2}:\d{2}$/.test(startDate)) {
-                          return "-";
-                        }
-                        return formatDate(startDate);
-                      })()
-                    ) : (
-                      <span className="text-gray-400 italic">-</span>
-                    )}
+                    {startDate ? formatDate(startDate) : <span className="text-gray-400 italic">-</span>}
                   </span>
                 </div>
                 <div className="flex items-start justify-between">

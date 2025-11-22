@@ -1174,9 +1174,31 @@ export default function Booking() {
       );
 
       console.log('📥 Booking API response:', response);
+      
+      // Log detail response untuk debugging start_date
+      if (response?.data) {
+        console.log('📋 Booking API Response Details:', {
+          booking_id: response.data.id,
+          start_date_in_response: (response.data as any).start_date,
+          end_date_in_response: (response.data as any).end_date,
+          start_date_sent: bookingData.start_date,
+          end_date_sent: bookingData.end_date,
+          full_response_data: response.data
+        });
+        
+        // Warning jika start_date tidak ada di response
+        if (!(response.data as any).start_date) {
+          console.warn('⚠️ WARNING: start_date tidak ada di response API create booking!', {
+            booking_id: response.data.id,
+            start_date_sent: bookingData.start_date,
+            response_data: response.data
+          });
+        }
+      }
 
       if (response?.data?.id) {
         // Redirect ke halaman payment dengan ID booking
+        // Date di URL digunakan sebagai fallback jika backend tidak menyimpan start_date
         router.push(
           `/payment?bookingId=${response.data.id}&packageId=${packageId}&type=${packageType}&date=${selectedDate?.toISOString()}&tripCount=${tripCount}`
         );

@@ -197,17 +197,28 @@ export function DataTable({
     const trip = testimonial.trip
 
     return (
-      <div className="p-4 bg-muted/50 rounded-lg w-full overflow-hidden">
-        <div className="space-y-4 w-full">
-          <div className="bg-white p-4 rounded-lg shadow-sm w-full overflow-hidden">
-            <h4 className="font-semibold text-lg mb-4 text-gray-800 border-b pb-2">Detail Testimonial</h4>
-            <div className="grid gap-4 w-full">
-              <div className="space-y-4 w-full">
+      <div className="p-4 bg-muted/50 rounded-lg w-full overflow-hidden" data-testimonial-detail>
+        <div className="space-y-4 w-full max-w-full">
+          <div className="bg-white p-4 rounded-lg shadow-sm w-full overflow-hidden max-w-full">
+            <h4 className="font-semibold text-lg mb-4 text-gray-800 border-b pb-2 break-words">Detail Testimonial</h4>
+            <div className="grid gap-4 w-full max-w-full">
+              <div className="space-y-4 w-full max-w-full">
                 {/* Review Section */}
-                <div>
+                <div className="w-full max-w-full">
                   <p className="text-gray-600 font-medium mb-2">Review:</p>
-                  <div className="bg-gray-50 p-3 rounded-md overflow-auto max-w-full">
-                    <div className="prose prose-sm max-w-none break-words overflow-wrap-anywhere">
+                  <div className="bg-gray-50 p-3 rounded-md w-full max-w-full overflow-x-auto">
+                    <div 
+                      className="w-full max-w-full text-gray-800 text-sm leading-relaxed"
+                      style={{
+                        wordWrap: 'break-word',
+                        overflowWrap: 'break-word',
+                        wordBreak: 'break-word',
+                        hyphens: 'auto',
+                        whiteSpace: 'pre-wrap',
+                        maxWidth: '100%',
+                        overflowX: 'auto'
+                      }}
+                    >
                       {testimonial.review}
                     </div>
                   </div>
@@ -215,48 +226,48 @@ export function DataTable({
 
                 {/* Trip Information */}
                 {trip && (
-                  <div>
+                  <div className="w-full max-w-full">
                     <p className="text-gray-600 font-medium mb-2">Paket Tour:</p>
-                    <div className="bg-gray-50 p-3 rounded-md overflow-auto max-w-full">
-                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 w-full">
-                        <div>
+                    <div className="bg-gray-50 p-3 rounded-md overflow-auto max-w-full w-full">
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 w-full max-w-full">
+                        <div className="w-full max-w-full">
                           <p className="text-gray-600 text-sm mb-1">Nama Paket</p>
-                          <div className="bg-white p-2 rounded border border-gray-100">
-                            <p className="text-gray-800 font-medium break-words">{trip.name}</p>
+                          <div className="bg-white p-2 rounded border border-gray-100 w-full max-w-full overflow-hidden">
+                            <p className="text-gray-800 font-medium break-words" style={{ wordWrap: 'break-word', overflowWrap: 'break-word', wordBreak: 'break-word' }}>{trip.name}</p>
                           </div>
                         </div>
-                        <div>
+                        <div className="w-full max-w-full">
                           <p className="text-gray-600 text-sm mb-1">Tipe</p>
-                          <div className="bg-white p-2 rounded border border-gray-100">
-                            <p className="text-gray-800 font-medium break-words">{trip.type}</p>
+                          <div className="bg-white p-2 rounded border border-gray-100 w-full max-w-full overflow-hidden">
+                            <p className="text-gray-800 font-medium break-words" style={{ wordWrap: 'break-word', overflowWrap: 'break-word', wordBreak: 'break-word' }}>{trip.type}</p>
                           </div>
                         </div>
-                        <div>
+                        <div className="w-full max-w-full">
                           <p className="text-gray-600 text-sm mb-1">Include</p>
-                          <div className="bg-white p-2 rounded border border-gray-100 overflow-auto max-w-full">
-                            <div className="prose prose-sm max-w-none break-words overflow-wrap-anywhere">
+                          <div className="bg-white p-2 rounded border border-gray-100 overflow-auto max-w-full w-full">
+                            <div className="prose prose-sm max-w-none break-words overflow-wrap-anywhere" style={{ wordWrap: 'break-word', overflowWrap: 'break-word', wordBreak: 'break-word' }}>
                               <HtmlContent html={trip.include || ""} />
                             </div>
                           </div>
                         </div>
-                        <div>
+                        <div className="w-full max-w-full">
                           <p className="text-gray-600 text-sm mb-1">Exclude</p>
-                          <div className="bg-white p-2 rounded border border-gray-100 overflow-auto max-w-full">
-                            <div className="prose prose-sm max-w-none break-words overflow-wrap-anywhere">
+                          <div className="bg-white p-2 rounded border border-gray-100 overflow-auto max-w-full w-full">
+                            <div className="prose prose-sm max-w-none break-words overflow-wrap-anywhere" style={{ wordWrap: 'break-word', overflowWrap: 'break-word', wordBreak: 'break-word' }}>
                               <HtmlContent html={trip.exclude || ""} />
                             </div>
                           </div>
                         </div>
-                        <div>
+                        <div className="w-full max-w-full">
                           <p className="text-gray-600 text-sm mb-1">Meeting Point</p>
-                          <div className="bg-white p-2 rounded border border-gray-100">
-                            <p className="text-gray-800 font-medium break-words">{trip.meeting_point}</p>
+                          <div className="bg-white p-2 rounded border border-gray-100 w-full max-w-full overflow-hidden">
+                            <p className="text-gray-800 font-medium break-words" style={{ wordWrap: 'break-word', overflowWrap: 'break-word', wordBreak: 'break-word' }}>{trip.meeting_point}</p>
                           </div>
                         </div>
-                        <div>
+                        <div className="w-full max-w-full">
                           <p className="text-gray-600 text-sm mb-1">Note</p>
-                          <div className="bg-white p-2 rounded border border-gray-100 overflow-auto max-w-full">
-                            <div className="prose prose-sm max-w-none break-words overflow-wrap-anywhere">
+                          <div className="bg-white p-2 rounded border border-gray-100 overflow-auto max-w-full w-full">
+                            <div className="prose prose-sm max-w-none break-words overflow-wrap-anywhere" style={{ wordWrap: 'break-word', overflowWrap: 'break-word', wordBreak: 'break-word' }}>
                               <HtmlContent html={trip.note || ""} />
                             </div>
                           </div>
@@ -267,26 +278,26 @@ export function DataTable({
                 )}
 
                 {/* Customer Information */}
-                <div>
+                <div className="w-full max-w-full">
                   <p className="text-gray-600 font-medium mb-2">Informasi Customer:</p>
-                  <div className="bg-gray-50 p-3 rounded-md overflow-auto max-w-full">
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 w-full">
-                      <div>
+                  <div className="bg-gray-50 p-3 rounded-md overflow-auto max-w-full w-full">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 w-full max-w-full">
+                      <div className="w-full max-w-full">
                         <p className="text-gray-600 text-sm mb-1">Nama Lengkap</p>
-                        <div className="bg-white p-2 rounded border border-gray-100">
-                          <p className="text-gray-800 font-medium break-words">{testimonial.customer_name}</p>
+                        <div className="bg-white p-2 rounded border border-gray-100 w-full max-w-full overflow-hidden">
+                          <p className="text-gray-800 font-medium break-words" style={{ wordWrap: 'break-word', overflowWrap: 'break-word', wordBreak: 'break-word' }}>{testimonial.customer_name}</p>
                         </div>
                       </div>
-                      <div>
+                      <div className="w-full max-w-full">
                         <p className="text-gray-600 text-sm mb-1">Email</p>
-                        <div className="bg-white p-2 rounded border border-gray-100">
-                          <p className="text-gray-800 font-medium break-words">{testimonial.customer_email}</p>
+                        <div className="bg-white p-2 rounded border border-gray-100 w-full max-w-full overflow-hidden">
+                          <p className="text-gray-800 font-medium break-words" style={{ wordWrap: 'break-word', overflowWrap: 'break-word', wordBreak: 'break-word' }}>{testimonial.customer_email}</p>
                         </div>
                       </div>
-                      <div>
+                      <div className="w-full max-w-full">
                         <p className="text-gray-600 text-sm mb-1">No. HP</p>
-                        <div className="bg-white p-2 rounded border border-gray-100">
-                          <p className="text-gray-800 font-medium break-words">{testimonial.customer_phone || "-"}</p>
+                        <div className="bg-white p-2 rounded border border-gray-100 w-full max-w-full overflow-hidden">
+                          <p className="text-gray-800 font-medium break-words" style={{ wordWrap: 'break-word', overflowWrap: 'break-word', wordBreak: 'break-word' }}>{testimonial.customer_phone || "-"}</p>
                         </div>
                       </div>
                       <div>
@@ -302,10 +313,10 @@ export function DataTable({
                 </div>
 
                 {/* Additional Testimonial Information */}
-                <div>
+                <div className="w-full max-w-full">
                   <p className="text-gray-600 font-medium mb-2">Informasi Tambahan:</p>
-                  <div className="bg-gray-50 p-3 rounded-md overflow-auto max-w-full">
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 w-full">
+                  <div className="bg-gray-50 p-3 rounded-md overflow-auto max-w-full w-full">
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 w-full max-w-full">
                       <div>
                         <p className="text-gray-600 text-sm mb-1">Highlight</p>
                         <div className="bg-white p-2 rounded border border-gray-100">
@@ -364,6 +375,13 @@ export function DataTable({
   return (
     <div className="w-full max-w-full overflow-hidden">
       <style jsx global>{`
+        /* Global word-wrap untuk semua elemen */
+        * {
+          word-wrap: break-word;
+          overflow-wrap: break-word;
+        }
+        
+        /* Prose styling */
         .prose * {
           word-wrap: break-word !important;
           overflow-wrap: break-word !important;
@@ -401,6 +419,21 @@ export function DataTable({
           overflow-wrap: break-word !important;
           word-break: break-word !important;
           white-space: pre-wrap !important;
+          max-width: 100% !important;
+        }
+        
+        /* Detail testimonial section */
+        [data-testimonial-detail] {
+          word-wrap: break-word !important;
+          overflow-wrap: break-word !important;
+          word-break: break-word !important;
+          max-width: 100% !important;
+        }
+        
+        [data-testimonial-detail] * {
+          word-wrap: break-word !important;
+          overflow-wrap: break-word !important;
+          word-break: break-word !important;
           max-width: 100% !important;
         }
         .custom-scrollbar {
