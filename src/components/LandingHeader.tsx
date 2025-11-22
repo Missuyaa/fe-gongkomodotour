@@ -86,7 +86,15 @@ export default function LandingHeader() {
   };
 
   const handleDashboard = () => {
-    if (userData?.roles.includes('Super Admin') || userData?.roles.includes('Admin')) {
+    // Struktur role baru:
+    // - Admin (dulu Super Admin) → bisa akses dashboard
+    // - Staff (dulu Admin) → bisa akses dashboard
+    // - Pelanggan → tidak bisa akses dashboard
+    if (userData?.roles && (
+      userData.roles.includes('Super Admin') || 
+      userData.roles.includes('Admin') || 
+      userData.roles.includes('Staff')
+    )) {
       router.push('/dashboard');
     }
   };
@@ -247,7 +255,15 @@ export default function LandingHeader() {
                         )}
                       </div>
                       <Separator className="my-2" />
-                      {(userData.roles.includes('Super Admin') || userData.roles.includes('Admin')) && (
+                      {/* Struktur role baru:
+                          - Admin (dulu Super Admin) → bisa akses dashboard
+                          - Staff (dulu Admin) → bisa akses dashboard
+                          - Pelanggan → tidak bisa akses dashboard */}
+                      {(userData.roles && (
+                        userData.roles.includes('Super Admin') || 
+                        userData.roles.includes('Admin') || 
+                        userData.roles.includes('Staff')
+                      )) && (
                         <button
                           onClick={handleDashboard}
                           className="flex items-center px-3 sm:px-4 py-2 text-xs sm:text-sm hover:text-gold transition-colors duration-200 gap-2"
@@ -448,7 +464,15 @@ export default function LandingHeader() {
                       </div>
                       
                       <div className="space-y-1">
-                        {(userData.roles.includes('Super Admin') || userData.roles.includes('Admin')) && (
+                        {/* Struktur role baru:
+                            - Admin (dulu Super Admin) → bisa akses dashboard
+                            - Staff (dulu Admin) → bisa akses dashboard
+                            - Pelanggan → tidak bisa akses dashboard */}
+                        {(userData.roles && (
+                          userData.roles.includes('Super Admin') || 
+                          userData.roles.includes('Admin') || 
+                          userData.roles.includes('Staff')
+                        )) && (
                           <button
                             onClick={() => {
                               handleDashboard();

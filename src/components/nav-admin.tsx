@@ -51,6 +51,11 @@ export function NavAdmin({
 }) {
   const { isMobile } = useSidebar()
 
+  // Jika tidak ada adminAccess, jangan render apa-apa
+  if (!adminAccess || adminAccess.length === 0) {
+    return null;
+  }
+
   return (
     <SidebarGroup className="group-data-[collapsible=icon]:hidden">
       <SidebarGroupLabel>Admin Akses</SidebarGroupLabel>

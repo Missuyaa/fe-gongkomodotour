@@ -145,6 +145,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const [user, setUser] = React.useState<{
     name: string;
     email: string;
+    roles?: string[];
   } | null>(null);
 
   React.useEffect(() => {
@@ -155,6 +156,32 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     }
   }, []);
 
+  // Filter adminAccess berdasarkan role
+  // Struktur role baru:
+  // - Admin (dulu Super Admin) → bisa melihat semua menu termasuk Users dan Roles
+  // - Staff (dulu Admin) → tidak bisa melihat Users dan Roles, hanya Customers dan Carousel
+  // - Pelanggan → tidak bisa akses dashboard
+  const filteredAdminAccess = React.useMemo(() => {
+    if (!user?.roles || !Array.isArray(user.roles)) {
+      // Jika tidak ada roles, tampilkan semua (fallback untuk safety)
+      return data.adminAccess;
+    }
+    
+    // Cek apakah user adalah Admin
+    // Support untuk "Admin" (role baru) dan "Super Admin" (role lama, untuk backward compatibility)
+    const isAdmin = user.roles.includes('Admin') || user.roles.includes('Super Admin');
+    
+    if (isAdmin) {
+      // Admin bisa melihat semua menu termasuk Users dan Roles
+      return data.adminAccess;
+    } else {
+      // Staff hanya bisa melihat Customers dan Carousel, tidak bisa Users dan Roles
+      return data.adminAccess.filter(item => 
+        item.name !== "Users" && item.name !== "Roles"
+      );
+    }
+  }, [user?.roles]);
+
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader className="flex items-center justify-center">
@@ -162,7 +189,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={data.navMain} />
-        <NavAdmin adminAccess={data.adminAccess} />
+        {filteredAdminAccess.length > 0 && (
+          <NavAdmin adminAccess={filteredAdminAccess} />
+        )}
       </SidebarContent>
       <SidebarFooter>
         {user && <NavUser user={{ ...user, avatar: '' }} />}

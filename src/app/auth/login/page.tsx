@@ -54,7 +54,15 @@ export default function LoginPage() {
       const userData = localStorage.getItem('user');
       if (userData) {
         const user = JSON.parse(userData);
-        if (user.roles.includes('Super Admin') || user.roles.includes('Admin')) {
+        // Struktur role baru:
+        // - Admin (dulu Super Admin) → bisa akses dashboard
+        // - Staff (dulu Admin) → bisa akses dashboard
+        // - Pelanggan → tidak bisa akses dashboard
+        if (user.roles && (
+          user.roles.includes('Super Admin') || 
+          user.roles.includes('Admin') || 
+          user.roles.includes('Staff')
+        )) {
           router.replace('/dashboard');
         } else {
           router.replace('/');
@@ -102,7 +110,15 @@ export default function LoginPage() {
         localStorage.setItem('user', JSON.stringify({ ...user, roles, permissions, customer }));
         
         // Redirect berdasarkan role
-        if (roles && (roles.includes('Super Admin') || roles.includes('Admin'))) {
+        // Struktur role baru:
+        // - Admin (dulu Super Admin) → bisa akses dashboard
+        // - Staff (dulu Admin) → bisa akses dashboard
+        // - Pelanggan → tidak bisa akses dashboard
+        if (roles && (
+          roles.includes('Super Admin') || 
+          roles.includes('Admin') || 
+          roles.includes('Staff')
+        )) {
           console.log('Redirecting to dashboard...');
           router.push('/dashboard');
         } else {
