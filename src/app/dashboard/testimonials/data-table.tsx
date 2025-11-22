@@ -55,6 +55,23 @@ interface DataTableProps<TData> {
   data: TData[]
 }
 
+function HtmlContent({ html }: { html: string }) {
+  return (
+    <div 
+      dangerouslySetInnerHTML={{ __html: html }} 
+      className="prose prose-sm max-w-none break-words"
+      style={{
+        wordWrap: 'break-word',
+        overflowWrap: 'break-word',
+        wordBreak: 'break-word',
+        hyphens: 'auto',
+        whiteSpace: 'normal',
+        maxWidth: '100%'
+      }}
+    />
+  )
+}
+
 const exportToPDF = (data: Testimonial[]) => {
   const doc = new jsPDF()
   const pageWidth = doc.internal.pageSize.getWidth()
@@ -180,17 +197,17 @@ export function DataTable({
     const trip = testimonial.trip
 
     return (
-      <div className="p-4 bg-muted/50 rounded-lg">
-        <div className="space-y-4 max-w-5xl mx-auto">
-          <div className="bg-white p-4 rounded-lg shadow-sm">
+      <div className="p-4 bg-muted/50 rounded-lg w-full overflow-hidden">
+        <div className="space-y-4 w-full">
+          <div className="bg-white p-4 rounded-lg shadow-sm w-full overflow-hidden">
             <h4 className="font-semibold text-lg mb-4 text-gray-800 border-b pb-2">Detail Testimonial</h4>
-            <div className="grid gap-4">
-              <div className="space-y-4">
+            <div className="grid gap-4 w-full">
+              <div className="space-y-4 w-full">
                 {/* Review Section */}
                 <div>
                   <p className="text-gray-600 font-medium mb-2">Review:</p>
-                  <div className="bg-gray-50 p-3 rounded-md">
-                    <div className="prose prose-sm max-w-none whitespace-normal break-words">
+                  <div className="bg-gray-50 p-3 rounded-md overflow-auto max-w-full">
+                    <div className="prose prose-sm max-w-none break-words overflow-wrap-anywhere">
                       {testimonial.review}
                     </div>
                   </div>
@@ -200,31 +217,49 @@ export function DataTable({
                 {trip && (
                   <div>
                     <p className="text-gray-600 font-medium mb-2">Paket Tour:</p>
-                    <div className="bg-gray-50 p-3 rounded-md">
-                      <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-gray-50 p-3 rounded-md overflow-auto max-w-full">
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 w-full">
                         <div>
-                          <p className="text-gray-600 text-sm">Nama Paket</p>
-                          <p className="text-gray-800 font-medium">{trip.name}</p>
+                          <p className="text-gray-600 text-sm mb-1">Nama Paket</p>
+                          <div className="bg-white p-2 rounded border border-gray-100">
+                            <p className="text-gray-800 font-medium break-words">{trip.name}</p>
+                          </div>
                         </div>
                         <div>
-                          <p className="text-gray-600 text-sm">Tipe</p>
-                          <p className="text-gray-800 font-medium">{trip.type}</p>
+                          <p className="text-gray-600 text-sm mb-1">Tipe</p>
+                          <div className="bg-white p-2 rounded border border-gray-100">
+                            <p className="text-gray-800 font-medium break-words">{trip.type}</p>
+                          </div>
                         </div>
                         <div>
-                          <p className="text-gray-600 text-sm">Include</p>
-                          <p className="text-gray-800 font-medium">{trip.include}</p>
+                          <p className="text-gray-600 text-sm mb-1">Include</p>
+                          <div className="bg-white p-2 rounded border border-gray-100 overflow-auto max-w-full">
+                            <div className="prose prose-sm max-w-none break-words overflow-wrap-anywhere">
+                              <HtmlContent html={trip.include || ""} />
+                            </div>
+                          </div>
                         </div>
                         <div>
-                          <p className="text-gray-600 text-sm">Exclude</p>
-                          <p className="text-gray-800 font-medium">{trip.exclude}</p>
+                          <p className="text-gray-600 text-sm mb-1">Exclude</p>
+                          <div className="bg-white p-2 rounded border border-gray-100 overflow-auto max-w-full">
+                            <div className="prose prose-sm max-w-none break-words overflow-wrap-anywhere">
+                              <HtmlContent html={trip.exclude || ""} />
+                            </div>
+                          </div>
                         </div>
                         <div>
-                          <p className="text-gray-600 text-sm">Meeting Point</p>
-                          <p className="text-gray-800 font-medium">{trip.meeting_point}</p>
+                          <p className="text-gray-600 text-sm mb-1">Meeting Point</p>
+                          <div className="bg-white p-2 rounded border border-gray-100">
+                            <p className="text-gray-800 font-medium break-words">{trip.meeting_point}</p>
+                          </div>
                         </div>
                         <div>
-                          <p className="text-gray-600 text-sm">Note</p>
-                          <p className="text-gray-800 font-medium">{trip.note}</p>
+                          <p className="text-gray-600 text-sm mb-1">Note</p>
+                          <div className="bg-white p-2 rounded border border-gray-100 overflow-auto max-w-full">
+                            <div className="prose prose-sm max-w-none break-words overflow-wrap-anywhere">
+                              <HtmlContent html={trip.note || ""} />
+                            </div>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -234,25 +269,33 @@ export function DataTable({
                 {/* Customer Information */}
                 <div>
                   <p className="text-gray-600 font-medium mb-2">Informasi Customer:</p>
-                  <div className="bg-gray-50 p-3 rounded-md">
-                    <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-gray-50 p-3 rounded-md overflow-auto max-w-full">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 w-full">
                       <div>
-                        <p className="text-gray-600 text-sm">Nama Lengkap</p>
-                        <p className="text-gray-800 font-medium">{testimonial.customer_name}</p>
+                        <p className="text-gray-600 text-sm mb-1">Nama Lengkap</p>
+                        <div className="bg-white p-2 rounded border border-gray-100">
+                          <p className="text-gray-800 font-medium break-words">{testimonial.customer_name}</p>
+                        </div>
                       </div>
                       <div>
-                        <p className="text-gray-600 text-sm">Email</p>
-                        <p className="text-gray-800 font-medium">{testimonial.customer_email}</p>
+                        <p className="text-gray-600 text-sm mb-1">Email</p>
+                        <div className="bg-white p-2 rounded border border-gray-100">
+                          <p className="text-gray-800 font-medium break-words">{testimonial.customer_email}</p>
+                        </div>
                       </div>
                       <div>
-                        <p className="text-gray-600 text-sm">No. HP</p>
-                        <p className="text-gray-800 font-medium">{testimonial.customer_phone}</p>
+                        <p className="text-gray-600 text-sm mb-1">No. HP</p>
+                        <div className="bg-white p-2 rounded border border-gray-100">
+                          <p className="text-gray-800 font-medium break-words">{testimonial.customer_phone || "-"}</p>
+                        </div>
                       </div>
                       <div>
-                        <p className="text-gray-600 text-sm">Source</p>
-                        <Badge className={`${testimonial.source === "internal" ? "bg-blue-500" : "bg-green-500"} text-white`}>
-                          {testimonial.source === "internal" ? "Internal" : "External"}
-                        </Badge>
+                        <p className="text-gray-600 text-sm mb-1">Source</p>
+                        <div className="bg-white p-2 rounded border border-gray-100">
+                          <Badge className={`${testimonial.source === "internal" ? "bg-blue-500" : "bg-green-500"} text-white`}>
+                            {testimonial.source === "internal" ? "Internal" : "External"}
+                          </Badge>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -261,21 +304,27 @@ export function DataTable({
                 {/* Additional Testimonial Information */}
                 <div>
                   <p className="text-gray-600 font-medium mb-2">Informasi Tambahan:</p>
-                  <div className="bg-gray-50 p-3 rounded-md">
-                    <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-gray-50 p-3 rounded-md overflow-auto max-w-full">
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 w-full">
                       <div>
-                        <p className="text-gray-600 text-sm">Highlight</p>
-                        <Badge className={`${testimonial.is_highlight ? "bg-yellow-500" : "bg-gray-500"} text-white`}>
-                          {testimonial.is_highlight ? "Ya" : "Tidak"}
-                        </Badge>
+                        <p className="text-gray-600 text-sm mb-1">Highlight</p>
+                        <div className="bg-white p-2 rounded border border-gray-100">
+                          <Badge className={`${testimonial.is_highlight ? "bg-yellow-500" : "bg-gray-500"} text-white`}>
+                            {testimonial.is_highlight ? "Ya" : "Tidak"}
+                          </Badge>
+                        </div>
                       </div>
                       <div>
-                        <p className="text-gray-600 text-sm">Tanggal Dibuat</p>
-                        <p className="text-gray-800 font-medium">{formatDate(testimonial.created_at)}</p>
+                        <p className="text-gray-600 text-sm mb-1">Tanggal Dibuat</p>
+                        <div className="bg-white p-2 rounded border border-gray-100">
+                          <p className="text-gray-800 font-medium break-words">{formatDate(testimonial.created_at)}</p>
+                        </div>
                       </div>
                       <div>
-                        <p className="text-gray-600 text-sm">Tanggal Diperbarui</p>
-                        <p className="text-gray-800 font-medium">{formatDate(testimonial.updated_at)}</p>
+                        <p className="text-gray-600 text-sm mb-1">Tanggal Diperbarui</p>
+                        <div className="bg-white p-2 rounded border border-gray-100">
+                          <p className="text-gray-800 font-medium break-words">{formatDate(testimonial.updated_at)}</p>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -313,8 +362,47 @@ export function DataTable({
   })
 
   return (
-    <div className="container mx-auto max-w-7xl">
+    <div className="w-full max-w-full overflow-hidden">
       <style jsx global>{`
+        .prose * {
+          word-wrap: break-word !important;
+          overflow-wrap: break-word !important;
+          word-break: break-word !important;
+          hyphens: auto !important;
+          white-space: normal !important;
+          max-width: 100% !important;
+        }
+        .prose p, .prose div, .prose span, .prose li, .prose td, .prose th, .prose ul, .prose ol {
+          word-wrap: break-word !important;
+          overflow-wrap: break-word !important;
+          word-break: break-word !important;
+          hyphens: auto !important;
+          white-space: normal !important;
+          max-width: 100% !important;
+        }
+        .prose table {
+          table-layout: fixed !important;
+          width: 100% !important;
+        }
+        .prose table td, .prose table th {
+          word-wrap: break-word !important;
+          overflow-wrap: break-word !important;
+          word-break: break-word !important;
+          hyphens: auto !important;
+          white-space: normal !important;
+          max-width: 100% !important;
+        }
+        .prose img {
+          max-width: 100% !important;
+          height: auto !important;
+        }
+        .prose pre, .prose code {
+          word-wrap: break-word !important;
+          overflow-wrap: break-word !important;
+          word-break: break-word !important;
+          white-space: pre-wrap !important;
+          max-width: 100% !important;
+        }
         .custom-scrollbar {
           scrollbar-width: thin;
           scrollbar-color: #888 #f1f1f1;
@@ -336,19 +424,19 @@ export function DataTable({
         }
       `}</style>
       {/* Toolbar */}
-      <div className="flex items-center justify-between py-4">
-        <div className="flex items-center space-x-2">
+      <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between py-4 gap-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-2 w-full lg:w-auto">
           <Input
             placeholder="Filter berdasarkan nama customer..."
             value={(table.getColumn("customer_name")?.getFilterValue() as string) || ""}
             onChange={(event) =>
               table.getColumn("customer_name")?.setFilterValue(event.target.value)
             }
-            className="max-w-sm"
+            className="max-w-sm w-full sm:w-auto"
           />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="ml-auto">
+              <Button variant="outline" className="w-full sm:w-auto">
                 Kolom <ChevronDown className="ml-2 h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
@@ -378,7 +466,7 @@ export function DataTable({
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
-        <div className="flex space-x-2">
+        <div className="flex flex-wrap gap-2 w-full lg:w-auto">
           {table.getSelectedRowModel().rows.length > 0 && (
             <>
               <Button
@@ -389,12 +477,14 @@ export function DataTable({
                     table.getSelectedRowModel().rows.map((row) => (row.original as Testimonial).id)
                   )
                 }
+                className="text-xs sm:text-sm"
               >
                 Hapus Terpilih ({table.getSelectedRowModel().rows.length})
               </Button>
               <Button
                 variant="outline"
                 onClick={() => exportToPDF(table.getSelectedRowModel().rows.map(row => row.original as Testimonial))}
+                className="text-xs sm:text-sm"
               >
                 <FileDown className="mr-2 h-4 w-4" />
                 Export Terpilih ({table.getSelectedRowModel().rows.length})
@@ -403,13 +493,13 @@ export function DataTable({
           )}
           <Button 
             onClick={() => router.push('/dashboard/testimonials/create')}
-            className="bg-yellow-500 hover:bg-yellow-600 text-white transition-colors duration-200"
+            className="bg-yellow-500 hover:bg-yellow-600 text-white transition-colors duration-200 text-xs sm:text-sm"
           >
             <Plus className="mr-2 h-4 w-4" />
             Tambah Testimonial
           </Button>
           <Button
-            className="bg-red-500 hover:bg-red-600 text-white transition-colors duration-200"
+            className="bg-red-500 hover:bg-red-600 text-white transition-colors duration-200 text-xs sm:text-sm"
             variant="outline"
             onClick={() => exportToPDF(table.getFilteredRowModel().rows.map(row => row.original as Testimonial))}
           >
@@ -420,13 +510,25 @@ export function DataTable({
       </div>
 
       {/* Table */}
-      <div className="rounded-md border overflow-x-auto">
-        <Table>
+      <div className="rounded-md border overflow-x-auto w-full">
+        <Table className="w-full table-fixed" style={{ minWidth: '1000px' }}>
+          <colgroup>
+            <col style={{ width: '40px' }} />
+            <col style={{ width: '40px' }} />
+            <col style={{ width: '50px' }} />
+            <col style={{ width: '150px' }} />
+            <col style={{ width: '180px' }} />
+            <col style={{ width: '100px' }} />
+            <col style={{ width: '100px' }} />
+            <col style={{ width: '100px' }} />
+            <col style={{ width: '120px' }} />
+            <col style={{ width: '60px' }} />
+          </colgroup>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map((header) => (
-                  <TableHead key={header.id} colSpan={header.colSpan}>
+                  <TableHead key={header.id} colSpan={header.colSpan} className="whitespace-nowrap text-center">
                     {header.isPlaceholder
                       ? null
                       : flexRender(
@@ -446,7 +548,7 @@ export function DataTable({
                     data-state={row.getIsSelected() && "selected"}
                   >
                     {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id}>
+                      <TableCell key={cell.id} className="break-words">
                         {flexRender(
                           cell.column.columnDef.cell,
                           cell.getContext()
@@ -456,7 +558,7 @@ export function DataTable({
                   </TableRow>
                   {row.getIsExpanded() && (
                     <TableRow key={`${row.id}-expanded`}>
-                      <TableCell colSpan={row.getVisibleCells().length}>
+                      <TableCell colSpan={row.getVisibleCells().length} className="p-0">
                         {renderSubComponent({ row })}
                       </TableCell>
                     </TableRow>
@@ -478,11 +580,11 @@ export function DataTable({
       </div>
 
       {/* Pagination */}
-      <div className="flex items-center justify-between px-2 py-4 bg-gray-50 rounded-b-md">
+      <div className="flex flex-col sm:flex-row items-center justify-between px-2 py-4 bg-gray-50 rounded-b-md gap-4">
         <div className="text-sm text-muted-foreground">
           {table.getFilteredSelectedRowModel().rows.length} of {table.getFilteredRowModel().rows.length} row(s) selected.
         </div>
-        <div className="flex items-center gap-x-6">
+        <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-x-6">
           <div className="flex items-center gap-x-2">
             <p className="text-sm font-medium">Rows per page</p>
             <Select

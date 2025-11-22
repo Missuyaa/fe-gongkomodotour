@@ -98,8 +98,10 @@ export const columns = ({ onDelete }: ColumnsProps): ColumnDef<Testimonial>[] =>
   {
     id: "no",
     header: "No",
-    cell: ({ row }) => {
-      return <div className="w-[50px] font-medium">{row.index + 1}</div>
+    cell: ({ row, table }) => {
+      const { pageIndex, pageSize } = table.getState().pagination
+      const globalIndex = row.index + 1 + pageIndex * pageSize
+      return <div className="w-[50px] min-w-[50px] text-center font-medium">{globalIndex}</div>
     },
     enableSorting: false,
     enableHiding: false,
@@ -112,6 +114,7 @@ export const columns = ({ onDelete }: ColumnsProps): ColumnDef<Testimonial>[] =>
         <Button
           variant="ghost"
           onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className="px-0"
         >
           Nama Customer
           <ArrowUpDown className="ml-2 h-4 w-4" />
@@ -119,6 +122,24 @@ export const columns = ({ onDelete }: ColumnsProps): ColumnDef<Testimonial>[] =>
       )
     },
     enableSorting: true,
+    cell: ({ row }) => {
+      const name = row.getValue("customer_name") as string
+      return (
+        <div 
+          className="w-full break-words text-xs px-1 leading-tight"
+          style={{
+            wordWrap: 'break-word',
+            overflowWrap: 'break-word',
+            wordBreak: 'break-word',
+            whiteSpace: 'normal',
+            maxWidth: '100%',
+            lineHeight: '1.2'
+          }}
+        >
+          {name}
+        </div>
+      )
+    },
   },
   {
     id: "customer_email",
@@ -128,6 +149,7 @@ export const columns = ({ onDelete }: ColumnsProps): ColumnDef<Testimonial>[] =>
         <Button
           variant="ghost"
           onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className="px-0"
         >
           Email Customer
           <ArrowUpDown className="ml-2 h-4 w-4" />
@@ -135,6 +157,24 @@ export const columns = ({ onDelete }: ColumnsProps): ColumnDef<Testimonial>[] =>
       )
     },
     enableSorting: true,
+    cell: ({ row }) => {
+      const email = row.getValue("customer_email") as string
+      return (
+        <div 
+          className="w-full break-words text-xs px-1 leading-tight"
+          style={{
+            wordWrap: 'break-word',
+            overflowWrap: 'break-word',
+            wordBreak: 'break-word',
+            whiteSpace: 'normal',
+            maxWidth: '100%',
+            lineHeight: '1.2'
+          }}
+        >
+          {email}
+        </div>
+      )
+    },
   },
   {
     accessorKey: "rating",
@@ -143,6 +183,7 @@ export const columns = ({ onDelete }: ColumnsProps): ColumnDef<Testimonial>[] =>
         <Button
           variant="ghost"
           onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className="px-0"
         >
           Rating
           <ArrowUpDown className="ml-2 h-4 w-4" />
@@ -153,9 +194,22 @@ export const columns = ({ onDelete }: ColumnsProps): ColumnDef<Testimonial>[] =>
     cell: ({ row }) => {
       const rating = row.original.rating
       return (
-        <div className="flex items-center">
-          <Star className="w-4 h-4 text-yellow-400 mr-1" />
-          <span>{rating}</span>
+        <div className="w-full flex justify-center px-1">
+          <div className="flex items-center">
+            <div className="flex">
+              {[1, 2, 3, 4, 5].map((star) => (
+                <Star
+                  key={star}
+                  className={`w-4 h-4 ${
+                    star <= rating
+                      ? "text-yellow-400 fill-yellow-400"
+                      : "text-gray-300"
+                  }`}
+                />
+              ))}
+            </div>
+            <span className="ml-2 text-sm text-gray-600">({rating})</span>
+          </div>
         </div>
       )
     }
@@ -167,6 +221,7 @@ export const columns = ({ onDelete }: ColumnsProps): ColumnDef<Testimonial>[] =>
         <Button
           variant="ghost"
           onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className="px-0"
         >
           Source
           <ArrowUpDown className="ml-2 h-4 w-4" />
@@ -177,9 +232,11 @@ export const columns = ({ onDelete }: ColumnsProps): ColumnDef<Testimonial>[] =>
     cell: ({ row }) => {
       const source = row.original.source
       return (
-        <Badge className={`${source === "internal" ? "bg-blue-500" : "bg-green-500"} text-white`}>
-          {source === "internal" ? "Internal" : "External"}
-        </Badge>
+        <div className="w-full flex justify-center px-1">
+          <Badge className={`${source === "internal" ? "bg-blue-500" : "bg-green-500"} text-white text-xs px-2 py-1`}>
+            {source === "internal" ? "Internal" : "External"}
+          </Badge>
+        </div>
       )
     }
   },
@@ -190,6 +247,7 @@ export const columns = ({ onDelete }: ColumnsProps): ColumnDef<Testimonial>[] =>
         <Button
           variant="ghost"
           onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className="px-0"
         >
           Status
           <ArrowUpDown className="ml-2 h-4 w-4" />
@@ -200,9 +258,11 @@ export const columns = ({ onDelete }: ColumnsProps): ColumnDef<Testimonial>[] =>
     cell: ({ row }) => {
       const isApproved = row.original.is_approved
       return (
-        <Badge className={`${isApproved ? "bg-emerald-500" : "bg-red-500"} text-white`}>
-          {isApproved ? "Disetujui" : "Pending"}
-        </Badge>
+        <div className="w-full flex justify-center px-1">
+          <Badge className={`${isApproved ? "bg-emerald-500" : "bg-red-500"} text-white text-xs px-2 py-1`}>
+            {isApproved ? "Disetujui" : "Pending"}
+          </Badge>
+        </div>
       )
     }
   },
@@ -213,6 +273,7 @@ export const columns = ({ onDelete }: ColumnsProps): ColumnDef<Testimonial>[] =>
         <Button
           variant="ghost"
           onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className="px-0"
         >
           Tanggal
           <ArrowUpDown className="ml-2 h-4 w-4" />
@@ -221,7 +282,21 @@ export const columns = ({ onDelete }: ColumnsProps): ColumnDef<Testimonial>[] =>
     },
     enableSorting: true,
     cell: ({ row }) => {
-      return formatDate(row.original.created_at)
+      return (
+        <div 
+          className="w-full break-words text-xs px-1 leading-tight text-center"
+          style={{
+            wordWrap: 'break-word',
+            overflowWrap: 'break-word',
+            wordBreak: 'break-word',
+            whiteSpace: 'normal',
+            maxWidth: '100%',
+            lineHeight: '1.2'
+          }}
+        >
+          {formatDate(row.original.created_at)}
+        </div>
+      )
     }
   },
   {
@@ -229,7 +304,11 @@ export const columns = ({ onDelete }: ColumnsProps): ColumnDef<Testimonial>[] =>
     header: () => null,
     cell: ({ row }) => {
       const testimonial = row.original;
-      return <ActionsCell testimonial={testimonial} onDelete={onDelete} />;
+      return (
+        <div className="w-full flex justify-center px-1">
+          <ActionsCell testimonial={testimonial} onDelete={onDelete} />
+        </div>
+      );
     },
     enableHiding: false,
   },

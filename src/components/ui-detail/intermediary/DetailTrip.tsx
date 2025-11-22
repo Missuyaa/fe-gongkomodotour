@@ -1,52 +1,36 @@
 "use client";
 
 import DetailPaketOpenTrip from "@/components/ui-detail/DetailPaketOpenTrip";
+import DetailPaketPrivateTrip from "@/components/ui-detail/DetailPaketPrivateTrip";
 import DetailFAQ from "@/components/ui-detail/ui-call/DetailFAQ";
 import DetailReview from "@/components/ui-detail/ui-call/DetailReview";
 import DetailMoreTrip from "@/components/ui-detail/ui-call/DetailMoreTrip";
 import DetailBlog from "@/components/ui-detail/ui-call/DetailBlog";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, usePathname } from "next/navigation";
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { apiRequest } from "@/lib/api";
 import { Trip, FlightSchedule } from "@/types/trips";
 import { Boat } from "@/types/boats";
-// getImageUrl didefinisikan lokal di bawah, tidak perlu import
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
-// Helper function untuk mendapatkan URL gambar (sama seperti di data-table.tsx yang berhasil)
+// Helper function untuk mendapatkan URL gambar
 const getImageUrl = (fileUrl: string) => {
-  console.log('getImageUrl called with:', { fileUrl, type: typeof fileUrl });
-  
   if (!fileUrl || fileUrl.trim() === '') {
-    console.warn('Empty or invalid file URL provided:', fileUrl);
     return '/img/default-trip.jpg';
   }
   
-  // Jika sudah URL lengkap, return langsung
   if (fileUrl.startsWith('http://') || fileUrl.startsWith('https://')) {
-    console.log('Full URL detected:', fileUrl);
     return fileUrl;
   }
   
-  // Jika path static Next.js (dimulai dengan /img/ atau path public lainnya), jangan tambahkan API_URL
   if (fileUrl.startsWith('/img/') || fileUrl.startsWith('/_next/') || fileUrl.startsWith('/api/')) {
     return fileUrl;
   }
   
-  // Pastikan fileUrl dimulai dengan slash
   const cleanUrl = fileUrl.startsWith('/') ? fileUrl : `/${fileUrl}`;
-  const fullUrl = `${API_URL}${cleanUrl}`;
-  
-  console.log('Image URL constructed:', { 
-    original: fileUrl, 
-    cleanUrl: cleanUrl,
-    apiUrl: API_URL,
-    constructed: fullUrl 
-  });
-  
-  return fullUrl;
+  return `${API_URL}${cleanUrl}`;
 };
 
 interface ApiResponse {
@@ -108,21 +92,39 @@ interface PackageData {
   boat_ids?: number[];
   operational_days?: string[];
   tentation?: "Yes" | "No";
-  note?: string; // Tambahkan field note
+  note?: string;
 }
 
 interface BoatResponse {
   data: Boat[];
 }
 
-export default function DetailOpenTrip() {
+type TripType = "open-trip" | "private-trip";
+
+export default function DetailTrip() {
   const searchParams = useSearchParams();
+  const pathname = usePathname();
   const packageId = searchParams.get("id");
+  
+  // Tentukan type dari path (open-trip atau private-trip)
+  // Path akan seperti: /detail-paket/open-trip atau /detail-paket/private-trip
+  const getTypeFromPath = (): TripType => {
+    if (pathname?.includes("open-trip")) {
+      return "open-trip";
+    } else if (pathname?.includes("private-trip")) {
+      return "private-trip";
+    }
+    // Fallback: ambil dari query param jika ada
+    const tripTypeParam = searchParams.get("type") as TripType | null;
+    return tripTypeParam || "open-trip";
+  };
+  
   const [selectedPackage, setSelectedPackage] = useState<Trip | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [similarTrips, setSimilarTrips] = useState<TripData[]>([]);
   const [boats, setBoats] = useState<Boat[]>([]);
+  const [displayType, setDisplayType] = useState<TripType>(getTypeFromPath());
 
   useEffect(() => {
     const fetchTripDetails = async () => {
@@ -133,15 +135,10 @@ export default function DetailOpenTrip() {
       }
 
       try {
-        console.log("Fetching trip details for ID:", packageId);
         const response = await apiRequest<ApiResponse>(
           "GET",
           `/api/landing-page/trips/${packageId}`
         );
-        console.log("API Response:", response);
-        console.log("API Response Data:", response?.data);
-        console.log("API Response Assets:", response?.data?.assets);
-        console.log("API Response Assets Length:", response?.data?.assets?.length);
 
         if (!response?.data) {
           throw new Error("Data trip tidak valid");
@@ -149,22 +146,42 @@ export default function DetailOpenTrip() {
 
         setSelectedPackage(response.data);
 
-        // Fetch similar trips
+        // Tentukan display type: prioritas path > query param > trip.type
+        const pathType = getTypeFromPath();
+        const tripType = response.data.type;
+        let finalDisplayType: TripType;
+        
+        // Prioritas: path > query param > trip.type
+        if (pathname?.includes("open-trip") || pathname?.includes("private-trip")) {
+          finalDisplayType = pathType;
+        } else {
+          const tripTypeParam = searchParams.get("type") as TripType | null;
+          if (tripTypeParam) {
+            finalDisplayType = tripTypeParam;
+          } else {
+            // Fallback ke trip.type
+            finalDisplayType = tripType === "Open Trip" ? "open-trip" : "private-trip";
+          }
+        }
+        
+        setDisplayType(finalDisplayType);
+
+        // Fetch similar trips berdasarkan display type
+        const similarType = finalDisplayType === "open-trip" ? "open" : "private";
         const similarResponse = await apiRequest<SimilarTripsResponse>(
           "GET",
-          "/api/landing-page/trips?status=1&type=open"
+          `/api/landing-page/trips?status=1&type=${similarType}`
         );
+        
         if (similarResponse?.data) {
           const similarTripsData = similarResponse.data
-            .filter((trip: Trip) => trip.id !== response.data.id) // Exclude current trip
-            .slice(0, 3) // Take only 3 trips
+            .filter((trip: Trip) => trip.id !== response.data.id)
+            .slice(0, 3)
             .map((trip: Trip) => {
               const firstAsset = trip.assets?.[0];
               let imageUrl = "/img/default-trip.jpg";
               
               if (firstAsset) {
-                // Prioritas: original_file_url > file_url (jika bukan placeholder)
-                // Menggunakan getImageUrl seperti di data-table.tsx yang berhasil
                 if (firstAsset.original_file_url) {
                   imageUrl = getImageUrl(firstAsset.original_file_url);
                 } else if (firstAsset.file_url && !firstAsset.file_url.includes('placeholder')) {
@@ -174,7 +191,7 @@ export default function DetailOpenTrip() {
               
               return {
                 image: imageUrl,
-                label: trip.type || "Open Trip",
+                label: trip.type || (finalDisplayType === "open-trip" ? "Open Trip" : "Private Trip"),
                 name: trip.name || "Trip Name",
                 duration:
                   trip.trip_durations?.[0]?.duration_label || "Custom Duration",
@@ -207,7 +224,7 @@ export default function DetailOpenTrip() {
     };
 
     fetchTripDetails();
-  }, [packageId]);
+  }, [packageId, pathname, searchParams]);
 
   if (loading) {
     return (
@@ -224,7 +241,7 @@ export default function DetailOpenTrip() {
           {error || "Paket Tidak Ditemukan"}
         </h1>
         <p className="text-gray-600">
-          Mohon maaf, paket Open Trip yang Anda cari tidak ditemukan.
+          Mohon maaf, paket yang Anda cari tidak ditemukan.
         </p>
         <Link href="/">
           <button className="mt-4 bg-[#CFB53B] text-white px-6 py-3 rounded-lg font-semibold text-sm hover:bg-[#7F6D1F] hover:scale-95 transition-all duration-300">
@@ -277,27 +294,20 @@ export default function DetailOpenTrip() {
           })) || [],
       })) || [],
     information: selectedPackage.note || "Informasi belum tersedia",
-    boat: "Speed Boat", // Sesuaikan dengan data yang ada
-    groupSize: "10-15 people", // Sesuaikan dengan data yang ada
+    boat: "Speed Boat",
+    groupSize: "10-15 people",
     images:
       selectedPackage.assets
         ?.map((asset) => {
-          // Prioritas: original_file_url > file_url (jika bukan placeholder)
-          // Menggunakan getImageUrl seperti di data-table.tsx yang berhasil
           if (asset.original_file_url) {
-            const url = getImageUrl(asset.original_file_url);
-            console.log('Using original_file_url:', asset.original_file_url, '->', url);
-            return url;
+            return getImageUrl(asset.original_file_url);
           }
           if (asset.file_url && !asset.file_url.includes('placeholder')) {
-            const url = getImageUrl(asset.file_url);
-            console.log('Using file_url:', asset.file_url, '->', url);
-            return url;
+            return getImageUrl(asset.file_url);
           }
-          console.warn('Asset has no valid URL:', asset);
-          return null; // Return null untuk asset yang tidak valid
+          return null;
         })
-        .filter((url): url is string => url !== null) || [], // Filter out null values
+        .filter((url): url is string => url !== null) || [],
     destinations: selectedPackage.destination_count || 0,
     include:
       selectedPackage.include?.split("\n").filter((item) => item.trim()) || [],
@@ -306,24 +316,15 @@ export default function DetailOpenTrip() {
     mainImage: (() => {
       const firstAsset = selectedPackage.assets?.[0];
       if (!firstAsset) {
-        console.warn('No assets found for trip, using default image');
         return "/img/default-trip.jpg";
       }
       
-      // Prioritas: original_file_url > file_url (jika bukan placeholder)
-      // Menggunakan getImageUrl seperti di data-table.tsx yang berhasil
       if (firstAsset.original_file_url) {
-        const url = getImageUrl(firstAsset.original_file_url);
-        console.log('Main image using original_file_url:', firstAsset.original_file_url, '->', url);
-        return url;
+        return getImageUrl(firstAsset.original_file_url);
       }
       if (firstAsset.file_url && !firstAsset.file_url.includes('placeholder')) {
-        const url = getImageUrl(firstAsset.file_url);
-        console.log('Main image using file_url:', firstAsset.file_url, '->', url);
-        return url;
+        return getImageUrl(firstAsset.file_url);
       }
-      // Hanya return default jika benar-benar tidak ada gambar valid
-      console.warn('First asset has no valid URL, using default image');
       return "/img/default-trip.jpg";
     })(),
     flightSchedules: selectedPackage.flight_schedules || [],
@@ -401,8 +402,6 @@ export default function DetailOpenTrip() {
         let imageUrl = "/img/default-trip.jpg";
         
         if (firstAsset) {
-          // Prioritas: original_file_url > file_url (jika bukan placeholder)
-          // Menggunakan getImageUrl seperti di data-table.tsx yang berhasil
           if (firstAsset.original_file_url) {
             imageUrl = getImageUrl(firstAsset.original_file_url);
           } else if (firstAsset.file_url && !firstAsset.file_url.includes('placeholder')) {
@@ -416,44 +415,23 @@ export default function DetailOpenTrip() {
           id: boat.id.toString(),
         };
       }),
-    note: selectedPackage.note, // Tambahkan field note ke transformedData
+    note: selectedPackage.note,
   };
-
-  // Debug: Log transformed data
-  console.log("Transformed Data:", transformedData);
-  console.log("Transformed Images:", transformedData.images);
-  console.log("Transformed MainImage:", transformedData.mainImage);
-  console.log("Transformed BoatImages:", transformedData.boatImages);
-
-  // Debug: Log original asset data
-  console.log("Original Assets:", selectedPackage.assets);
-  selectedPackage.assets?.forEach((asset, index) => {
-    console.log(`Asset ${index}:`, {
-      title: asset.title,
-      file_url: asset.file_url,
-      original_file_url: asset.original_file_url,
-      processed_url: asset.original_file_url 
-        ? getImageUrl(asset.original_file_url)
-        : getImageUrl(asset.file_url)
-    });
-  });
-
-  // Test getImageUrl function
-  console.log("Testing getImageUrl function:");
-  console.log("Input: '/storage/trip/1754741902_pulau-padar.jpg'");
-  console.log("Output:", getImageUrl('/storage/trip/1754741902_pulau-padar.jpg'));
-  console.log("Expected: https://api.gongkomodotour.com/storage/trip/1754741902_pulau-padar.jpg");
 
   return (
     <div>
-      {/* Detail Paket */}
-      <DetailPaketOpenTrip data={transformedData} />
+      {/* Detail Paket - Render berdasarkan display type */}
+      {displayType === "open-trip" ? (
+        <DetailPaketOpenTrip data={transformedData} />
+      ) : (
+        <DetailPaketPrivateTrip data={transformedData} />
+      )}
 
       {/* Review Section */}
-              <DetailReview />
+      <DetailReview />
 
-      {/* More Open Trip Section */}
-      <DetailMoreTrip trips={similarTrips} tripType="open-trip" />
+      {/* More Trip Section - Menggunakan display type */}
+      <DetailMoreTrip trips={similarTrips} tripType={displayType} />
 
       {/* Section Latest Post dan FAQ */}
       <div className="px-4 py-12 md:flex md:space-x-6">
@@ -469,3 +447,4 @@ export default function DetailOpenTrip() {
     </div>
   );
 }
+

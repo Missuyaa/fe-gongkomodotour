@@ -24,7 +24,7 @@ interface TripResponse {
   status?: string;
 }
 
-import { getImageUrl } from "@/lib/imageUrl";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 export default function OpenTrip() {
   const { t } = useLanguage();
@@ -35,6 +35,60 @@ export default function OpenTrip() {
   const [duration, setDuration] = useState<string>("");
   const [availableDurations, setAvailableDurations] = useState<string[]>([]);
   const itemsPerPage = 6;
+
+  // Function untuk mendapatkan URL gambar dengan aman (sama seperti TripHighlight.tsx)
+  const getImageSource = (trip: Trip) => {
+    // Jika tidak ada assets atau file_url kosong
+    if (!trip.assets || trip.assets.length === 0) {
+      return '/img/default-trip.jpg';
+    }
+
+    const asset = trip.assets[0];
+
+    const toSafeUrl = (raw: string) => {
+      try {
+        // Jika sudah absolute URL
+        if (/^https?:\/\//.test(raw)) {
+          // Cek apakah sudah ter-encode (mengandung %)
+          // Jika sudah ter-encode, jangan encode lagi untuk menghindari double encoding
+          if (raw.includes('%')) {
+            return raw;
+          }
+          // Jika belum ter-encode, encode hanya bagian yang perlu
+          return encodeURI(raw);
+        }
+        // Jika path static Next.js (dimulai dengan /img/ atau path public lainnya), jangan tambahkan API_URL
+        if (raw.startsWith('/img/') || raw.startsWith('/_next/') || raw.startsWith('/api/')) {
+          return raw; // Path static tidak perlu di-encode
+        }
+        // Relative path dari API - cek apakah sudah ter-encode
+        if (raw.includes('%')) {
+          // Jika sudah ter-encode, langsung gabungkan dengan API_URL
+          return `${API_URL}${raw}`;
+        }
+        // Jika belum ter-encode, encode dulu
+        return `${API_URL}${encodeURI(raw)}`;
+      } catch {
+        // Jika error, cek apakah path static
+        if (raw.startsWith('/img/') || raw.startsWith('/_next/') || raw.startsWith('/api/')) {
+          return raw;
+        }
+        return `${API_URL}${raw}`;
+      }
+    };
+
+    // Prioritas: original_file_url > file_url (jika bukan placeholder)
+    if (asset.original_file_url) {
+      return toSafeUrl(asset.original_file_url);
+    }
+
+    if (asset.file_url && !asset.file_url.includes('placeholder')) {
+      // Gunakan file_url jika bukan placeholder
+      return toSafeUrl(asset.file_url);
+    }
+
+    return '/img/default-trip.jpg';
+  };
 
   useEffect(() => {
     const fetchOpenTrips = async () => {
@@ -204,9 +258,7 @@ export default function OpenTrip() {
           {/* Grid Layout */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {currentTrips.map((trip, index) => {
-              const imageUrl = trip.assets?.[0]?.file_url 
-                ? getImageUrl(trip.assets[0].file_url)
-                : '/img/default-trip.jpg';
+              const imageUrl = getImageSource(trip);
 
               return (
                 <motion.div

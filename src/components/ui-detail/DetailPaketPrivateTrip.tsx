@@ -496,7 +496,8 @@ const DetailPaketPrivateTrip: React.FC<DetailPaketPrivateTripProps> = ({
             const hasExclude = excludeContent.trim() !== "" && 
               excludeContent.replace(/<[^>]*>/g, '').trim() !== "";
             
-            const hasFlight = data.flightInfo && (data.flightInfo.guideFee1 !== '0' || data.flightInfo.guideFee2 !== '0');
+            const hasFlight = (data.flightSchedules && data.flightSchedules.length > 0) || 
+              (data.flightInfo && (data.flightInfo.guideFee1 || data.flightInfo.guideFee2));
             
             const hasNote = data.note && data.note.trim() !== "" && 
               data.note.replace(/<[^>]*>/g, '').trim() !== "";
@@ -616,20 +617,67 @@ const DetailPaketPrivateTrip: React.FC<DetailPaketPrivateTripProps> = ({
                   )}
 
                   {/* Flight Information */}
-                  {data.flightInfo && (data.flightInfo.guideFee1 !== '0' || data.flightInfo.guideFee2 !== '0') && (
-                  <div className="bg-[#f5f5f5] p-6 rounded-lg shadow-sm min-h-[250px] flex flex-col">
+                  {((data.flightSchedules && data.flightSchedules.length > 0) || 
+                    (data.flightInfo && (data.flightInfo.guideFee1 || data.flightInfo.guideFee2))) && (
+                    <div className="bg-[#f5f5f5] p-6 rounded-lg shadow-sm min-h-[250px] flex flex-col">
                       <h2 className="text-xl font-bold text-gray-800 mb-6">
-                      Flight Information
-                    </h2>
-                                          <div className="space-y-2">
-                        <p className="text-gray-600 text-sm">
-                          IDR {formatPrice(data.flightInfo?.guideFee1 || '')}
-                        </p>
-                        <p className="text-gray-600 text-sm">
-                          IDR {formatPrice(data.flightInfo?.guideFee2 || '')}
-                        </p>
+                        Flight Information
+                      </h2>
+                      <div className="space-y-6">
+                        {data.flightSchedules &&
+                        data.flightSchedules.length > 0 ? (
+                          <>
+                            <div className="bg-gold/10 border-l-4 border-gold p-4 mb-4">
+                              <p className="text-gold-dark text-sm font-medium">
+                                <strong>Note:</strong> Flight schedules below are estimated departure and arrival times to Labuan Bajo. Actual flight times may vary depending on airline schedules and weather conditions.
+                              </p>
+                            </div>
+                            {data.flightSchedules.map((schedule, index) => (
+                              <div key={index}>
+                                <h3 className="text-gold text-xl font-semibold mb-4">
+                                  {schedule.route}
+                                </h3>
+                                <div className="grid grid-cols-2 gap-8">
+                                  <div>
+                                    <p className="text-gold font-medium mb-2">
+                                      Estimated Departure from Labuan Bajo
+                                    </p>
+                                    <p className="text-gray-500">
+                                      {schedule.etd_text === "-"
+                                        ? `${schedule.etd_time.slice(0, -3)} WITA`
+                                        : schedule.etd_text}
+                                    </p>
+                                  </div>
+                                  <div>
+                                    <p className="text-gold font-medium mb-2">
+                                      Estimated Arrival to Labuan Bajo
+                                    </p>
+                                    <p className="text-gray-500">
+                                      {schedule.eta_text === "-"
+                                        ? `${schedule.eta_time.slice(0, -3)} WITA`
+                                        : schedule.eta_text}
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </>
+                        ) : (
+                          <div className="text-gray-600">
+                            {data.flightInfo?.guideFee1 && data.flightInfo.guideFee1 !== '0' && (
+                              <p className="text-sm">
+                                Guide Fee (per day): IDR {formatPrice(data.flightInfo.guideFee1)}
+                              </p>
+                            )}
+                            {data.flightInfo?.guideFee2 && data.flightInfo.guideFee2 !== '0' && (
+                              <p className="text-sm mt-2">
+                                Guide Fee (per 5 pax): IDR {formatPrice(data.flightInfo.guideFee2)}
+                              </p>
+                            )}
+                          </div>
+                        )}
                       </div>
-                  </div>
+                    </div>
                   )}
                 </div>
 
