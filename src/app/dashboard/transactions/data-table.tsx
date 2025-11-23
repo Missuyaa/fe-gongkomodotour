@@ -43,7 +43,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { ChevronDown, FileDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, MoreHorizontal, Trash } from 'lucide-react'
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import jsPDF from "jspdf"
 import autoTable from "jspdf-autotable"
 import { Transaction, TransactionAsset } from "@/types/transactions"
@@ -200,6 +200,39 @@ const exportToPDF = (data: Transaction[]) => {
   doc.save("transaction-report.pdf")
 }
 
+// Helper function untuk menentukan transaction terbaru per booking_id
+const getLatestTransactionIds = (transactions: Transaction[]): Set<string> => {
+  const latestIds = new Set<string>()
+  
+  // Group transactions by booking_id
+  const transactionsByBooking = new Map<string, Transaction[]>()
+  transactions.forEach(transaction => {
+    const bookingId = String(transaction.booking_id)
+    if (!transactionsByBooking.has(bookingId)) {
+      transactionsByBooking.set(bookingId, [])
+    }
+    transactionsByBooking.get(bookingId)!.push(transaction)
+  })
+  
+  // Untuk setiap booking_id, ambil transaction terbaru berdasarkan updated_at
+  transactionsByBooking.forEach((transactions, bookingId) => {
+    if (transactions.length > 1) {
+      // Sort berdasarkan updated_at DESC, ambil yang pertama (terbaru)
+      const sorted = [...transactions].sort((a, b) => {
+        const dateA = new Date(a.updated_at || a.created_at).getTime()
+        const dateB = new Date(b.updated_at || b.created_at).getTime()
+        return dateB - dateA // DESC: terbaru di atas
+      })
+      latestIds.add(sorted[0].id)
+    } else {
+      // Jika hanya ada 1 transaction untuk booking_id ini, itu adalah yang terbaru
+      latestIds.add(transactions[0].id)
+    }
+  })
+  
+  return latestIds
+}
+
 export function DataTable({
   columns,
   data,
@@ -218,6 +251,17 @@ export function DataTable({
   const [isDeleting, setIsDeleting] = useState(false)
   const [selectedImage, setSelectedImage] = useState<TransactionAsset | null>(null)
   const [updateKey, setUpdateKey] = useState(0)
+  
+  // Dapatkan set of latest transaction IDs (recalculate ketika data berubah)
+  const latestTransactionIds = useMemo(() => {
+    const latestIds = getLatestTransactionIds(data)
+    console.log('Latest transaction IDs calculated:', {
+      totalTransactions: data.length,
+      latestCount: latestIds.size,
+      latestIds: Array.from(latestIds)
+    })
+    return latestIds
+  }, [data])
 
   const handleDelete = async (transaction: Transaction) => {
     try {
@@ -321,7 +365,7 @@ export function DataTable({
   const table = useReactTable({
     data,
     columns: [
-      ...createColumns(handleStatusUpdate, updateKey).filter((col: ColumnDef<Transaction, string>) => col.id !== "actions"),
+      ...createColumns(handleStatusUpdate, updateKey, latestTransactionIds).filter((col: ColumnDef<Transaction, string>) => col.id !== "actions"),
       {
         id: "actions",
         header: () => null,

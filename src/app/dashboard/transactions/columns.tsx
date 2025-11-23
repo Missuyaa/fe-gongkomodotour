@@ -26,7 +26,11 @@ const ActionsCell = () => {
   )
 }
 
-export const columns = (onStatusUpdate?: (transactionId: string, newStatus: string) => void, updateKey?: number): ColumnDef<Transaction>[] => [
+export const columns = (
+  onStatusUpdate?: (transactionId: string, newStatus: string) => void, 
+  updateKey?: number,
+  latestTransactionIds?: Set<string>
+): ColumnDef<Transaction>[] => [
   {
     id: "expander",
     header: () => null,
@@ -151,10 +155,15 @@ export const columns = (onStatusUpdate?: (transactionId: string, newStatus: stri
       const status = row.getValue("payment_status") as string
       const transaction = row.original
       
+      // Cek apakah transaction ini adalah yang terbaru untuk booking_id-nya
+      const isLatest = latestTransactionIds ? latestTransactionIds.has(transaction.id) : true
+      
       console.log(`Rendering status for transaction ${transaction.id}:`, {
         id: transaction.id,
         status: status,
-        customer: transaction.booking?.customer_name
+        customer: transaction.booking?.customer_name,
+        isLatest: isLatest,
+        booking_id: transaction.booking_id
       })
       
       const statusOptions = [
@@ -167,34 +176,45 @@ export const columns = (onStatusUpdate?: (transactionId: string, newStatus: stri
       
       return (
         <div className="min-w-[150px]">
-          <Select
-            key={`status-${transaction.id}-${status}-${updateKey || 0}`}
-            value={status}
-            onValueChange={(newStatus) => {
-              if (onStatusUpdate && newStatus !== status) {
-                onStatusUpdate(transaction.id, newStatus)
-              }
-            }}
-          >
-            <SelectTrigger className="w-full">
-              <SelectValue>
-                <span className={`px-2 py-1 rounded-full text-xs font-medium ${currentStatus.color}`}>
-                  {currentStatus.label}
-                </span>
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              {statusOptions.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  <div className="flex items-center">
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${option.color}`}>
-                      {option.label}
-                    </span>
-                  </div>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="flex items-center gap-2">
+            <Select
+              key={`status-${transaction.id}-${status}-${updateKey || 0}`}
+              value={status}
+              onValueChange={(newStatus) => {
+                if (onStatusUpdate && newStatus !== status && isLatest) {
+                  onStatusUpdate(transaction.id, newStatus)
+                }
+              }}
+              disabled={!isLatest}
+            >
+              <SelectTrigger className={`w-full ${!isLatest ? 'opacity-60 cursor-not-allowed' : ''}`}>
+                <SelectValue>
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${currentStatus.color}`}>
+                    {currentStatus.label}
+                  </span>
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {statusOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    <div className="flex items-center">
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${option.color}`}>
+                        {option.label}
+                      </span>
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {!isLatest && (
+              <span 
+                className="text-xs text-gray-500 whitespace-nowrap" 
+                title="Transaction lama - tidak dapat diubah karena ada transaction terbaru untuk booking ini"
+              >
+                (Lama)
+              </span>
+            )}
+          </div>
         </div>
       )
     },

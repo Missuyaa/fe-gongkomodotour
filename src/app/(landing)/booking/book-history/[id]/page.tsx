@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Image from "next/image";
 import { apiRequest } from "@/lib/api";
@@ -27,11 +27,16 @@ import {
   Ship,
   DollarSign,
   Receipt,
-  CreditCard
+  CreditCard,
+  Upload,
+  RefreshCw
 } from "lucide-react";
+import { FaUpload } from "react-icons/fa";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
 import { ImageModal } from "@/components/ui/image-modal";
+import jsPDF from "jspdf";
+import autoTable from 'jspdf-autotable';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
@@ -100,15 +105,30 @@ interface TransactionResponse {
   data: Transaction[];
 }
 
+// Tambahkan interface ekstensi untuk jsPDF
+interface JsPdfWithAutoTable {
+  lastAutoTable?: { finalY: number }
+}
+
 export default function BookingDetailPage() {
   const [booking, setBooking] = useState<Booking | null>(null);
   const [transaction, setTransaction] = useState<Transaction | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedImage, setSelectedImage] = useState<TransactionAsset | null>(null);
+  const [paymentProof, setPaymentProof] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [uploadSuccess, setUploadSuccess] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
   const params = useParams();
   const bookingId = params?.id as string;
+
+  const ALLOWED_MIME_TYPES = ["image/jpeg", "image/png", "image/jpg"];
+  const ALLOWED_EXTENSIONS = [".jpg", ".jpeg", ".png"];
 
   useEffect(() => {
     // Cek apakah user sudah login
@@ -233,129 +253,183 @@ export default function BookingDetailPage() {
     }
   };
 
-  const fetchTransaction = async () => {
-    try {
-      // Coba berbagai endpoint untuk mendapatkan transaksi
-      // Prioritas: endpoint yang lebih spesifik dulu, lalu fallback ke endpoint umum
-      let response;
-      let transactionData: Transaction | null = null;
+  // Helper function untuk normalisasi dan sorting assets
+  const normalizeAndSortAssets = (assets: TransactionAsset[] | undefined): TransactionAsset[] => {
+    if (!assets || assets.length === 0) return [];
+    
+    // Filter duplikasi berdasarkan id atau file_url
+    const uniqueAssets = new Map<string | number, TransactionAsset>();
+    assets.forEach(asset => {
+      if (!asset || !asset.file_url) return;
+      const key = asset.id || asset.file_url;
+      if (!uniqueAssets.has(key)) {
+        uniqueAssets.set(key, asset);
+      } else {
+        // Jika sudah ada, ambil yang updated_at lebih baru
+        const existing = uniqueAssets.get(key)!;
+        const existingDate = new Date(existing.updated_at || existing.created_at).getTime();
+        const currentDate = new Date(asset.updated_at || asset.created_at).getTime();
+        if (currentDate > existingDate) {
+          uniqueAssets.set(key, asset);
+        }
+      }
+    });
+    
+    // Sort berdasarkan updated_at atau created_at (terbaru di atas)
+    return Array.from(uniqueAssets.values()).sort((a, b) => {
+      const dateA = new Date(a.updated_at || a.created_at).getTime();
+      const dateB = new Date(b.updated_at || b.created_at).getTime();
+      return dateB - dateA; // DESC: terbaru di atas
+    });
+  };
 
-      // Coba 1: Query parameter dengan booking_id (lebih efisien)
-      // Endpoint ini sama seperti yang digunakan di dashboard, tapi dengan filter
+  // Helper function untuk mendapatkan transaction terbaru dari array
+  const getLatestTransaction = (transactions: Transaction[]): Transaction | null => {
+    if (!transactions || transactions.length === 0) return null;
+    
+    // Sort berdasarkan updated_at atau created_at (terbaru di atas)
+    const sorted = transactions.sort((a, b) => {
+      const dateA = new Date(a.updated_at || a.created_at).getTime();
+      const dateB = new Date(b.updated_at || b.created_at).getTime();
+      return dateB - dateA; // DESC: terbaru di atas
+    });
+    
+    return sorted[0];
+  };
+
+  // Helper function untuk mencari transaction berdasarkan booking_id
+  const findTransactionByBookingId = (transactions: Transaction[], bookingId: string): Transaction[] => {
+    const bookingIdStr = String(bookingId);
+    return transactions.filter((t: Transaction) => {
+      const tBookingId = typeof t.booking_id === 'string' ? t.booking_id : String(t.booking_id);
+      const tBookingIdFromBooking = t.booking?.id ? (typeof t.booking.id === 'string' ? t.booking.id : String(t.booking.id)) : null;
+      return tBookingId === bookingIdStr || tBookingIdFromBooking === bookingIdStr;
+    });
+  };
+
+  // Helper function untuk normalisasi transaction data
+  const normalizeTransaction = (transaction: Transaction): Transaction => {
+    if (!transaction) return transaction;
+    
+    // Normalisasi assets
+    const normalizedAssets = normalizeAndSortAssets(transaction.assets);
+    
+    return {
+      ...transaction,
+      assets: normalizedAssets
+    };
+  };
+
+  const fetchTransaction = async (showLoading = false) => {
+    try {
+      if (showLoading) {
+        setIsRefreshing(true);
+      }
+
+      let transactionData: Transaction | null = null;
+      const bookingIdStr = String(bookingId);
+
+      // Coba endpoint secara berurutan
+      const endpoints = [
+        { url: `/api/transactions?booking_id=${bookingId}`, name: 'query param' },
+        { url: '/api/transactions', name: 'all transactions' },
+        { url: `/api/landing-page/transactions/${bookingId}`, name: 'landing-page' }
+      ];
+
+      for (const endpoint of endpoints) {
         try {
-          response = await apiRequest<TransactionResponse>(
-            'GET',
-            `/api/transactions?booking_id=${bookingId}`
-          );
-          console.log('Transaction response from query param:', response);
+          const response = await apiRequest<any>('GET', endpoint.url);
           
-          if (response?.data && Array.isArray(response.data) && response.data.length > 0) {
-            transactionData = response.data[0] as Transaction;
-          console.log('✅ Transaction found via query param endpoint');
-          }
-      } catch (err1: any) {
-        const errorMessage1 = err1?.response?.data?.message || err1?.message || '';
-        if (errorMessage1.includes('Transaction not found') || errorMessage1.includes('not found')) {
-          console.log('⚠️ Transaction not found via query param - Trying alternatives...');
-        } else {
-          console.log('Query param endpoint error:', err1?.response?.status || err1?.message, '- Trying alternatives...');
-        }
-          
-        // Coba 2: Fetch semua transactions dan filter (sama seperti dashboard admin)
-        // Endpoint ini terbukti bekerja di dashboard, jadi kita gunakan juga di sini
-          try {
-            response = await apiRequest<TransactionResponse>(
-              'GET',
-              '/api/transactions'
-            );
-            console.log('All transactions response:', response);
-            
-            if (response?.data && Array.isArray(response.data)) {
-              // Cari transaction yang sesuai dengan booking_id
-              transactionData = response.data.find(
-                (t: Transaction) => {
-                  const tBookingId = typeof t.booking_id === 'string' ? t.booking_id : String(t.booking_id);
-                  const tBookingIdFromBooking = t.booking?.id ? (typeof t.booking.id === 'string' ? t.booking.id : String(t.booking.id)) : null;
-                  const bookingIdStr = String(bookingId);
-                  return tBookingId === bookingIdStr || tBookingIdFromBooking === bookingIdStr;
-                }
-              ) || null;
-            
-            if (transactionData) {
-              console.log('✅ Transaction found via all transactions endpoint (same as dashboard)');
+          if (endpoint.name === 'query param' || endpoint.name === 'all transactions') {
+            // Handle array response
+            if (response?.data && Array.isArray(response.data) && response.data.length > 0) {
+              let matchingTransactions: Transaction[] = [];
+              
+              if (endpoint.name === 'query param') {
+                // Langsung ambil semua yang match booking_id
+                matchingTransactions = findTransactionByBookingId(response.data, bookingIdStr);
+              } else {
+                // Filter dari semua transactions
+                matchingTransactions = findTransactionByBookingId(response.data, bookingIdStr);
+              }
+              
+              if (matchingTransactions.length > 0) {
+                transactionData = getLatestTransaction(matchingTransactions);
+                console.log(`✅ Transaction found via ${endpoint.name} (${matchingTransactions.length} found, using latest)`);
+                break;
+              }
             }
-          }
-        } catch (err2: any) {
-          const errorMessage2 = err2?.response?.data?.message || err2?.message || '';
-          if (errorMessage2.includes('Transaction not found') || errorMessage2.includes('not found')) {
-            console.log('⚠️ Transaction not found via all transactions - This is normal if payment has not been made yet');
           } else {
-            console.error('All transaction endpoints failed:', err2?.response?.status || err2?.message);
-          }
-        }
-        
-        // Coba 3: Endpoint landing-page dengan booking_id (fallback terakhir)
-        // Endpoint ini mungkin tidak selalu tersedia atau tidak bekerja dengan baik
-        try {
-          response = await apiRequest<any>(
-            'GET',
-            `/api/landing-page/transactions/${bookingId}`
-          );
-          console.log('Transaction response from landing-page:', response);
-          
-          // Cek jika response mengandung error message
-          if (response?.message && response.message === 'Transaction not found') {
-            console.log('⚠️ Transaction not found message from landing-page endpoint');
-          } else {
-            // Handle response
+            // Handle single object response
             if (response?.data && typeof response.data === 'object' && !Array.isArray(response.data)) {
               transactionData = response.data as Transaction;
-              console.log('✅ Transaction found via landing-page endpoint');
+              console.log(`✅ Transaction found via ${endpoint.name}`);
+              break;
             } else if (response && typeof response === 'object' && (response as any).id) {
               transactionData = response as Transaction;
-              console.log('✅ Transaction found via landing-page endpoint (direct object)');
+              console.log(`✅ Transaction found via ${endpoint.name} (direct object)`);
+              break;
             }
-            }
-          } catch (err3: any) {
-          const errorMessage3 = err3?.response?.data?.message || err3?.message || '';
-          if (errorMessage3.includes('Transaction not found') || errorMessage3.includes('not found')) {
-            console.log('⚠️ Transaction not found via landing-page endpoint - This is normal if payment has not been made yet');
-          } else {
-            console.log('Landing-page transaction endpoint error:', err3?.response?.status || err3?.message);
           }
+        } catch (err: any) {
+          const errorMsg = err?.response?.data?.message || err?.message || '';
+          if (!errorMsg.includes('not found')) {
+            console.log(`⚠️ ${endpoint.name} endpoint error:`, err?.response?.status || err?.message);
+          }
+          // Continue ke endpoint berikutnya
         }
       }
 
       if (transactionData) {
-        console.log('✅ Transaction found:', transactionData);
-        console.log('Transaction details:', {
-          id: transactionData.id,
-          booking_id: transactionData.booking_id,
-          bank_type: transactionData.bank_type,
-          total_amount: transactionData.total_amount,
-          payment_status: transactionData.payment_status,
-          has_payment_proof: !!transactionData.payment_proof,
-          assets_count: transactionData.assets?.length || 0
+        // Normalisasi transaction (sort assets, dll)
+        const normalized = normalizeTransaction(transactionData);
+        
+        console.log('✅ Transaction found (LATEST):', {
+          id: normalized.id,
+          booking_id: normalized.booking_id,
+          payment_status: normalized.payment_status,
+          assets_count: normalized.assets?.length || 0,
+          updated_at: normalized.updated_at
         });
-        setTransaction(transactionData);
+        
+        setTransaction(normalized);
+        return normalized;
       } else {
-        console.log('ℹ️ No transaction found for booking_id:', bookingId, '- This is normal if payment has not been made yet');
+        console.log('ℹ️ No transaction found for booking_id:', bookingId);
         setTransaction(null);
+        return null;
       }
     } catch (err: any) {
-      // Tangani error dengan lebih baik
-      const errorMessage = err?.response?.data?.message || err?.message || 'Unknown error';
+      console.error('Error fetching transaction:', err?.response?.status || err?.message);
+      setTransaction(null);
+      return null;
+    } finally {
+      if (showLoading) {
+        setIsRefreshing(false);
+      }
+    }
+  };
+
+  // Fungsi untuk refresh data dengan retry mechanism
+  const refreshTransactionData = async (retries = 3, delay = 1000) => {
+    for (let i = 0; i < retries; i++) {
+      console.log(`🔄 Refreshing transaction data (attempt ${i + 1}/${retries})...`);
+      const updatedTransaction = await fetchTransaction(i === 0); // Show loading only on first attempt
       
-      if (errorMessage.includes('Transaction not found') || errorMessage.includes('not found')) {
-        console.log('ℹ️ Transaction not found - This is normal if payment has not been made yet');
-      } else {
-        console.error('Error fetching transaction:', err?.response?.status || err?.message);
-        console.error('Full error:', err);
+      if (updatedTransaction) {
+        console.log('✅ Transaction data refreshed successfully');
+        return updatedTransaction;
       }
       
-      // Tidak set error karena transaction mungkin belum ada (normal untuk booking baru)
-      setTransaction(null);
+      // Jika belum berhasil dan masih ada retry, tunggu sebentar
+      if (i < retries - 1) {
+        await new Promise(resolve => setTimeout(resolve, delay));
+        delay *= 1.5; // Exponential backoff
+      }
     }
+    
+    console.log('⚠️ Failed to refresh transaction data after all retries');
+    return null;
   };
 
   const formatCurrency = (amount: string | number) => {
@@ -394,6 +468,384 @@ export default function BookingDetailPage() {
     } catch (error) {
       console.warn('Error formatting date:', dateString, error);
       return dateString;
+    }
+  };
+
+  // Helper functions untuk menghitung harga invoice
+  const getRegionFromCountry = (country: string | undefined) => {
+    if (!country || country === 'ID') return 'domestic';
+    return 'overseas';
+  };
+
+  const normalizeDate = (date: string | Date) => {
+    const d = new Date(date);
+    d.setHours(0, 0, 0, 0);
+    return d;
+  };
+
+  const getTripDates = () => {
+    if (!booking) return [];
+    const bookingAny = booking as any;
+    const startDateStr = bookingAny.start_date || bookingAny.trip_start_date || bookingAny.departure_date || booking.created_at;
+    const days = booking.trip_duration?.duration_days || 0;
+    if (!startDateStr || !days) return [];
+    const startDate = normalizeDate(startDateStr);
+    return Array.from({ length: days }, (_, i) => {
+      const d = new Date(startDate);
+      d.setDate(startDate.getDate() + i);
+      d.setHours(0, 0, 0, 0);
+      return d;
+    });
+  };
+
+  const calculateSurcharge = () => {
+    if (!booking) return 0;
+    const trip = booking.trip as any;
+    const surcharges = trip?.surcharges;
+    if (!surcharges || !Array.isArray(surcharges)) return 0;
+    
+    const tripDates = getTripDates();
+    let surchargeAmount = 0;
+    surcharges.forEach((surcharge: any) => {
+      const start = normalizeDate(surcharge.start_date);
+      const end = normalizeDate(surcharge.end_date);
+      const isInSurchargePeriod = tripDates.some(date => date >= start && date <= end);
+      if (isInSurchargePeriod) {
+        surchargeAmount = Number(surcharge.surcharge_price || 0);
+      }
+    });
+    return surchargeAmount * (booking.total_pax || 1);
+  };
+
+  const calculateBasePrice = () => {
+    if (!booking) return 0;
+    const pax = booking.total_pax;
+    const trip = booking.trip as any;
+    const tripHasBoat = trip?.has_boat ?? false;
+    const hasBoatSelections = (booking.boat && booking.boat.length > 0) || (booking.cabin && booking.cabin.length > 0);
+    
+    if (tripHasBoat || hasBoatSelections) {
+      const cabinTotals = (booking.cabin || []).map(c => Number((c as any).booking_total_price || 0));
+      const sumCabinTotals = cabinTotals.reduce((a, b) => a + (Number.isFinite(b) ? b : 0), 0);
+      if (sumCabinTotals > 0) return 0;
+      
+      const cabinBasePrices = (booking.cabin || []).map(c => Number((c as any).base_price || 0));
+      const minCabinPrice = cabinBasePrices.length > 0 ? Math.min(...cabinBasePrices.filter(n => Number.isFinite(n))) : 0;
+      return Number.isFinite(minCabinPrice) ? minCabinPrice : 0;
+    }
+    
+    const prices = booking.trip_duration?.trip_prices as any[];
+    if (!prices || prices.length === 0) return 0;
+
+    const region = getRegionFromCountry(booking.customer_country);
+    const price = prices.find((p: any) =>
+      pax >= p.pax_min &&
+      pax <= p.pax_max &&
+      (p.region === 'Domestic & Overseas' ||
+       (region === 'domestic' && p.region === 'Domestic') ||
+       (region === 'overseas' && p.region === 'Overseas'))
+    );
+    return price ? Number(price.price_per_pax || 0) : 0;
+  };
+
+  const calculateBasePriceTotal = () => {
+    if (!booking) return 0;
+    const basePrice = calculateBasePrice();
+    return basePrice * booking.total_pax;
+  };
+
+  const calculateAdditionalFeesTotal = () => {
+    if (!booking) return 0;
+    const fees = booking.additional_fees || [];
+    const pax = booking.total_pax;
+    const days = booking.trip_duration?.duration_days || 0;
+
+    return fees.reduce((sum, fee) => {
+      const price = Number((fee as any).price || 0);
+      const unit = (fee as any).unit || '';
+      switch (unit) {
+        case 'per_pax':
+          return sum + price * pax;
+        case 'per_5pax':
+          return sum + price * Math.ceil(pax / 5);
+        case 'per_day':
+        case 'per_day_guide':
+          return sum + price * Math.max(days, 0);
+        default:
+          return sum + price;
+      }
+    }, 0);
+  };
+
+  const calculateHotelTotal = () => {
+    if (!booking?.hotel_occupancy) return 0;
+    const pricePerNight = Number((booking.hotel_occupancy as any).price || 0);
+    const nights = booking.trip_duration?.duration_nights ?? Math.max((booking.trip_duration?.duration_days || 0) - 1, 0);
+    return pricePerNight * Math.max(nights, 0);
+  };
+
+  const getCabinTotal = () => {
+    if (!booking) return 0;
+    return (booking.cabin || []).reduce((sum, c) => {
+      const totalFromCabin = Number((c as any).booking_total_price || 0);
+      if (totalFromCabin > 0) return sum + totalFromCabin;
+      const unit = Number((c as any).base_price || 0);
+      const qty = Number((c as any).booking_total_pax || 0);
+      return sum + (Number.isFinite(unit) && Number.isFinite(qty) ? unit * qty : 0);
+    }, 0);
+  };
+
+  // Fungsi untuk mencetak invoice PDF
+  const handlePrintInvoice = () => {
+    if (!booking) return;
+    try {
+      const doc = new jsPDF();
+      const gold: [number, number, number] = [218, 165, 32];
+      const left = 15;
+      const right = 195;
+      let y = 20;
+
+      // Header
+      doc.setFontSize(10);
+      doc.text('Gong Komodo Tour', left, y);
+      doc.setFontSize(22);
+      doc.setTextColor(gold[0], gold[1], gold[2]);
+      doc.text('INVOICE', right, y, { align: 'right' });
+      y += 8;
+      doc.setDrawColor(gold[0], gold[1], gold[2]);
+      doc.setLineWidth(1);
+      doc.line(left, y, right, y);
+      y += 6;
+
+      // Info Booking Box
+      doc.setFillColor(245, 245, 245);
+      doc.roundedRect(left, y, right - left, 24, 3, 3, 'F');
+      doc.setFontSize(11);
+      doc.setTextColor(0, 0, 0);
+      let infoY = y + 7;
+      doc.text(`Booking Code: #${booking.id.toString().padStart(6, '0')}`, left + 4, infoY);
+      if (booking.customer_name) {
+        doc.text(`Customer: ${booking.customer_name}`, left + 70, infoY);
+      }
+      infoY += 7;
+      doc.text(`Trip: ${booking.trip?.name || '-'}`, left + 4, infoY);
+      doc.text(`Tanggal Booking: ${new Date(booking.created_at).toLocaleString('id-ID')}`, left + 70, infoY);
+      y += 28;
+
+      // Rincian Biaya Table
+      doc.setFontSize(13);
+      doc.setTextColor(gold[0], gold[1], gold[2]);
+      doc.text('Rincian Biaya', left, y);
+      y += 4;
+      doc.setTextColor(0, 0, 0);
+
+      // Siapkan data tabel
+      const rows: [string, string][] = [];
+      const tripType = (booking.trip as any)?.type || 'Private Trip';
+      const basePrice = calculateBasePrice();
+      const basePriceTotal = calculateBasePriceTotal();
+      
+      if (basePrice > 0) {
+        rows.push([
+          tripType === 'Open Trip' ? 'Open Trip' : 'Private Trip',
+          `IDR ${basePrice.toLocaleString('id-ID')}/pax x ${booking.total_pax} pax = IDR ${basePriceTotal.toLocaleString('id-ID')}`
+        ]);
+      }
+
+      (booking.additional_fees || []).forEach((fee: any) => {
+        rows.push([
+          fee.fee_category || '-',
+          `IDR ${Number(fee.price || 0).toLocaleString('id-ID')}` +
+            (fee.unit === 'per_pax' ? '/pax' : '') +
+            (fee.unit === 'per_5pax' ? '/5 pax' : '') +
+            (fee.unit === 'per_day' ? '/hari' : '') +
+            (fee.unit === 'per_day_guide' ? '/hari' : '')
+        ]);
+      });
+
+      (booking.cabin || []).forEach((cabin: any) => {
+        rows.push([
+          `${cabin.cabin_name || '-'} (${cabin.bed_type || '-'})`,
+          `${cabin.max_pax || cabin.booking_total_pax || 0} pax`
+        ]);
+      });
+
+      if (booking.hotel_occupancy) {
+        const hotel = booking.hotel_occupancy as any;
+        rows.push([
+          `${hotel.hotel_name || '-'} (${hotel.occupancy || '-'})`,
+          `IDR ${Number(hotel.price || 0).toLocaleString('id-ID')}/malam x ${booking.trip_duration?.duration_nights || 0} malam`
+        ]);
+      }
+
+      const surcharge = calculateSurcharge();
+      if (surcharge > 0) {
+        rows.push([
+          'Surcharge (High Peak Season)',
+          `IDR ${(surcharge / (booking.total_pax || 1)).toLocaleString('id-ID')}/pax x ${booking.total_pax} pax = IDR ${surcharge.toLocaleString('id-ID')}`
+        ]);
+      }
+
+      // Pastikan rows tidak ada undefined/null
+      const safeRows = rows.map(row => [row[0] || '-', row[1] || '-']);
+
+      autoTable(doc, {
+        startY: y + 4,
+        head: [['Keterangan', 'Nominal']],
+        body: safeRows,
+        theme: 'grid',
+        headStyles: { fillColor: gold, textColor: 255, fontStyle: 'bold' },
+        bodyStyles: { textColor: 20 },
+        styles: { fontSize: 11, cellPadding: 2 },
+        columnStyles: { 1: { halign: 'right' } },
+        margin: { left: left, right: 15 },
+      });
+      
+      // Type guard untuk akses lastAutoTable
+      let lastY = y + 8;
+      const docWithTable = doc as JsPdfWithAutoTable;
+      if (docWithTable.lastAutoTable && typeof docWithTable.lastAutoTable.finalY === 'number') {
+        lastY = docWithTable.lastAutoTable.finalY + 8;
+      }
+      y = lastY;
+
+      // Sub Total & Jumlah Total
+      doc.setFontSize(13);
+      doc.setTextColor(gold[0], gold[1], gold[2]);
+      doc.text('Sub Total:', left, y);
+      doc.setFontSize(13);
+      doc.setTextColor(0, 0, 0);
+      doc.text(`IDR ${Number(booking.total_price || 0).toLocaleString('id-ID')}`, right, y, { align: 'right' });
+      y += 9;
+      doc.setFontSize(15);
+      doc.setTextColor(gold[0], gold[1], gold[2]);
+      doc.text('Jumlah Total:', left, y);
+      doc.text(`IDR ${Number(booking.total_price || 0).toLocaleString('id-ID')}`, right, y, { align: 'right' });
+      y += 15;
+
+      // Footer
+      doc.setFontSize(10);
+      doc.setTextColor(100, 100, 100);
+      doc.text(`Dicetak pada: ${new Date().toLocaleString('id-ID')}`, left, y);
+      doc.save(`Invoice_Booking_${booking.id.toString().padStart(6, '0')}.pdf`);
+    } catch (err) {
+      alert('Gagal membuat PDF. Silakan coba lagi.');
+      console.error('PDF Error:', err);
+    }
+  };
+
+  // Fungsi untuk handle upload bukti transfer
+  const handleUploadClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Validasi mime & ekstensi
+      const lowerName = file.name.toLowerCase();
+      const hasAllowedExt = ALLOWED_EXTENSIONS.some(ext => lowerName.endsWith(ext));
+      const hasAllowedMime = ALLOWED_MIME_TYPES.includes(file.type);
+      
+      if (!hasAllowedExt || !hasAllowedMime) {
+        setUploadError("Format file tidak didukung. Gunakan JPG/ JPEG/ PNG.");
+        setPaymentProof(null);
+        setImagePreview(null);
+        if (e.target) e.target.value = "";
+        return;
+      }
+
+      setPaymentProof(file);
+      setUploadError(null);
+      setUploadSuccess(false);
+      
+      if (file.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          setImagePreview(ev.target?.result as string);
+        };
+        reader.readAsDataURL(file);
+      } else {
+        setImagePreview(null);
+      }
+    }
+  };
+
+  const handleUploadPaymentProof = async () => {
+    if (!paymentProof || !booking) {
+      setUploadError("Silakan pilih file terlebih dahulu.");
+      return;
+    }
+
+    try {
+      setIsUploading(true);
+      setUploadError(null);
+      setUploadSuccess(false);
+
+      const formData = new FormData();
+      
+      // Tambahkan data transaksi yang diperlukan
+      formData.append('booking_id', String(booking.id));
+      
+      // Jika transaction sudah ada, gunakan data yang ada. Jika belum, gunakan data dari booking
+      if (transaction) {
+        formData.append('bank_type', transaction.bank_type || '');
+        formData.append('total_amount', String(transaction.total_amount || booking.total_price));
+      } else {
+        // Jika belum ada transaction, gunakan data dari booking
+        formData.append('bank_type', '');
+        formData.append('total_amount', String(booking.total_price));
+      }
+      
+      formData.append('payment_status', 'Menunggu Pembayaran'); // Reset ke Menunggu Pembayaran setelah upload ulang
+      
+      // Tambahkan file bukti transfer
+      formData.append('assets[0][title]', 'Bukti Transfer');
+      formData.append('assets[0][description]', 'Bukti transfer pembayaran');
+      formData.append('assets[0][is_external]', '0');
+      formData.append('assets[0][file]', paymentProof);
+
+      // Selalu gunakan POST untuk create/update transaction dengan file
+      // Backend akan handle apakah create baru atau update existing
+      await apiRequest(
+        'POST',
+        '/api/landing-page/transactions',
+        formData,
+        {
+          headers: {
+            'Content-Type': 'multipart/form-data'
+          }
+        }
+      );
+
+      setUploadSuccess(true);
+      setPaymentProof(null);
+      setImagePreview(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+
+      // Refresh transaction data dengan retry mechanism untuk memastikan data terbaru
+      // Tunggu sebentar untuk memberi waktu backend memproses file upload
+      setTimeout(async () => {
+        await refreshTransactionData(3, 1500);
+      }, 2000);
+      
+      // Reset success message after 5 seconds
+      setTimeout(() => {
+        setUploadSuccess(false);
+      }, 5000);
+    } catch (err: unknown) {
+      const anyErr = err as { response?: { data?: { message?: string } }; message?: string };
+      const apiMsg = (anyErr?.response?.data?.message || anyErr?.message || '').toString();
+      
+      if (apiMsg.includes('validation.mimes')) {
+        setUploadError('Format file tidak didukung server. Gunakan JPG/ JPEG/ PNG.');
+      } else {
+        setUploadError(apiMsg || 'Gagal mengunggah bukti transfer. Coba lagi.');
+      }
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -651,9 +1103,21 @@ export default function BookingDetailPage() {
           <div className="xl:col-span-4 space-y-6">
             {/* Transaction & Payment Proof Section */}
             <Card className="p-6 shadow-sm">
-              <div className="flex items-center gap-2 mb-6 border-b pb-3">
-                <Receipt className="w-5 h-5 text-gold" />
-                <h2 className="text-xl font-bold text-gray-900">Informasi Pembayaran</h2>
+              <div className="flex items-center justify-between mb-6 border-b pb-3">
+                <div className="flex items-center gap-2">
+                  <Receipt className="w-5 h-5 text-gold" />
+                  <h2 className="text-xl font-bold text-gray-900">Informasi Pembayaran</h2>
+                </div>
+                <Button
+                  onClick={() => refreshTransactionData(3, 1000)}
+                  variant="ghost"
+                  size="sm"
+                  className="text-gray-600 hover:text-gray-900"
+                  disabled={isRefreshing}
+                >
+                  <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+                  {isRefreshing ? 'Memperbarui...' : 'Refresh'}
+                </Button>
               </div>
               
               {transaction ? (
@@ -741,97 +1205,109 @@ export default function BookingDetailPage() {
                     </div>
                   )}
 
-                  {/* Payment Proof Images - Mengikuti pattern dari data-table.tsx */}
+                  {/* Payment Proof Images - Assets sudah ter-sort dan ter-filter dari normalizeTransaction */}
                   <div className="pt-4 border-t border-gray-200">
-                    <p className="text-sm font-medium text-gray-600 mb-4">Bukti Pembayaran</p>
-                    {(transaction.assets && transaction.assets.length > 0) || transaction.payment_proof ? (
-                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                        {/* Display assets jika ada */}
-                        {transaction.assets && transaction.assets.length > 0 && transaction.assets.map((asset: TransactionAsset, index: number) => {
-                          if (!asset || !asset.file_url) return null;
+                    <p className="text-sm font-medium text-gray-600 mb-4">
+                      Bukti Pembayaran
+                      {transaction.assets && transaction.assets.length > 0 && (
+                        <span className="text-xs text-gray-500 ml-2">
+                          ({transaction.assets.length} file{transaction.assets.length > 1 ? 's' : ''})
+                        </span>
+                      )}
+                    </p>
+                    {(() => {
+                      // Assets sudah dinormalisasi (sorted & filtered) dari normalizeTransaction
+                      const assets = transaction.assets || [];
+                      const hasAssets = assets.length > 0;
+                      const hasPaymentProof = !!transaction.payment_proof;
+                      
+                      if (!hasAssets && !hasPaymentProof) {
+                        return (
+                          <div className="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                            <Receipt className="w-12 h-12 text-gray-400 mx-auto mb-2" />
+                            <p className="text-sm text-gray-500">Belum ada bukti pembayaran yang diunggah</p>
+                          </div>
+                        );
+                      }
+                      
+                      return (
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                          {/* Display assets (sudah ter-sort: terbaru di atas) */}
+                          {assets.map((asset: TransactionAsset) => {
+                            const imageUrl = getImageUrl(asset.file_url || asset.original_file_url);
+                            
+                            return (
+                              <div 
+                                key={asset.id || asset.file_url} 
+                                className="space-y-2 cursor-pointer group w-full"
+                                onClick={() => setSelectedImage(asset)}
+                              >
+                                <div className="relative aspect-[4/3] rounded-lg overflow-hidden border border-gray-200 w-full">
+                                  <Image
+                                    src={imageUrl}
+                                    alt={asset.title || "Bukti Pembayaran"}
+                                    fill
+                                    sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, (max-width: 1024px) 25vw, 20vw"
+                                    className="object-cover transition-transform duration-200 group-hover:scale-105"
+                                    unoptimized={true}
+                                    onError={(e) => {
+                                      (e.target as HTMLImageElement).src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjNmNGY2Ii8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzk5YTNhZiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPkltYWdlIE5vdCBGb3VuZDwvdGV4dD48L3N2Zz4=';
+                                    }}
+                                  />
+                                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-200" />
+                                </div>
+                                {asset.title && (
+                                  <p className="text-sm text-gray-600 text-center truncate" title={asset.title}>
+                                    {asset.title}
+                                  </p>
+                                )}
+                                {asset.description && (
+                                  <p className="text-xs text-gray-500 text-center truncate" title={asset.description}>
+                                    {asset.description}
+                                  </p>
+                                )}
+                              </div>
+                            );
+                          })}
                           
-                          const imageUrl = getImageUrl(asset.file_url || asset.original_file_url);
-                          
-                          return (
+                          {/* Fallback ke payment_proof jika assets tidak ada */}
+                          {!hasAssets && hasPaymentProof && (
                             <div 
-                              key={asset.id || `asset-${index}`} 
                               className="space-y-2 cursor-pointer group w-full"
-                              onClick={() => setSelectedImage(asset)}
+                              onClick={() => {
+                                setSelectedImage({
+                                  id: 0,
+                                  title: "Bukti Pembayaran",
+                                  description: "Bukti pembayaran transaksi",
+                                  file_url: transaction.payment_proof,
+                                  original_file_url: transaction.payment_proof,
+                                  is_external: false,
+                                  file_path: "",
+                                  created_at: transaction.created_at,
+                                  updated_at: transaction.updated_at
+                                });
+                              }}
                             >
                               <div className="relative aspect-[4/3] rounded-lg overflow-hidden border border-gray-200 w-full">
                                 <Image
-                                  src={imageUrl}
-                                  alt={asset.title || `Bukti Pembayaran ${index + 1}`}
+                                  src={getImageUrl(transaction.payment_proof)}
+                                  alt="Bukti Pembayaran"
                                   fill
-                                  sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, (max-width: 1024px) 25vw, 20vw"
+                                  sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
                                   className="object-cover transition-transform duration-200 group-hover:scale-105"
                                   unoptimized={true}
                                   onError={(e) => {
-                                    const target = e.target as HTMLImageElement;
-                                    target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjNmNGY2Ii8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzk5YTNhZiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPkltYWdlIE5vdCBGb3VuZDwvdGV4dD48L3N2Zz4=';
+                                    (e.target as HTMLImageElement).src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjNmNGY2Ii8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzk5YTNhZiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPkltYWdlIE5vdCBGb3VuZDwvdGV4dD48L3N2Zz4=';
                                   }}
                                 />
                                 <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-200" />
                               </div>
-                              {asset.title && (
-                                <p className="text-sm text-gray-600 text-center truncate" title={asset.title}>
-                                  {asset.title}
-                                </p>
-                              )}
-                              {asset.description && (
-                                <p className="text-xs text-gray-500 text-center truncate" title={asset.description}>
-                                  {asset.description}
-                                </p>
-                              )}
+                              <p className="text-sm text-gray-600 text-center truncate">Bukti Pembayaran</p>
                             </div>
-                          );
-                        })}
-                        {/* Fallback ke payment_proof jika assets tidak ada */}
-                        {(!transaction.assets || transaction.assets.length === 0) && transaction.payment_proof && (
-                          <div 
-                            className="space-y-2 cursor-pointer group w-full"
-                            onClick={() => {
-                              const tempAsset: TransactionAsset = {
-                                id: 0,
-                                title: "Bukti Pembayaran",
-                                description: "Bukti pembayaran transaksi",
-                                file_url: transaction.payment_proof,
-                                original_file_url: transaction.payment_proof,
-                                is_external: false,
-                                file_path: "",
-                                created_at: transaction.created_at,
-                                updated_at: transaction.updated_at
-                              };
-                              setSelectedImage(tempAsset);
-                            }}
-                          >
-                            <div className="relative aspect-[4/3] rounded-lg overflow-hidden border border-gray-200 w-full">
-                              <Image
-                                src={getImageUrl(transaction.payment_proof)}
-                                alt="Bukti Pembayaran"
-                                fill
-                                sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
-                                className="object-cover transition-transform duration-200 group-hover:scale-105"
-                                unoptimized={true}
-                                onError={(e) => {
-                                  const target = e.target as HTMLImageElement;
-                                  target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjNmNGY2Ii8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzk5YTNhZiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPkltYWdlIE5vdCBGb3VuZDwvdGV4dD48L3N2Zz4=';
-                                }}
-                              />
-                              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-200" />
-                            </div>
-                            <p className="text-sm text-gray-600 text-center truncate" title="Bukti Pembayaran">
-                              Bukti Pembayaran
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
-                        <Receipt className="w-12 h-12 text-gray-400 mx-auto mb-2" />
-                        <p className="text-sm text-gray-500">Belum ada bukti pembayaran yang diunggah</p>
-                      </div>
-                    )}
+                          )}
+                        </div>
+                      );
+                    })()}
                   </div>
                   
                   {/* Image Modal */}
@@ -843,6 +1319,128 @@ export default function BookingDetailPage() {
                       title={selectedImage.title}
                       description={selectedImage.description || "Bukti pembayaran transaksi"}
                     />
+                  )}
+
+                  {/* Button Cetak Invoice - Hanya muncul jika status Lunas */}
+                  {transaction.payment_status === "Lunas" && (
+                    <div className="pt-4 border-t border-gray-200">
+                      <Button
+                        onClick={handlePrintInvoice}
+                        className="w-full bg-gold text-white hover:bg-gold-dark-20 transition-colors"
+                      >
+                        <Receipt className="w-4 h-4 mr-2" />
+                        Cetak Invoice (PDF)
+                      </Button>
+                    </div>
+                  )}
+
+                  {/* Upload Bukti Transfer - Hanya muncul jika status Ditolak atau Menunggu Pembayaran */}
+                  {(transaction.payment_status === "Ditolak" || 
+                    transaction.payment_status === "Menunggu Pembayaran" ||
+                    transaction.payment_status?.toLowerCase() === "rejected" ||
+                    transaction.payment_status?.toLowerCase() === "pending" ||
+                    transaction.payment_status?.toLowerCase() === "waiting") && (
+                    <div className="pt-4 border-t border-gray-200">
+                      <div className="space-y-4">
+                        <div>
+                          <p className="text-sm font-medium text-gray-600 mb-2">
+                            {transaction.payment_status === "Ditolak" 
+                              ? "Upload Ulang Bukti Transfer" 
+                              : "Upload Bukti Transfer"}
+                          </p>
+                          {transaction.payment_status === "Ditolak" && (
+                            <p className="text-xs text-red-600 mb-3">
+                              Bukti transfer sebelumnya tidak valid. Silakan upload bukti transfer yang baru.
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Upload Section */}
+                        <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                          <button
+                            onClick={handleUploadClick}
+                            className="w-full bg-gold text-white py-3 rounded-lg font-semibold text-sm flex items-center justify-center mb-3 hover:bg-gold-dark-20 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                            type="button"
+                            disabled={isUploading}
+                          >
+                            <FaUpload className="mr-2" />
+                            {isUploading ? "Mengunggah..." : "Pilih File Bukti Transfer"}
+                          </button>
+                          
+                          <input
+                            type="file"
+                            ref={fileInputRef}
+                            style={{ display: "none" }}
+                            accept="image/jpeg,image/png,image/jpg"
+                            onChange={handleFileChange}
+                            disabled={isUploading}
+                          />
+
+                          {/* Preview Image */}
+                          {imagePreview && (
+                            <div className="w-full flex justify-center mb-3">
+                              <Image
+                                src={imagePreview}
+                                alt="Preview"
+                                width={300}
+                                height={180}
+                                className="rounded-lg shadow object-contain border max-h-60"
+                                style={{ maxHeight: '240px', width: 'auto', height: 'auto' }}
+                              />
+                            </div>
+                          )}
+
+                          {/* File Name */}
+                          {paymentProof && !imagePreview && (
+                            <p className="text-sm text-gray-700 text-center mb-3">
+                              {paymentProof.name}
+                            </p>
+                          )}
+
+                          {/* Error Message */}
+                          {uploadError && (
+                            <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+                              <p className="text-sm text-red-600">{uploadError}</p>
+                            </div>
+                          )}
+
+                          {/* Success Message */}
+                          {uploadSuccess && (
+                            <div className="mb-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+                              <p className="text-sm text-green-600">
+                                Bukti transfer berhasil diunggah! Status pembayaran akan diperbarui setelah verifikasi.
+                              </p>
+                            </div>
+                          )}
+
+                          {/* Submit Button */}
+                          {paymentProof && (
+                            <Button
+                              onClick={handleUploadPaymentProof}
+                              className="w-full bg-green-500 text-white hover:bg-green-600 transition-colors"
+                              disabled={isUploading || !paymentProof}
+                            >
+                              {isUploading ? (
+                                <>
+                                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                                  Mengunggah...
+                                </>
+                              ) : (
+                                <>
+                                  <Upload className="w-4 h-4 mr-2" />
+                                  Upload Bukti Transfer
+                                </>
+                              )}
+                            </Button>
+                          )}
+
+                          {/* Info Text */}
+                          <p className="text-xs text-gray-500 mt-3 text-center">
+                            Format yang didukung: JPG, JPEG, PNG (Maks. 5MB)
+                          </p>
+                        </div>
+                      </div>
+                    </div>
                   )}
                 </div>
               ) : (
