@@ -160,7 +160,6 @@ export const columns = (onStatusUpdate?: (transactionId: string, newStatus: stri
       const statusOptions = [
         { value: "Menunggu Pembayaran", label: "Menunggu Pembayaran", color: "bg-yellow-100 text-yellow-800" },
         { value: "Lunas", label: "Lunas", color: "bg-green-100 text-green-800" },
-        { value: "Pembayaran Berhasil", label: "Pembayaran Berhasil", color: "bg-green-100 text-green-800" },
         { value: "Ditolak", label: "Ditolak", color: "bg-red-100 text-red-800" }
       ]
       

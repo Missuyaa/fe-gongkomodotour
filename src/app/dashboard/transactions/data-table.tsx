@@ -276,8 +276,6 @@ export function DataTable({
         return updatedData
       })
       
-      // Show success notification
-      toast.success(`Status pembayaran berhasil diubah menjadi "${newStatus}"`)
       
       // Force re-render
       setUpdateKey(prev => prev + 1)
@@ -415,7 +413,6 @@ export function DataTable({
                 <div className="bg-gray-50 p-2 rounded border border-gray-100">
                   <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                     transaction.payment_status === "Lunas" ? "bg-green-100 text-green-800" :
-                    transaction.payment_status === "Pembayaran Berhasil" ? "bg-green-100 text-green-800" :
                     transaction.payment_status === "Menunggu Pembayaran" ? "bg-yellow-100 text-yellow-800" :
                     transaction.payment_status === "Ditolak" ? "bg-red-100 text-red-800" :
                     "bg-gray-100 text-gray-800"

@@ -9,6 +9,7 @@ const inter = Inter({ subsets: ['latin'] })
 export const metadata = {
   title: 'Gong Komodo Tour & Travel',
   description: 'Jelajahi keindahan Pulau Komodo dan sekitarnya bersama kami'
+  
 }
 
 export default function RootLayout({
